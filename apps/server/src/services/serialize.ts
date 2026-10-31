@@ -124,3 +124,10 @@ export function serializePlace(r: PlaceRow): Place {
     createdAt: r.created_at.toISOString(),
   };
 }
+
+/** Heuristic travel mode from average moving speed (m/s). Always presented as an estimate. */
+export const MODE_SQL = `CASE
+  WHEN avg_moving_speed IS NULL THEN 'unknown'
+  WHEN avg_moving_speed < 2.2 THEN 'walking'
+  WHEN avg_moving_speed < 6.5 THEN 'cycling'
+  ELSE 'driving' END`;

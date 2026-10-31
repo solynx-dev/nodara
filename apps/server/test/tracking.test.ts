@@ -178,7 +178,7 @@ describe('ingestion, trips and geofences', () => {
     const preview = await runRetention(env.ctx, { dryRun: true });
     expect(preview.find((r) => r.userId === u.id)?.locations).toBe(1);
     await runRetention(env.ctx);
-    const [{ n }] = await env.sql<{ n: number }[]>`SELECT count(*)::int AS n FROM locations WHERE user_id = ${u.id}`;
+    const { n } = (await env.sql<{ n: number }[]>`SELECT count(*)::int AS n FROM locations WHERE user_id = ${u.id}`)[0]!;
     expect(n).toBe(1);
     const notes = (await u.client.get('/api/notifications')).json().items;
     expect(notes[0].type).toBe('retention');

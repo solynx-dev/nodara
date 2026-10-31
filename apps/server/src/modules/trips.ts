@@ -5,18 +5,13 @@ import { requireUser } from '../auth.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import { historyAccess } from '../services/access.js';
-import { serializeTrip, TRIP_COLUMNS, type TripRow } from '../services/serialize.js';
+import { MODE_SQL, serializeTrip, TRIP_COLUMNS, type TripRow } from '../services/serialize.js';
 import { rebuildTrips } from '../services/trips.js';
 import { requireHistory } from './locations.js';
 
 const uuid = z.string().uuid();
 
-/** Heuristic travel mode from average moving speed (m/s). Always presented as an estimate. */
-export const MODE_SQL = `CASE
-  WHEN avg_moving_speed IS NULL THEN 'unknown'
-  WHEN avg_moving_speed < 2.2 THEN 'walking'
-  WHEN avg_moving_speed < 6.5 THEN 'cycling'
-  ELSE 'driving' END`;
+
 
 export default async function tripRoutes(app: FastifyInstance, ctx: Ctx) {
   const { sql } = ctx;

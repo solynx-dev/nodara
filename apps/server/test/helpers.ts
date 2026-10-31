@@ -82,7 +82,7 @@ let counter = 0;
 export async function newUser(env: TestEnv, name = 'User'): Promise<{ client: Client; id: string; email: string; deviceId: string }> {
   const client = new Client(env.app);
   const email = `${name.toLowerCase().replace(/\s+/g, '')}${++counter}@example.com`;
-  const [{ n }] = await env.sql<{ n: number }[]>`SELECT count(*)::int AS n FROM users WHERE NOT is_demo`;
+  const { n } = (await env.sql<{ n: number }[]>`SELECT count(*)::int AS n FROM users WHERE NOT is_demo`)[0]!;
   const path = n === 0 ? '/api/auth/setup' : '/api/auth/register';
   const res = await client.post(path, { email, password: 'correct horse battery', displayName: name });
   if (res.statusCode !== 200) throw new Error(`register failed: ${res.body}`);

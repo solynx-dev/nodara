@@ -6,7 +6,7 @@ import { badRequest, forbidden, notFound, unauthorized } from '../lib/errors.js'
 import { parse } from '../lib/validate.js';
 import { fixSchema, fromOverland, fromOwnTracks, ingestFixes, MAX_BATCH } from '../services/ingest.js';
 import { historyAccess, type HistoryAccess } from '../services/access.js';
-import { LOCATION_COLUMNS, serializeLocation, serializeTrip, TRIP_COLUMNS, type LocationRow, type TripRow } from '../services/serialize.js';
+import { LOCATION_COLUMNS, MODE_SQL, serializeLocation, serializeTrip, TRIP_COLUMNS, type LocationRow, type TripRow } from '../services/serialize.js';
 
 const INGEST_RATE = { max: 240, timeWindow: '1 minute' };
 const uuid = z.string().uuid();
@@ -185,8 +185,8 @@ export default async function locationRoutes(app: FastifyInstance, ctx: Ctx) {
     const vis = visibleFilter(ctx, access);
 
     const trips = tripAccess
-      ? await sql<TripRow[]>`
-          SELECT ${sql(TRIP_COLUMNS as unknown as string[])} FROM trips
+      ? await sql<(TripRow & { mode: string })[]>`
+          SELECT ${sql(TRIP_COLUMNS as unknown as string[])}, ${sql.unsafe(MODE_SQL)} AS mode FROM trips
           WHERE user_id = ${target} AND started_at < ${to} AND COALESCE(ended_at, now()) > ${from}
             ${tripAccess.own ? sql`` : sql`AND started_at >= ${tripAccess.since}`}
           ORDER BY started_at`
@@ -198,7 +198,7 @@ export default async function locationRoutes(app: FastifyInstance, ctx: Ctx) {
 
     type Item =
       | { type: 'stay'; startAt: string; endAt: string; lat: number; lon: number; label: string | null; placeId: string | null }
-      | { type: 'trip'; trip: ReturnType<typeof serializeTrip> };
+      | { type: 'trip'; trip: ReturnType<typeof serializeTrip> & { mode: string } };
     const items: Item[] = [];
 
     const stayAt = async (start: Date, end: Date, near: { lat: number; lon: number } | null) => {
@@ -216,8 +216,8 @@ export default async function locationRoutes(app: FastifyInstance, ctx: Ctx) {
         SELECT p.id, p.name FROM places p
         WHERE (p.circle_id IN (SELECT circle_id FROM circle_members WHERE user_id = ${a.userId})
                OR (p.circle_id IS NULL AND p.owner_id = ${a.userId}))
-          AND ST_DWithin(p.geog, ST_SetSRID(ST_MakePoint(${pos.lon}, ${pos.lat}), 4326)::geography, p.radius_m)
-        ORDER BY p.radius_m LIMIT 1`;
+          AND ST_DWithin(p.geog, ST_SetSRID(ST_MakePoint(${pos.lon}, ${pos.lat}), 4326)::geography, p.radius_m + 75)
+        ORDER BY ST_Distance(p.geog, ST_SetSRID(ST_MakePoint(${pos.lon}, ${pos.lat}), 4326)::geography) LIMIT 1`;
       const label = place?.name ?? (await ctx.geocoder.reverse(pos.lat, pos.lon));
       items.push({
         type: 'stay',
@@ -233,7 +233,7 @@ export default async function locationRoutes(app: FastifyInstance, ctx: Ctx) {
     let cursor = bounds.first;
     for (const t of trips) {
       if (t.started_at > cursor) await stayAt(cursor, t.started_at, { lat: t.start_lat, lon: t.start_lon });
-      items.push({ type: 'trip', trip: serializeTrip(t) });
+      items.push({ type: 'trip', trip: { ...serializeTrip(t), mode: t.mode } });
       cursor = t.ended_at ?? new Date();
     }
     const lastTrip = trips[trips.length - 1];

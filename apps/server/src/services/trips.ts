@@ -108,7 +108,8 @@ async function placeAt(ctx: Ctx, userId: string, lat: number, lon: number) {
     SELECT p.id, p.name FROM places p
     WHERE (p.owner_id = ${userId} AND p.circle_id IS NULL
            OR p.circle_id IN (SELECT circle_id FROM circle_members WHERE user_id = ${userId}))
-      AND ST_DWithin(p.geog, ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography, p.radius_m)
+      -- Small tolerance: the first/last fix of a trip is often just outside the fence.
+      AND ST_DWithin(p.geog, ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography, p.radius_m + 75)
     ORDER BY ST_Distance(p.geog, ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography)
     LIMIT 1`;
   return rows[0] ?? null;

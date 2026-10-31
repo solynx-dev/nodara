@@ -103,7 +103,9 @@ export function segmentTrips(
   const completed: DetectedTrip[] = [];
 
   let anchor: TPoint | null = null;
+  // Last fix within stopRadiusM of the anchor, and the in-between fixes since then.
   let lastStationary: TPoint | null = null;
+  let drift: TPoint[] = [];
   if (init) {
     anchor = init.anchor;
     lastStationary = init.last;
@@ -123,6 +125,7 @@ export function segmentTrips(
     trip = null;
     anchor = end;
     lastStationary = end;
+    drift = [];
     for (const p of rest) step(p);
   };
 
@@ -134,6 +137,7 @@ export function segmentTrips(
         // After a gap, start fresh from this point.
         anchor = p;
         lastStationary = p;
+        drift = [];
         return;
       }
       trip.push(p);
@@ -152,12 +156,18 @@ export function segmentTrips(
     }
     const d = haversine(anchor.lat, anchor.lon, p.lat, p.lon);
     if (d > cfg.departRadiusM) {
+      // The trip starts at the last fix that was still at the resting place,
+      // and includes the fixes that drifted away from it before the threshold.
       const start = lastStationary ?? anchor;
       tripAnchor = anchor;
-      trip = [start, p];
-      dwellIdx = 1;
-    } else {
+      trip = [start, ...drift, p];
+      drift = [];
+      dwellIdx = trip.length - 1;
+    } else if (d <= cfg.stopRadiusM) {
       lastStationary = p;
+      drift = [];
+    } else {
+      drift.push(p);
     }
   };
 
