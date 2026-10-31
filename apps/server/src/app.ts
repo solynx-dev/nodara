@@ -39,6 +39,8 @@ export async function buildApp(config: Config, opts: { sql?: Sql; logger?: boole
   const app = Fastify({
     logger: opts.logger === false ? false : { level: config.LOG_LEVEL },
     trustProxy: config.TRUST_PROXY,
+    // Per-request logs would record who fetched whose location; keep them for debugging only.
+    disableRequestLogging: config.LOG_LEVEL !== 'debug' && config.LOG_LEVEL !== 'trace',
     bodyLimit: 1024 * 1024,
   });
   const sql = opts.sql ?? createDb(config.DATABASE_URL, config.DATABASE_POOL_SIZE);

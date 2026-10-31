@@ -83,7 +83,7 @@ export default function CirclePage() {
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[28px] font-extrabold tracking-[-0.03em]">{circle.name}</h1>
           <p className="text-[14px] text-muted">
-            {circle.memberCount} members · created {format(new Date(circle.createdAt), 'MMM d, yyyy')}
+            {circle.memberCount} {circle.memberCount === 1 ? 'member' : 'members'} · created {format(new Date(circle.createdAt), 'MMM d, yyyy')}
           </p>
         </div>
         <div className="flex gap-2">

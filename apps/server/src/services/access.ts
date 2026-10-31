@@ -69,6 +69,12 @@ export async function canSeeLive(sql: Sql, viewerId: string, targetId: string): 
 export type HistoryAccess = { own: true } | { own: false; since: Date } | null;
 
 /**
+ * Tolerance for device clocks running slightly behind the server, so the first
+ * fix sent right after joining isn't hidden. Applies to live and history alike.
+ */
+export const CLOCK_SKEW_GRACE_MS = 2 * 60_000;
+
+/**
  * Determine whether `viewerId` may read `targetId`'s history (or trips), and
  * from which moment. Returns null when access is denied.
  */
@@ -88,5 +94,5 @@ export async function historyAccess(
     WHERE me.user_id = ${viewerId} AND t.user_id = ${targetId} AND t.sharing
       AND COALESCE((c.settings ->> ${key})::boolean, true)`;
   const since = rows[0]?.since;
-  return since ? { own: false, since } : null;
+  return since ? { own: false, since: new Date(since.getTime() - CLOCK_SKEW_GRACE_MS) } : null;
 }

@@ -222,7 +222,7 @@ export default function HistoryPage() {
             ]}
           />
           {memberId === me.id && (
-            <a href={`/api/me/export${qs({ format: 'gpx', from: from.toISOString(), to: to.toISOString() })}`} className="ml-auto" download>
+            <a href={`/api/me/export${qs({ format: 'gpx', from: from.toISOString(), to: to.toISOString() })}`} className="ml-auto hidden sm:block" download>
               <Button size="sm" icon={<Download className="size-4" />} className="shadow-card">
                 GPX
               </Button>
@@ -232,7 +232,7 @@ export default function HistoryPage() {
 
         {/* Day stats */}
         {points.data && pts.length > 0 && (
-          <div className="absolute top-[68px] left-3 z-10 hidden gap-2 sm:flex">
+          <div className="absolute top-[68px] left-3 z-10 flex gap-2">
             <StatChip label="Distance" value={formatDistance(points.data.distanceM, units)} />
             <StatChip label="Trips" value={String(trips.length)} />
             <StatChip label="Points" value={points.data.total.toLocaleString()} sub={points.data.decimated ? 'simplified' : undefined} />

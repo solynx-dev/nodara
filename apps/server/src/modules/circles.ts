@@ -6,7 +6,7 @@ import { audit, requireUser } from '../auth.js';
 import { randomToken, sha256 } from '../lib/crypto.js';
 import { badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
-import { isCircleMember } from '../services/access.js';
+import { CLOCK_SKEW_GRACE_MS, isCircleMember } from '../services/access.js';
 import { serializeLocation, type LocationRow } from '../services/serialize.js';
 
 const DEFAULT_SETTINGS: CircleSettings = { historyVisible: true, tripsVisible: true, membersCanInvite: false };
@@ -65,18 +65,20 @@ export async function memberLocations(ctx: Ctx, viewerId: string, circleId: stri
       device_name: string | null;
       in_trip: boolean;
       loc_id: number | null;
+      since: Date | null;
     })[]
   >`
     WITH members AS (
       SELECT t.user_id,
              (array_agg(t.role ORDER BY CASE t.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END))[1] AS role,
-             bool_or(t.sharing) AS sharing
+             bool_or(t.sharing) AS sharing,
+             min(t.sharing_since) FILTER (WHERE t.sharing) AS since
       FROM circle_members me JOIN circle_members t ON t.circle_id = me.circle_id
       WHERE me.user_id = ${viewerId} ${circleId ? sql`AND me.circle_id = ${circleId}` : sql``}
       GROUP BY t.user_id
-      ${circleId ? sql`` : sql`UNION SELECT ${viewerId}::uuid, 'owner', true WHERE NOT EXISTS (SELECT 1 FROM circle_members WHERE user_id = ${viewerId})`}
+      ${circleId ? sql`` : sql`UNION SELECT ${viewerId}::uuid, 'owner', true, NULL::timestamptz WHERE NOT EXISTS (SELECT 1 FROM circle_members WHERE user_id = ${viewerId})`}
     )
-    SELECT m.user_id AS member_id, u.display_name, u.avatar_color, u.avatar_url, m.role, m.sharing AS member_sharing,
+    SELECT m.user_id AS member_id, u.display_name, u.avatar_color, u.avatar_url, m.role, m.sharing AS member_sharing, m.since,
            u.sharing_paused, d.name AS device_name, l.id AS loc_id,
            l.user_id, l.device_id, l.recorded_at, l.lat, l.lon, l.accuracy, l.altitude, l.speed, l.speed_source,
            l.heading, l.battery, l.charging, l.activity,
@@ -101,7 +103,8 @@ export async function memberLocations(ctx: Ctx, viewerId: string, circleId: stri
 
   return rows.map((r) => {
     const self = r.member_id === viewerId;
-    const visible = self || (r.member_sharing && !r.sharing_paused);
+    // Like history: never reveal a fix recorded before the member started sharing with the viewer.
+    const visible = self || (r.member_sharing && !r.sharing_paused && (!r.recorded_at || !r.since || r.recorded_at.getTime() >= r.since.getTime() - CLOCK_SKEW_GRACE_MS));
     const sharing = r.member_sharing && !r.sharing_paused;
     return {
       id: r.member_id,
