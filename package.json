@@ -1,0 +1,20 @@
+{
+  "name": "nodara",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Nodara — self-hosted location sharing, family safety & personal mobility platform",
+  "license": "AGPL-3.0-only",
+  "packageManager": "pnpm@10.28.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter ./apps/* dev",
+    "build": "pnpm --filter @nodara/web build && pnpm --filter @nodara/server build",
+    "start": "pnpm --filter @nodara/server start",
+    "migrate": "pnpm --filter @nodara/server migrate",
+    "seed:demo": "pnpm --filter @nodara/server seed:demo",
+    "create-admin": "pnpm --filter @nodara/server create-admin",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm --filter @nodara/web test:e2e"
+  }
+}
