@@ -55,8 +55,9 @@ export const NodaraMap = forwardRef<
     onRegion: (r: Region) => void;
     onSelect: (id: string) => void;
     onLongPress: (lat: number, lon: number) => void;
+    onMapPress: () => void;
   }
->(function NodaraMap({ members, places, events, meId, selectedId, mapType, region, bottomInset, onRegion, onSelect, onLongPress }, ref) {
+>(function NodaraMap({ members, places, events, meId, selectedId, mapType, region, bottomInset, onRegion, onSelect, onLongPress, onMapPress }, ref) {
   const located = useMemo(() => members.filter((m) => m.location), [members]);
   const groups = useMemo(() => groupMembers(located, region), [located, region]);
 
@@ -71,6 +72,10 @@ export const NodaraMap = forwardRef<
       mapPadding={{ top: 0, left: 0, right: 0, bottom: bottomInset }}
       onRegionChangeComplete={onRegion}
       onLongPress={(e) => onLongPress(e.nativeEvent.coordinate.latitude, e.nativeEvent.coordinate.longitude)}
+      onPress={(e) => {
+        // Taps on markers also reach the map; only clear the selection for taps on empty map.
+        if ((e.nativeEvent as { action?: string }).action !== 'marker-press') onMapPress();
+      }}
       initialRegion={{ latitude: 45.42, longitude: -75.69, latitudeDelta: 0.2, longitudeDelta: 0.2 }}
     >
       {places.map((p) => (
@@ -88,8 +93,9 @@ export const NodaraMap = forwardRef<
       ))}
       {groups.map((g) => {
         const focus = g.members.find((m) => m.id === selectedId) ?? g.members.find((m) => m.id !== meId) ?? g.members[0]!;
-        const callout = calloutFor(focus, events.get(focus.id));
         const selected = g.members.some((m) => m.id === selectedId);
+        // With someone selected, only their callout shows, to keep the map calm.
+        const callout = selectedId && !selected ? null : calloutFor(focus, events.get(focus.id));
         return (
           <Marker key={g.members.map((m) => m.id).join()} coordinate={{ latitude: g.lat, longitude: g.lon }} anchor={{ x: 0.5, y: 1 }} onPress={() => onSelect(focus.id)} zIndex={selected ? 3 : 2}>
             <View style={{ alignItems: 'center' }}>

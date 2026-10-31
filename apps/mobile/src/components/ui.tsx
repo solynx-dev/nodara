@@ -1,11 +1,100 @@
-import { type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { createContext, use, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import Animated, {
+  Easing,
+  FadeInUp,
+  FadeOutUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { C } from '@/lib/theme';
+import { C, HEX, T } from '@/lib/theme';
 import { initials } from '@/lib/format';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/** Pressable with a springy scale-down, used for every tappable surface. */
+export function Tap({ style, children, haptic = 'selection', scaleTo = 0.97, onPress, ...rest }: PressableProps & { style?: StyleProp<ViewStyle>; haptic?: 'selection' | 'light' | 'none'; scaleTo?: number; children?: ReactNode }) {
+  const scale = useSharedValue(1);
+  const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return (
+    <AnimatedPressable
+      {...rest}
+      onPressIn={(e) => {
+        scale.set(withSpring(scaleTo, { damping: 18, stiffness: 400 }));
+        rest.onPressIn?.(e);
+      }}
+      onPressOut={(e) => {
+        scale.set(withSpring(1, { damping: 14, stiffness: 300 }));
+        rest.onPressOut?.(e);
+      }}
+      onPress={(e) => {
+        if (haptic === 'selection') void Haptics.selectionAsync();
+        if (haptic === 'light') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress?.(e);
+      }}
+      style={[style, animated]}
+    >
+      {children}
+    </AnimatedPressable>
+  );
+}
+
+/** Liquid Glass on iOS 26+, a system material blur on older versions. */
+export function Glass({ style, children, interactive, tint }: { style?: StyleProp<ViewStyle>; children?: ReactNode; interactive?: boolean; tint?: string }) {
+  if (isLiquidGlassAvailable()) {
+    return (
+      <GlassView style={style} isInteractive={interactive} tintColor={tint}>
+        {children}
+      </GlassView>
+    );
+  }
+  return (
+    <BlurView intensity={90} tint="systemChromeMaterial" style={[style, { overflow: 'hidden', backgroundColor: tint }]}>
+      {children}
+    </BlurView>
+  );
+}
+
+export function GlassButton({ icon, label, onPress, badge, size = 48, tintIcon }: { icon: SFSymbol; label: string; onPress: () => void; badge?: number; size?: number; tintIcon?: string }) {
+  return (
+    <Tap accessibilityLabel={label} accessibilityRole="button" onPress={onPress} scaleTo={0.9}>
+      <Glass interactive style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center' }}>
+        <SymbolView name={icon} size={size * 0.42} weight="medium" tintColor={tintIcon ?? C.label} />
+      </Glass>
+      {!!badge && (
+        <View pointerEvents="none" style={styles.badge}>
+          <Text style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
+        </View>
+      )}
+    </Tap>
+  );
+}
+
+export function GlassPill({ icon, label, onPress, accent, sub }: { icon: SFSymbol; label: string; onPress: () => void; accent?: boolean; sub?: string }) {
+  return (
+    <Tap accessibilityRole="button" accessibilityLabel={label} onPress={onPress} haptic="light">
+      <Glass interactive tint={accent ? 'rgba(255,107,61,0.85)' : undefined} style={styles.pill}>
+        <SymbolView name={icon} size={18} weight="semibold" tintColor={accent ? 'white' : C.label} />
+        <View>
+          <Text style={[styles.pillText, accent && { color: 'white' }]}>{label}</Text>
+          {sub && <Text style={[styles.pillSub, accent && { color: 'rgba(255,255,255,0.85)' }]}>{sub}</Text>}
+        </View>
+      </Glass>
+    </Tap>
+  );
+}
+
+/** Kept for older call sites. */
+export const GlassIconButton = ({ icon, onPress, label }: { icon: SFSymbol; onPress: () => void; label: string; active?: boolean }) => <GlassButton icon={icon} label={label} onPress={onPress} size={44} />;
 
 export function Avatar({ name, color, size = 40, dim, ring }: { name: string; color: string; size?: number; dim?: boolean; ring?: boolean }) {
   return (
@@ -14,51 +103,53 @@ export function Avatar({ name, color, size = 40, dim, ring }: { name: string; co
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: color,
+        backgroundColor: dim ? HEX.gray : color,
         alignItems: 'center',
         justifyContent: 'center',
-        opacity: dim ? 0.5 : 1,
         borderWidth: ring ? 3 : 0,
         borderColor: C.accent,
-        borderCurve: 'continuous',
       }}
     >
-      <Text style={{ color: 'white', fontWeight: '700', fontSize: size * 0.38 }}>{initials(name)}</Text>
+      <Text style={{ color: 'white', fontWeight: '700', fontSize: size * 0.38 }} allowFontScaling={false}>
+        {initials(name)}
+      </Text>
     </View>
   );
 }
 
-/** Liquid Glass on iOS 26+, a system blur material on older versions. */
-export function Glass({ style, children, interactive }: { style?: StyleProp<ViewStyle>; children?: ReactNode; interactive?: boolean }) {
-  if (isLiquidGlassAvailable()) {
-    return (
-      <GlassView style={style} isInteractive={interactive}>
-        {children}
-      </GlassView>
-    );
-  }
+/** Small dot that breathes while a location is live. */
+export function LiveDot({ color = HEX.green, live, size = 10 }: { color?: string; live?: boolean; size?: number }) {
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    pulse.set(live ? withRepeat(withTiming(1, { duration: 1600, easing: Easing.out(Easing.quad) }), -1, false) : 0);
+  }, [live, pulse]);
+  const ring = useAnimatedStyle(() => ({ opacity: live ? 0.5 * (1 - pulse.value) : 0, transform: [{ scale: 1 + pulse.value * 1.6 }] }));
   return (
-    <BlurView intensity={80} tint="systemChromeMaterial" style={[style, { overflow: 'hidden' }]}>
-      {children}
-    </BlurView>
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View style={[{ position: 'absolute', width: size, height: size, borderRadius: size / 2, backgroundColor: color }, ring]} />
+      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }} />
+    </View>
   );
 }
 
-export function GlassIconButton({ icon, onPress, label, active }: { icon: SFSymbol; onPress: () => void; label: string; active?: boolean }) {
+export function StatusPill({ icon, text, color }: { icon?: SFSymbol; text: string; color: string }) {
   return (
-    <Pressable
-      accessibilityLabel={label}
-      accessibilityRole="button"
-      onPress={() => {
-        void Haptics.selectionAsync();
-        onPress();
-      }}
-    >
-      <Glass interactive style={styles.glassButton}>
-        <SymbolView name={icon} size={20} tintColor={active ? C.accent : C.label} />
-      </Glass>
-    </Pressable>
+    <View style={[styles.statusPill, { backgroundColor: `${color}22` }]}>
+      {icon && <SymbolView name={icon} size={11} weight="bold" tintColor={color} />}
+      <Text style={[styles.statusText, { color }]} numberOfLines={1}>
+        {text}
+      </Text>
+    </View>
   );
+}
+
+export function Skeleton({ height = 72, style }: { height?: number; style?: StyleProp<ViewStyle> }) {
+  const o = useSharedValue(0.5);
+  useEffect(() => {
+    o.set(withRepeat(withSequence(withTiming(1, { duration: 700 }), withTiming(0.5, { duration: 700 })), -1));
+  }, [o]);
+  const a = useAnimatedStyle(() => ({ opacity: o.value }));
+  return <Animated.View style={[{ height, borderRadius: 24, backgroundColor: C.fill }, a, style]} />;
 }
 
 /** iOS Settings-style grouped section. */
@@ -74,7 +165,7 @@ export function Section({ title, footer, children }: { title?: string; footer?: 
 
 export function Row({
   icon,
-  iconColor = C.accent,
+  iconColor = C.accent as string,
   title,
   subtitle,
   value,
@@ -97,18 +188,19 @@ export function Row({
 }) {
   const content = (
     <View style={styles.row}>
-      {left ?? (icon && (
-        <View style={[styles.rowIcon, { backgroundColor: iconColor }]}>
-          <SymbolView name={icon} size={16} tintColor="white" />
-        </View>
-      ))}
+      {left ??
+        (icon && (
+          <View style={[styles.rowIcon, { backgroundColor: iconColor }]}>
+            <SymbolView name={icon} size={16} tintColor="white" />
+          </View>
+        ))}
       <View style={[styles.rowBody, !last && styles.rowDivider]}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.rowTitle, destructive && { color: C.red }]} numberOfLines={1}>
             {title}
           </Text>
           {subtitle != null && (
-            <Text style={styles.rowSubtitle} numberOfLines={2}>
+            <Text style={styles.rowSubtitle} numberOfLines={3}>
               {subtitle}
             </Text>
           )}
@@ -126,35 +218,82 @@ export function Row({
   );
 }
 
-export function PrimaryButton({ title, onPress, loading, disabled, icon }: { title: string; onPress: () => void; loading?: boolean; disabled?: boolean; icon?: SFSymbol }) {
+export function PrimaryButton({ title, onPress, loading, disabled, icon, tone = 'accent' }: { title: string; onPress: () => void; loading?: boolean; disabled?: boolean; icon?: SFSymbol; tone?: 'accent' | 'plain' }) {
+  const plain = tone === 'plain';
   return (
-    <Pressable
-      disabled={disabled || loading}
-      onPress={() => {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onPress();
-      }}
-      style={({ pressed }) => [styles.primary, (disabled || loading) && { opacity: 0.5 }, pressed && { transform: [{ scale: 0.98 }] }]}
-    >
-      {loading ? <ActivityIndicator color="white" /> : icon ? <SymbolView name={icon} size={18} tintColor="white" /> : null}
-      <Text style={styles.primaryText}>{title}</Text>
-    </Pressable>
+    <Tap disabled={disabled || loading} onPress={onPress} haptic="light" style={[styles.primary, plain && { backgroundColor: C.fill }, (disabled || loading) && { opacity: 0.5 }]}>
+      {loading ? <ActivityIndicator color={plain ? undefined : 'white'} /> : icon ? <SymbolView name={icon} size={18} tintColor={plain ? C.accent : 'white'} /> : null}
+      <Text style={[styles.primaryText, plain && { color: C.accent }]}>{title}</Text>
+    </Tap>
   );
 }
 
 export function Empty({ icon, title, body, action }: { icon: SFSymbol; title: string; body?: string; action?: ReactNode }) {
   return (
-    <View style={{ alignItems: 'center', paddingVertical: 48, paddingHorizontal: 32, gap: 8 }}>
-      <SymbolView name={icon} size={44} tintColor={C.accent} type="hierarchical" />
-      <Text style={{ fontSize: 20, fontWeight: '700', color: C.label, marginTop: 8, textAlign: 'center' }}>{title}</Text>
-      {body && <Text style={{ fontSize: 15, color: C.secondaryLabel, textAlign: 'center', lineHeight: 21 }}>{body}</Text>}
+    <Animated.View entering={FadeInUp.duration(350)} style={{ alignItems: 'center', paddingVertical: 36, paddingHorizontal: 28, gap: 8 }}>
+      <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+        <SymbolView name={icon} size={36} tintColor={C.accent} type="hierarchical" />
+      </View>
+      <Text style={[T.title3, { color: C.label, textAlign: 'center' }]}>{title}</Text>
+      {body && <Text style={[T.subhead, { color: C.secondaryLabel, textAlign: 'center', lineHeight: 21 }]}>{body}</Text>}
       {action && <View style={{ marginTop: 12, alignSelf: 'stretch' }}>{action}</View>}
-    </View>
+    </Animated.View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Toasts: short confirmations that slide in from the top instead of blocking alerts.
+
+type ToastTone = 'success' | 'info' | 'error';
+interface ToastMsg {
+  id: number;
+  title: string;
+  body?: string;
+  tone: ToastTone;
+}
+const ToastCtx = createContext<(t: Omit<ToastMsg, 'id'>) => void>(() => {});
+export const useToast = () => use(ToastCtx);
+
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [toast, setToast] = useState<ToastMsg | null>(null);
+  const insets = useSafeAreaInsets();
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const show = useCallback((t: Omit<ToastMsg, 'id'>) => {
+    if (timer.current) clearTimeout(timer.current);
+    setToast({ ...t, id: Date.now() });
+    void Haptics.notificationAsync(t.tone === 'error' ? Haptics.NotificationFeedbackType.Error : Haptics.NotificationFeedbackType.Success);
+    timer.current = setTimeout(() => setToast(null), t.tone === 'error' ? 5000 : 3200);
+  }, []);
+  const icon: Record<ToastTone, SFSymbol> = { success: 'checkmark.circle.fill', info: 'info.circle.fill', error: 'exclamationmark.triangle.fill' };
+  const color: Record<ToastTone, string> = { success: HEX.green, info: HEX.blue, error: HEX.red };
+  return (
+    <ToastCtx value={show}>
+      {children}
+      {toast && (
+        <Animated.View key={toast.id} entering={FadeInUp.springify().damping(18)} exiting={FadeOutUp.duration(200)} style={[styles.toastWrap, { top: insets.top + 8 }]} pointerEvents="box-none">
+          <Pressable onPress={() => setToast(null)}>
+            <Glass style={styles.toast}>
+              <SymbolView name={icon[toast.tone]} size={24} tintColor={color[toast.tone]} />
+              <View style={{ flex: 1 }}>
+                <Text style={[T.headline, { color: C.label }]}>{toast.title}</Text>
+                {toast.body && <Text style={[T.footnote, { color: C.secondaryLabel, marginTop: 1 }]}>{toast.body}</Text>}
+              </View>
+            </Glass>
+          </Pressable>
+        </Animated.View>
+      )}
+    </ToastCtx>
   );
 }
 
 export const styles = StyleSheet.create({
-  glassButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  badge: { position: 'absolute', top: -3, right: -3, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'white' },
+  badgeText: { color: 'white', fontSize: 11, fontWeight: '800' },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, paddingHorizontal: 18, borderRadius: 24 },
+  pillText: { fontSize: 16, fontWeight: '700', color: C.label },
+  pillSub: { fontSize: 11, color: C.secondaryLabel, marginTop: -1 },
+  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, height: 22, borderRadius: 11, alignSelf: 'flex-start' },
+  statusText: { fontSize: 12, fontWeight: '700' },
   sectionTitle: { fontSize: 13, color: C.secondaryLabel, marginHorizontal: 20, marginBottom: 6 },
   sectionFooter: { fontSize: 13, color: C.secondaryLabel, marginHorizontal: 20, marginTop: 6, lineHeight: 18 },
   section: { backgroundColor: C.cell, borderRadius: 26, borderCurve: 'continuous', marginHorizontal: 16, overflow: 'hidden' },
@@ -163,9 +302,11 @@ export const styles = StyleSheet.create({
   rowBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingRight: 16, minHeight: 52 },
   rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.separator },
   rowTitle: { fontSize: 17, color: C.label },
-  rowSubtitle: { fontSize: 14, color: C.secondaryLabel, marginTop: 2 },
+  rowSubtitle: { fontSize: 14, color: C.secondaryLabel, marginTop: 2, lineHeight: 19 },
   rowValue: { fontSize: 16, color: C.secondaryLabel },
   primary: { height: 54, borderRadius: 27, backgroundColor: C.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   primaryText: { color: 'white', fontSize: 17, fontWeight: '600' },
   input: { fontSize: 17, color: C.label, paddingHorizontal: 16, paddingVertical: 15 },
+  toastWrap: { position: 'absolute', left: 12, right: 12, zIndex: 100 },
+  toast: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 24 },
 });

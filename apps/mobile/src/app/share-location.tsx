@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { Linking, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
@@ -19,7 +20,7 @@ export default function ShareLocation() {
       const r = await startTracking('balanced');
       setResult(r);
       qc.invalidateQueries({ queryKey: ['tracking'] });
-      if (r === 'always') router.back();
+      if (r === 'always') setTimeout(() => router.back(), 1400);
     } finally {
       setBusy(false);
     }
@@ -31,16 +32,22 @@ export default function ShareLocation() {
         <SymbolView name="location.circle.fill" size={64} tintColor={C.accent} type="hierarchical" />
         <Text style={{ fontSize: 26, fontWeight: '800', color: C.label, textAlign: 'center' }}>Share your location</Text>
       </View>
-      <Point icon="lock.shield.fill" title="Only on your server" body="Locations go straight to your Nodara server — never to us or advertisers." />
-      <Point icon="person.2.fill" title="Only your circles" body="Just the circles you choose can see you. Pause any time from Settings." />
-      <Point icon="moon.zzz.fill" title="Works in the background" body={'Choose "Allow While Using App" first, then "Change to Always Allow" when iOS asks, so your family still sees you when Nodara is closed.'} />
+      <Point delay={60} icon="lock.shield.fill" title="Only on your server" body="Locations go straight to your Nodara server — never to us or advertisers." />
+      <Point delay={120} icon="person.2.fill" title="Only your circles" body="Just the circles you choose can see you. Pause any time from Settings." />
+      <Point delay={180} icon="moon.zzz.fill" title="Works in the background" body={'Choose "Allow While Using App" first, then "Change to Always Allow" when iOS asks, so your family still sees you when Nodara is closed.'} />
+      {result === 'always' && (
+        <Animated.View entering={ZoomIn.springify()} style={{ alignItems: 'center', gap: 8, paddingVertical: 8 }}>
+          <SymbolView name="checkmark.circle.fill" size={56} tintColor={C.green} />
+          <Text style={{ fontSize: 17, fontWeight: '600', color: C.label }}>You&apos;re sharing in the background</Text>
+        </Animated.View>
+      )}
       {result === 'foreground' && (
         <Text style={{ color: C.orange, fontSize: 14, lineHeight: 20 }}>
           Sharing only while Nodara is open. To share in the background, open Settings → Nodara → Location and choose “Always”.
         </Text>
       )}
       {result === 'denied' && <Text style={{ color: C.red, fontSize: 14 }}>Location access is off for Nodara. You can turn it on in iOS Settings.</Text>}
-      {result && result !== 'always' ? (
+      {result === 'always' ? null : result ? (
         <PrimaryButton title="Open iOS Settings" icon="gear" onPress={() => void Linking.openSettings()} />
       ) : (
         <PrimaryButton title="Continue" icon="location.fill" onPress={start} loading={busy} />
@@ -49,14 +56,14 @@ export default function ShareLocation() {
   );
 }
 
-function Point({ icon, title, body }: { icon: SFSymbol; title: string; body: string }) {
+function Point({ icon, title, body, delay = 0 }: { icon: SFSymbol; title: string; body: string; delay?: number }) {
   return (
-    <View style={{ flexDirection: 'row', gap: 14 }}>
+    <Animated.View entering={FadeInDown.delay(delay).springify()} style={{ flexDirection: 'row', gap: 14 }}>
       <SymbolView name={icon} size={26} tintColor={C.accent} style={{ width: 32 }} />
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ fontSize: 17, fontWeight: '600', color: C.label }}>{title}</Text>
         <Text style={{ fontSize: 15, color: C.secondaryLabel, lineHeight: 20 }}>{body}</Text>
       </View>
-    </View>
+    </Animated.View>
   );
 }

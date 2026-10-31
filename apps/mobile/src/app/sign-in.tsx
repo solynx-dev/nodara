@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useSession } from '@/lib/session';
 import { C } from '@/lib/theme';
@@ -34,15 +35,15 @@ export default function SignIn() {
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: C.groupedBackground }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, gap: 24 }} keyboardShouldPersistTaps="handled">
-        <View style={{ gap: 8 }}>
+        <Animated.View entering={FadeInDown.springify()} style={{ gap: 8 }}>
           <Text style={{ fontSize: 34, fontWeight: '800', color: C.label, letterSpacing: -0.5 }}>
             {step === 'password' ? 'Sign in' : 'Verification'}
           </Text>
           <Text style={{ fontSize: 16, color: C.secondaryLabel }}>
             {step === 'password' ? `to ${config?.instanceName ?? 'Nodara'} · ${host}` : 'Enter the code from your authenticator app, or a recovery code.'}
           </Text>
-        </View>
-        <View style={[styles.section, { marginHorizontal: 0 }]}>
+        </Animated.View>
+        <Animated.View key={step} entering={FadeInDown.delay(80).springify()} style={[styles.section, { marginHorizontal: 0 }]}>
           {step === 'password' ? (
             <>
               <TextInput
@@ -81,7 +82,7 @@ export default function SignIn() {
               onSubmitEditing={submit}
             />
           )}
-        </View>
+        </Animated.View>
         {error && <Text style={{ color: C.red, fontSize: 14 }}>{error}</Text>}
         <PrimaryButton title={step === 'password' ? 'Sign in' : 'Verify'} onPress={submit} loading={busy} disabled={step === 'password' ? !email || !password : code.length < 6} />
         <Text style={{ fontSize: 13, color: C.secondaryLabel, textAlign: 'center', lineHeight: 19 }}>

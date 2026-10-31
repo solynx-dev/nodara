@@ -3,6 +3,8 @@ import { useColorScheme } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ToastProvider } from '@/components/ui';
 import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
 import { SessionProvider, useSession } from '@/lib/session';
 import { ApiError } from '@/lib/api';
@@ -56,7 +58,7 @@ function RootStack() {
           <Stack.Screen name="sign-in" />
         </Stack.Protected>
         <Stack.Protected guard={signedIn}>
-          <Stack.Screen name="index" />
+          <Stack.Screen name="index" options={{ animation: 'fade' }} />
           <Stack.Screen name="settings" options={{ ...pageHeader, title: 'Settings' }} />
           <Stack.Screen name="alerts" options={{ ...pageHeader, title: 'Alerts' }} />
           <Stack.Screen name="trip/[id]" options={{ ...pageHeader, headerLargeTitle: false, title: 'Trip' }} />
@@ -71,13 +73,17 @@ export default function RootLayout() {
   const scheme = useColorScheme();
   const theme = scheme === 'dark' ? DarkTheme : DefaultTheme;
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider value={{ ...theme, colors: { ...theme.colors, primary: C.accent } }}>
-        <SessionProvider>
-          <StatusBar style="auto" />
-          <RootStack />
-        </SessionProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider value={{ ...theme, colors: { ...theme.colors, primary: C.accent } }}>
+          <SessionProvider>
+            <ToastProvider>
+              <StatusBar style="auto" />
+              <RootStack />
+            </ToastProvider>
+          </SessionProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }

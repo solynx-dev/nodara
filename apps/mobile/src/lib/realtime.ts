@@ -11,12 +11,17 @@ function apply(qc: QueryClient, e: ServerEvent) {
       break;
     case 'notification':
       qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['place-events'] });
       break;
     case 'trip':
       qc.invalidateQueries({ queryKey: ['trips'] });
+      qc.invalidateQueries({ queryKey: ['timeline'] });
       qc.invalidateQueries({ queryKey: ['live'] });
       break;
     case 'presence':
+      qc.invalidateQueries({ queryKey: ['place-events'] });
+      qc.invalidateQueries({ queryKey: ['timeline'] });
+    // falls through
     case 'sharing':
     case 'circle':
       qc.invalidateQueries({ queryKey: ['live'] });

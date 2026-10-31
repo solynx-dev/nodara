@@ -29,12 +29,33 @@ export const useAddress = (lat: number | undefined, lon: number | undefined) =>
     staleTime: Infinity,
   });
 
-/** Most recent arrival/departure per person, for "At Home since 7:32 PM" and map callouts. */
-export function useLatestPlaceEvents() {
-  const q = useQuery({ queryKey: ['place-events', 'recent'], queryFn: () => api.get<PlaceEvent[]>('/api/place-events?limit=100') });
+/** Recent arrivals/departures, plus the latest one per person (for "At Home since 7:32 PM" and map callouts). */
+export function usePlaceEvents() {
+  const q = useQuery({ queryKey: ['place-events', 'recent'], queryFn: () => api.get<PlaceEvent[]>('/api/place-events?limit=100'), refetchInterval: 120_000 });
   return useMemo(() => {
     const byUser = new Map<string, PlaceEvent>();
     for (const e of q.data ?? []) if (!byUser.has(e.user.id)) byUser.set(e.user.id, e);
-    return byUser;
+    return { list: q.data ?? [], byUser };
   }, [q.data]);
+}
+
+export type TimelineItem =
+  | { type: 'stay'; startAt: string; endAt: string; lat: number; lon: number; label: string | null; placeId: string | null }
+  | { type: 'trip'; trip: Trip };
+
+/** Today's stays and trips for one person. */
+export function useTodayTimeline(userId: string) {
+  return useQuery({
+    queryKey: ['timeline', userId, new Date().toDateString()],
+    queryFn: () => {
+      const from = new Date();
+      from.setHours(0, 0, 0, 0);
+      const to = new Date(Date.now() + 60_000);
+      return api
+        .get<{ items: TimelineItem[] }>(`/api/history/${userId}/timeline?from=${from.toISOString()}&to=${to.toISOString()}`)
+        .then((r) => r.items)
+        .catch(() => [] as TimelineItem[]);
+    },
+    refetchInterval: 120_000,
+  });
 }

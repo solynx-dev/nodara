@@ -12,9 +12,12 @@ The native Nodara app, built with [Expo](https://expo.dev) (SDK 58) and React Na
 | **Background location** | Real iOS background updates (`Always` permission) through a background task, so your circle keeps seeing you when the app is closed. Two modes: *Battery saver* (≈100 m, iOS auto-pause) and *Precise*. |
 | **Geofence wake-ups** | Your family's places (up to 20 nearest) are registered with iOS region monitoring. iOS relaunches Nodara on arrival/departure — even if it was swiped away — and it sends a fresh fix right away. |
 | **Offline queue** | Fixes are queued on the phone (up to 5 000) and uploaded when you're back online. |
-| **Map-first, one screen** | Everything happens on the map, like Find My: a persistent native sheet (People · Places · Trips) sits over it, and you can still pan and zoom the map while it's at small or half height. Tapping a person opens their details *inside* the sheet while the map follows them. |
-| **Liquid Glass** | The sheet is a native SwiftUI sheet, so iOS 26 gives it the system Liquid Glass material. Settings, circle switcher, alerts, map style and *Check in* are real SwiftUI `.glass` buttons and menus. On iOS 16.4–18 they fall back to the standard bordered style. Pushed pages use large titles over translucent headers. |
-| **Apple Maps** | People close together merge into one avatar bubble. A callout such as “Sam arrived · 3 h ago” floats above them. Places show as geofence circles. Long-press to add a place, and “Directions” hands off to Apple Maps. |
+| **Map-first, one screen** | Everything happens on the map: a draggable sheet (People · Places · Trips) snaps between peek, half and full with spring physics, and the map stays usable behind it. Tapping a person opens their details *inside* the sheet while the map follows them. Floating buttons ride on top of the sheet and fade out as it expands. |
+| **Liquid Glass** | Top bar, circle switcher, sheet, floating buttons, sharing banner and toasts are drawn with `expo-glass-effect` (real Liquid Glass on iOS 26, system blur on older iOS). The sheet fades to a solid background at full height so long lists stay readable. |
+| **Readable status everywhere** | Every person is described the same way: where they are (“At Home”, “Near 12 King St”), since when (“Since 7:32 PM · 3 h”), and a coloured status (*Live*, *Driving · 54 km/h*, *Updated 2 h ago*, *Last seen yesterday*). The circle header summarises everyone (“2 at a saved place · 1 on the move”). |
+| **Today timeline** | Each person's detail shows today's stays and trips in order, plus speed, battery, last update, accuracy, *Directions* and *Share spot*. |
+| **Know when you're not sharing** | A banner (and the Settings health card) appears when this iPhone is paused, not sharing, or only sharing while open, with a one-tap fix. |
+| **Apple Maps** | People close together merge into one avatar bubble with a callout such as “Sam arrived · 3 h ago”. Places show as geofence circles. Long-press to add a place, and tap empty map to deselect. |
 | **Check in** | Sends your current location and notifies your circle (“Alex checked in at Home”), with an optional message. |
 | **Push notifications** | Arrivals, departures, low battery and circle activity as real iOS notifications. Tapping one opens the right screen. |
 | **Security** | Session and device tokens live in the iOS Keychain. Background uploads use a device token that can **only** submit locations. Signing out revokes it. |
@@ -22,7 +25,7 @@ The native Nodara app, built with [Expo](https://expo.dev) (SDK 58) and React Na
 Layout:
 
 - **Home (map):**
-  - Top glass bar: Settings · circle switcher (native pull-down menu: switch circle, new circle, invite) · Alerts with an unread badge.
+  - Top glass bar: Settings · circle switcher (animated glass menu: switch circle, invite, new circle) · Alerts with an unread badge.
   - Above the sheet: *Check in*, map style menu, and recenter.
 - **Sheet:**
   - **People:** avatar cards with battery level, place/address and “Since 7:32 PM”.
