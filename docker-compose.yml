@@ -1,0 +1,57 @@
+# Nodara — production-ready Docker Compose stack.
+#
+#   cp .env.example .env      # then edit secrets and PUBLIC_URL
+#   docker compose up -d
+#
+# Put a TLS-terminating reverse proxy in front (see docs/deployment.md), or use
+# the bundled Caddy profile:  docker compose --profile caddy up -d
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nodara}
+      POSTGRES_USER: ${POSTGRES_USER:-nodara}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Not published to the host: only Nodara talks to the database.
+
+  nodara:
+    image: ${NODARA_IMAGE:-nodara:latest}
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-nodara}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-nodara}
+    ports:
+      - "${NODARA_BIND:-127.0.0.1}:${NODARA_PORT:-8080}:8080"
+
+  caddy:
+    image: caddy:2
+    profiles: [caddy]
+    restart: unless-stopped
+    depends_on: [nodara]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      NODARA_DOMAIN: ${NODARA_DOMAIN:-localhost}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

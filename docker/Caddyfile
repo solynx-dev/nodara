@@ -1,0 +1,5 @@
+# Automatic HTTPS for Nodara via Let's Encrypt.
+{$NODARA_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy nodara:8080
+}
