@@ -20,6 +20,8 @@ import { bearing, haversine } from '@nodara/shared';
  *   pnpm seed:demo --purge             # delete all demo data
  */
 const { values } = parseArgs({
+  // Tolerate the `--` separator added by `pnpm <script> -- …`.
+  args: process.argv.slice(2).filter((a) => a !== '--'),
   options: {
     join: { type: 'string' },
     days: { type: 'string', default: '14' },

@@ -12,6 +12,8 @@ import { pickAvatarColor } from '../services/users.js';
  * The password is read from NODARA_ADMIN_PASSWORD or prompted for.
  */
 const { values } = parseArgs({
+  // Tolerate the `--` separator added by `pnpm <script> -- …`.
+  args: process.argv.slice(2).filter((a) => a !== '--'),
   options: { email: { type: 'string' }, name: { type: 'string' }, promote: { type: 'boolean', default: false } },
 });
 if (!values.email) {

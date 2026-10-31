@@ -105,7 +105,6 @@ async function notifySubscribers(
       userId: s.subscriber_id,
       type: kind === 'arrive' ? 'arrival' : 'departure',
       title: `${displayName} ${verb} ${place.name}`,
-      body: at.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' }),
       data: { userId, placeId: place.id, kind, at: at.toISOString() },
       dedupeKey: `place:${place.id}:${userId}:${kind}`,
       dedupeWindowSec: 120,

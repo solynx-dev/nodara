@@ -33,8 +33,10 @@ export function useStyleEffect(map: MLMap, fn: (map: MLMap) => void, deps: unkno
   const ref = useRef(fn);
   ref.current = fn;
   useEffect(() => {
+    // isStyleLoaded() is also false while tiles are loading, which would skip
+    // updates; we only need the style document itself to be ready.
     const run = () => {
-      if (map.isStyleLoaded()) ref.current(map);
+      if ((map as unknown as { style?: { _loaded?: boolean } }).style?._loaded) ref.current(map);
     };
     run();
     map.on('style.load', run);
