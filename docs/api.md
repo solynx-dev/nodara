@@ -44,7 +44,7 @@ Rate limits: 600 req/min/IP globally; auth endpoints ~10/min; ingestion 240/min.
 
 ## Devices — `/devices`
 
-`GET /devices` · `POST /devices {name, kind}` → `{device, token}` (token for non-web kinds, shown once) · `PATCH /devices/:id {name}` · `POST /devices/:id/token` (rotate) · `DELETE /devices/:id` (revoke) · `PUT /devices/:id/push {subscription}` · `DELETE /devices/:id/push` · `POST /devices/:id/push/test`.
+`GET /devices` · `POST /devices {name, kind}` → `{device, token}` (token for non-web kinds, shown once) · `PATCH /devices/:id {name}` · `POST /devices/:id/token` (rotate) · `DELETE /devices/:id` (revoke) · `PUT /devices/:id/push {subscription}` · `DELETE /devices/:id/push` · `PUT /devices/:id/native-push {token}` (Expo push token from the iOS app) · `DELETE /devices/:id/native-push` · `POST /devices/:id/push/test`.
 
 ## Locations
 

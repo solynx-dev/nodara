@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { newUser, useTestEnv } from './helpers.js';
+import { expoPushInbox, newUser, useTestEnv } from './helpers.js';
 import { processDeviceTrips } from '../src/services/trips.js';
 import { runRetention } from '../src/services/jobs.js';
 
@@ -163,6 +163,29 @@ describe('ingestion, trips and geofences', () => {
     // The live map shows the kid at School.
     const live = (await watcher.client.get(`/api/circles/${c.id}/live`)).json();
     expect(live.find((m: { id: string }) => m.id === kid.id).currentPlace.name).toBe('School');
+  });
+
+  it('delivers notifications to native apps through the Expo push relay', async () => {
+    const parent = await newUser(env, 'Native Parent');
+    const kid = await newUser(env, 'Native Kid');
+    const c = (await parent.client.post('/api/circles', { name: 'NativeFam' })).json();
+    const inv = (await parent.client.post(`/api/circles/${c.id}/invitations`, {})).json();
+    await kid.client.post(`/api/invitations/${inv.token}/accept`);
+    await env.sql`UPDATE circle_members SET sharing_since = now() - interval '1 hour' WHERE circle_id = ${c.id}`;
+    const phone = (await parent.client.post('/api/devices', { name: 'iPhone', kind: 'ios' })).json();
+    expect(phone.token).toMatch(/^ndd_/);
+    expect((await parent.client.put(`/api/devices/${phone.device.id}/native-push`, { token: 'not-a-token' })).statusCode).toBe(400);
+    expect((await parent.client.put(`/api/devices/${phone.device.id}/native-push`, { token: 'ExponentPushToken[abc123]' })).statusCode).toBe(200);
+    await parent.client.post('/api/places', { name: 'Library', lat: 45, lon: -75, radiusM: 150, circleId: c.id });
+
+    const t = Date.now() - 5 * 60_000;
+    const send = (mins: number, lat: number) =>
+      kid.client.post('/api/locations', { deviceId: kid.deviceId, locations: [{ recordedAt: new Date(t + mins * 60_000).toISOString(), lat, lon: -75, accuracy: 10 }] });
+    await send(0, 45.01);
+    await send(1, 45.0002);
+    await new Promise((r) => setTimeout(r, 300));
+    const msg = expoPushInbox.find((m) => (m as { title: string }).title.includes('arrived at Library')) as { to: string } | undefined;
+    expect(msg?.to).toBe('ExponentPushToken[abc123]');
   });
 
   it('applies retention and tells the user', async () => {

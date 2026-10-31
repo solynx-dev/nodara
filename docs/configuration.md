@@ -47,6 +47,8 @@ MAP_STYLES=[{"id":"streets","name":"Streets","url":"https://tiles.example.com/st
 |---|---|---|
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | generated | Web Push keys. Generated on first start and stored in the database; set them to pin the keys across fresh databases. Generate with `npx web-push generate-vapid-keys`. |
 | `VAPID_SUBJECT` | `mailto:admin@localhost` | Contact for push services (`mailto:` or `https:`). |
+| `EXPO_PUSH_ENABLED` | `true` | Deliver notifications to the Nodara iOS/Android apps through Expo's push service (which relays to Apple/Google). Only used for phones where someone turned notifications on in the app; the relay sees only the notification text. |
+| `EXPO_PUSH_URL` | `https://exp.host/--/api/v2/push/send` | Override the Expo push endpoint (testing). |
 
 ## Data & privacy
 

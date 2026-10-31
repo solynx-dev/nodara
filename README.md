@@ -85,9 +85,13 @@ Everything below is implemented and wired to the real backend — there is no fa
 | **Administration** | System status, database & storage stats, ingestion stats, user management (create, disable, promote, reset links), registration policy (open / invite / closed), retention, opt-in anonymous telemetry with a full payload preview, audit log, demo-data removal. |
 | **PWA** | Installable, offline app shell, cached map tiles, push notifications, responsive phone / tablet / desktop layouts, light & dark themes. |
 
+### iOS app (early)
+
+`apps/mobile` is a native iOS app built with Expo: real background location, geofence wake-ups, push notifications and a Liquid Glass UI. It hasn't been tested on a physical iPhone or published yet. To build and install it, see **[apps/mobile/README.md](apps/mobile/README.md)**.
+
 ### Honest limitations
 
-- **Browsers cannot track you reliably in the background.** iOS Safari stops sharing as soon as Nodara is not on screen; Android pauses after a while. Nodara says so in the UI and never shows stale data as live. For continuous background sharing today, connect **[OwnTracks or Overland](docs/clients.md)** to your Nodara server. Native Nodara apps are on the [roadmap](docs/roadmap.md). Details: [docs/background-location.md](docs/background-location.md).
+- **Browsers cannot track you reliably in the background.** iOS Safari stops sharing as soon as Nodara is not on screen; Android pauses after a while. Nodara says so in the UI and never shows stale data as live. For continuous background sharing use the **[iOS app](apps/mobile/README.md)** (early) or connect **[OwnTracks or Overland](docs/clients.md)**. Details: [docs/background-location.md](docs/background-location.md).
 - **Geofence alerts depend on the device reporting.** If a phone isn't sending locations, the server can't know it arrived.
 - **No crash detection, SOS, or driving-behaviour scoring** — these need reliable native sensors and are not claimed.
 - **Address lookup is optional** and needs a Nominatim-compatible geocoder you configure.
@@ -144,6 +148,7 @@ A modular monolith — one Node.js process, one PostgreSQL/PostGIS database, no 
 ```
 apps/server     Fastify + TypeScript REST API, WebSockets, background jobs, SQL migrations
 apps/web        React + Vite + Tailwind PWA, MapLibre GL maps
+apps/mobile     Expo / React Native iOS app (npm, outside the pnpm workspace)
 packages/shared Types, geo math and unit formatting shared by both
 ```
 

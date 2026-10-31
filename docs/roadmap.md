@@ -71,8 +71,9 @@ Status legend: ✅ done · 🟡 partial / limited · ⬜ planned
 ## Next
 
 ### Native apps
-- ⬜ iOS app (Swift): significant-change + standard location in background, region monitoring for places, APNs push — posting to `/api/locations` with device tokens
-- ⬜ Android app (Kotlin): fused location foreground service, geofencing API, FCM / UnifiedPush
+- 🟡 iOS app (Expo, `apps/mobile`): background location, region-monitoring wake-ups, offline queue, push via Expo, Liquid Glass UI, map, people, trips, alerts, settings — **not yet tested on a physical device or published**
+- ⬜ iOS app: history calendar & playback, places editor, passkeys, Live Activities, widgets
+- ⬜ Android build of `apps/mobile` (needs a foreground-service notification, FCM credentials, Google Maps key)
 - ⬜ Device-level battery optimisation and motion activity
 
 ### Product

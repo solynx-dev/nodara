@@ -33,7 +33,7 @@ const serialize = (d: DeviceRow) => ({
 
 export default async function deviceRoutes(app: FastifyInstance, ctx: Ctx) {
   const { sql } = ctx;
-  const COLS = sql`id, name, kind, token_hint, push_subscription IS NOT NULL AS push, last_seen_at, last_location_at, created_at`;
+  const COLS = sql`id, name, kind, token_hint, (push_subscription IS NOT NULL OR expo_push_token IS NOT NULL) AS push, last_seen_at, last_location_at, created_at`;
 
   app.get('/api/devices', async (req) => {
     const a = requireUser(req);
@@ -88,7 +88,7 @@ export default async function deviceRoutes(app: FastifyInstance, ctx: Ctx) {
     const a = requireUser(req);
     // Revoke rather than delete so history keeps its device reference.
     const r = await sql`
-      UPDATE devices SET revoked_at = now(), token_hash = NULL, push_subscription = NULL
+      UPDATE devices SET revoked_at = now(), token_hash = NULL, push_subscription = NULL, expo_push_token = NULL
       WHERE id = ${parse(uuid, req.params.id)} AND user_id = ${a.userId} AND revoked_at IS NULL RETURNING id`;
     if (!r.length) throw notFound('Device not found');
     await audit(ctx, req, 'device.revoked', { type: 'device', id: r[0]!.id as string });
@@ -117,6 +117,23 @@ export default async function deviceRoutes(app: FastifyInstance, ctx: Ctx) {
   app.delete<{ Params: { id: string } }>('/api/devices/:id/push', async (req) => {
     const a = requireUser(req);
     await sql`UPDATE devices SET push_subscription = NULL WHERE id = ${parse(uuid, req.params.id)} AND user_id = ${a.userId}`;
+    return { ok: true };
+  });
+
+  // Native apps register an Expo push token (ExponentPushToken[…]).
+  app.put<{ Params: { id: string } }>('/api/devices/:id/native-push', async (req) => {
+    const a = requireUser(req);
+    const { token } = parse(z.object({ token: z.string().regex(/^Expo(nent)?PushToken\[[\w-]+\]$/).max(200) }), req.body);
+    const r = await sql`
+      UPDATE devices SET expo_push_token = ${token}
+      WHERE id = ${parse(uuid, req.params.id)} AND user_id = ${a.userId} AND revoked_at IS NULL RETURNING id`;
+    if (!r.length) throw notFound('Device not found');
+    return { ok: true };
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/devices/:id/native-push', async (req) => {
+    const a = requireUser(req);
+    await sql`UPDATE devices SET expo_push_token = NULL WHERE id = ${parse(uuid, req.params.id)} AND user_id = ${a.userId}`;
     return { ok: true };
   });
 

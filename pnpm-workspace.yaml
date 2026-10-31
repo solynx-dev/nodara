@@ -1,5 +1,8 @@
+# apps/mobile (Expo) is intentionally not part of the pnpm workspace: it uses
+# npm so EAS Build can install it on its own.
 packages:
-  - apps/*
+  - apps/server
+  - apps/web
   - packages/*
 onlyBuiltDependencies:
   - esbuild
