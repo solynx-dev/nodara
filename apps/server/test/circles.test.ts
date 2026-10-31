@@ -137,3 +137,17 @@ describe('circles, invitations and isolation', () => {
     expect((await owner.client.del(`/api/circles/${c.id}/members/${owner.id}`)).statusCode).toBe(409);
   });
 });
+
+describe('account deletion', () => {
+  it('hands circle ownership to another member when the owner is deleted', async () => {
+    const owner = await newUser(env, 'Del Owner');
+    const other = await newUser(env, 'Del Other');
+    const c = (await owner.client.post('/api/circles', { name: 'Hand-off' })).json();
+    const inv = (await owner.client.post(`/api/circles/${c.id}/invitations`, {})).json();
+    await other.client.post(`/api/invitations/${inv.token}/accept`);
+    expect((await owner.client.del('/api/me', { password: 'correct horse battery', confirm: 'DELETE' })).statusCode).toBe(200);
+    const detail = (await other.client.get(`/api/circles/${c.id}`)).json();
+    expect(detail.role).toBe('owner');
+    expect(detail.members).toHaveLength(1);
+  });
+});

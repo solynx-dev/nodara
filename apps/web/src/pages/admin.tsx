@@ -17,6 +17,18 @@ const SECTIONS = [
   { id: 'audit', label: 'Audit log', icon: FileClock },
 ] as const;
 
+/** Expand sparse hourly stats into a continuous 48-hour series. */
+function hourly(rows: { hour: string; accepted: number; rejected: number }[]) {
+  const byHour = new Map(rows.map((r) => [new Date(r.hour).getTime(), r]));
+  const now = new Date();
+  now.setMinutes(0, 0, 0);
+  return Array.from({ length: 48 }, (_, i) => {
+    const t = now.getTime() - (47 - i) * 3600_000;
+    const r = byHour.get(t);
+    return { hour: new Date(t), accepted: r?.accepted ?? 0, rejected: r?.rejected ?? 0 };
+  });
+}
+
 const bytes = (n: number) => (n > 1e9 ? `${(n / 1e9).toFixed(2)} GB` : n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.round(n / 1e3)} KB`);
 
 export default function AdminPage() {
@@ -93,11 +105,11 @@ function Overview() {
           </Card>
         ))}
       </div>
-      <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+      <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr] [&>*]:min-w-0">
         <Card className="p-5">
           <h2 className="mb-4 text-[15px] font-bold">Location ingestion · last 48 h</h2>
           {data.ingest.length ? (
-            <BarChart data={data.ingest.map((r) => ({ label: format(new Date(r.hour), 'HH:mm'), value: r.accepted, tooltip: `${format(new Date(r.hour), 'MMM d HH:mm')} · ${r.accepted} accepted · ${r.rejected} rejected` }))} format={(v) => String(Math.round(v))} />
+            <BarChart data={hourly(data.ingest).map((r) => ({ label: format(r.hour, 'HH:mm'), value: r.accepted, tooltip: `${format(r.hour, 'MMM d HH:mm')} · ${r.accepted} accepted · ${r.rejected} rejected` }))} format={(v) => String(Math.round(v))} />
           ) : (
             <p className="py-10 text-center text-[13px] text-muted">No locations received yet.</p>
           )}

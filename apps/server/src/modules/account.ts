@@ -6,7 +6,7 @@ import { audit, clearSessionCookie, requireUser } from '../auth.js';
 import { verifyPassword } from '../lib/crypto.js';
 import { conflict, HttpError } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
-import { loadMe } from '../services/users.js';
+import { deleteUser, loadMe } from '../services/users.js';
 import { viewersOf } from '../services/access.js';
 
 const notifPref = z.object({ inApp: z.boolean(), push: z.boolean() }).partial();
@@ -95,19 +95,7 @@ export default async function accountRoutes(app: FastifyInstance, ctx: Ctx) {
         SELECT count(*)::int AS n FROM users WHERE is_admin AND disabled_at IS NULL AND id <> ${a.userId}`)[0]!;
       if (n === 0) throw conflict('You are the only administrator. Promote someone else before deleting your account.');
     }
-    // Circles they own pass to the longest-standing remaining member.
-    const owned = await sql<{ circle_id: string }[]>`SELECT circle_id FROM circle_members WHERE user_id = ${a.userId} AND role = 'owner'`;
-    await sql.begin(async (tx) => {
-      for (const { circle_id } of owned) {
-        await tx`
-          UPDATE circle_members SET role = 'owner'
-          WHERE (circle_id, user_id) = (
-            SELECT circle_id, user_id FROM circle_members WHERE circle_id = ${circle_id} AND user_id <> ${a.userId}
-            ORDER BY CASE role WHEN 'admin' THEN 0 ELSE 1 END, joined_at LIMIT 1)`;
-      }
-      await tx`DELETE FROM users WHERE id = ${a.userId}`;
-      await tx`DELETE FROM circles c WHERE NOT EXISTS (SELECT 1 FROM circle_members m WHERE m.circle_id = c.id)`;
-    });
+    await deleteUser(sql, a.userId);
     await audit(ctx, null, 'user.deleted_self', { type: 'user', id: a.userId });
     ctx.hub.disconnectUser(a.userId);
     clearSessionCookie(reply);

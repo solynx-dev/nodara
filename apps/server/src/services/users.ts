@@ -61,3 +61,24 @@ export async function loadMe(sql: Sql, userId: string): Promise<Me | null> {
     preferences: { ...DEFAULT_PREFERENCES, ...u.preferences },
   };
 }
+
+/**
+ * Delete a user. Circles they own pass to the longest-standing admin (or
+ * member); circles left empty are removed. Their location history, trips,
+ * devices and private places are deleted with the account (FK cascades).
+ */
+export async function deleteUser(sql: Sql, userId: string) {
+  await sql.begin(async (tx) => {
+    const owned = await tx<{ circle_id: string }[]>`
+      SELECT circle_id FROM circle_members WHERE user_id = ${userId} AND role = 'owner'`;
+    for (const { circle_id } of owned) {
+      await tx`
+        UPDATE circle_members SET role = 'owner'
+        WHERE (circle_id, user_id) = (
+          SELECT circle_id, user_id FROM circle_members WHERE circle_id = ${circle_id} AND user_id <> ${userId}
+          ORDER BY CASE role WHEN 'admin' THEN 0 ELSE 1 END, joined_at LIMIT 1)`;
+    }
+    await tx`DELETE FROM users WHERE id = ${userId}`;
+    await tx`DELETE FROM circles c WHERE NOT EXISTS (SELECT 1 FROM circle_members m WHERE m.circle_id = c.id)`;
+  });
+}

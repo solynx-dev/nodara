@@ -97,7 +97,7 @@ export default function InsightsPage() {
             <Metric label="Avg moving speed" cur={data.current.avgSpeed} prev={data.previous.avgSpeed} fmt={(v) => formatSpeed(v, units)} />
             <Metric label="Max recorded speed" cur={data.current.maxSpeed} prev={data.previous.maxSpeed} fmt={(v) => formatSpeed(v, units)} neutral />
           </div>
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid gap-5 lg:grid-cols-2 [&>*]:min-w-0">
             <Card className="p-5">
               <h2 className="mb-4 text-[15px] font-bold">Distance by {period === 'year' ? 'month' : 'day'}</h2>
               <BarChart

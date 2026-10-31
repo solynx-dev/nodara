@@ -48,14 +48,19 @@ export function useTestEnv() {
 }
 
 /** A tiny cookie-jar client around fastify.inject. */
+let ipSeq = 0;
+
 export class Client {
   cookie = '';
+  // Each simulated person gets their own address so per-IP rate limits behave realistically.
+  private ip = `10.0.${Math.floor(++ipSeq / 250)}.${(ipSeq % 250) + 1}`;
   constructor(private app: FastifyInstance) {}
 
   async req(method: string, url: string, body?: unknown, headers: Record<string, string> = {}): Promise<LightMyRequestResponse> {
     const res = await this.app.inject({
       method: method as 'GET',
       url,
+      remoteAddress: this.ip,
       payload: body === undefined ? undefined : (body as object),
       headers: {
         ...(this.cookie ? { cookie: this.cookie } : {}),

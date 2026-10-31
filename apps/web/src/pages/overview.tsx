@@ -55,8 +55,9 @@ export function OverviewPage() {
       .filter((m) => m.location?.battery != null && m.location.battery <= 15 && !m.location.charging && freshness(m.location.recordedAt) !== 'old')
       .map((m) => ({ key: `bat-${m.id}`, icon: BatteryWarning, tone: 'text-danger', text: `${firstName(m.displayName)}'s battery is at ${m.location!.battery}%` })),
     ...members
-      .filter((m) => m.id !== me.id && m.sharing && m.location && freshness(m.location.recordedAt) === 'stale')
-      .map((m) => ({ key: `stale-${m.id}`, icon: Clock3, tone: 'text-warning', text: `${firstName(m.displayName)}'s location is ${ago(m.location!.recordedAt)} old` })),
+      // A trip that went quiet is worth flagging; someone idle at home with the app closed is not.
+      .filter((m) => m.id !== me.id && m.inTrip && m.location && ['stale', 'old'].includes(freshness(m.location.recordedAt)))
+      .map((m) => ({ key: `stale-${m.id}`, icon: Clock3, tone: 'text-warning', text: `${firstName(m.displayName)} is travelling but last updated ${ago(m.location!.recordedAt)}` })),
   ];
 
   // Fit the preview to everyone once data arrives.

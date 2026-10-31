@@ -3,7 +3,7 @@ import { cx } from './ui';
 
 function useWidth() {
   const ref = useRef<HTMLDivElement>(null);
-  const [w, setW] = useState(600);
+  const [w, setW] = useState(300);
   useLayoutEffect(() => {
     if (!ref.current) return;
     const ro = new ResizeObserver(([e]) => setW(Math.max(200, e!.contentRect.width)));
@@ -44,7 +44,7 @@ export function BarChart({
   const ticks = [0, 0.5, 1].map((f) => f * max);
   const labelEvery = Math.ceil(data.length / Math.floor(iw / 44));
   return (
-    <div ref={ref} className={cx('relative', className)}>
+    <div ref={ref} className={cx('relative w-full min-w-0 overflow-hidden', className)}>
       <svg width={width} height={height} className="block">
         {ticks.map((v) => {
           const y = pad.t + ih - (v / max) * ih;
@@ -145,7 +145,7 @@ export function AreaChart({
   };
   const hp = hover != null ? points[hover] : null;
   return (
-    <div ref={ref} className={cx('relative select-none', className)}>
+    <div ref={ref} className={cx('relative w-full min-w-0 overflow-hidden select-none', className)}>
       <svg
         width={width}
         height={height}
