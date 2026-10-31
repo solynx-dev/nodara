@@ -51,6 +51,7 @@ Rate limits: 600 req/min/IP globally; auth endpoints ~10/min; ingestion 240/min.
 | Endpoint | Description |
 |---|---|
 | `POST /locations` | `{deviceId?, locations: Fix[≤1000]}` — see [clients.md](clients.md). Returns `{accepted, rejected, duplicates, latest, hint}`. |
+| `POST /checkins` | `{deviceId, circleId?, message?, location: Fix}` — records the fix and notifies circle-mates (“Alex checked in at Home”). |
 | `POST /ingest/owntracks` | OwnTracks HTTP payload. |
 | `POST /ingest/overland` | Overland GeoJSON batch. |
 | `GET /live` | Everyone visible to you across all circles (`MemberLocation[]`). |

@@ -20,6 +20,16 @@ const queryClient = new QueryClient({
   },
 });
 
+/** Pushed pages get iOS large titles over a translucent (glass on iOS 26) header. */
+const pageHeader = {
+  headerShown: true,
+  headerLargeTitle: true,
+  headerTransparent: true,
+  headerBlurEffect: 'systemChromeMaterial',
+  headerShadowVisible: false,
+  headerBackButtonDisplayMode: 'minimal',
+} as const;
+
 function RootStack() {
   const { ready, server, signedIn } = useSession();
   useRealtime(signedIn);
@@ -29,7 +39,7 @@ function RootStack() {
     if (!signedIn) return;
     const sub = Notifications.addNotificationResponseReceivedListener((r) => {
       const route = routeForUrl((r.notification.request.content.data as { url?: string } | undefined)?.url);
-      if (route) router.push(route as never);
+      if (route) router.navigate(route as never);
     });
     return () => sub.remove();
   }, [signedIn]);
@@ -46,18 +56,10 @@ function RootStack() {
           <Stack.Screen name="sign-in" />
         </Stack.Protected>
         <Stack.Protected guard={signedIn}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="member/[id]"
-            options={{
-              presentation: 'formSheet',
-              sheetAllowedDetents: [0.45, 0.92],
-              sheetInitialDetentIndex: 0,
-              sheetGrabberVisible: true,
-              sheetLargestUndimmedDetentIndex: 0,
-              contentStyle: { backgroundColor: 'transparent' },
-            }}
-          />
+          <Stack.Screen name="index" />
+          <Stack.Screen name="settings" options={{ ...pageHeader, title: 'Settings' }} />
+          <Stack.Screen name="alerts" options={{ ...pageHeader, title: 'Alerts' }} />
+          <Stack.Screen name="trip/[id]" options={{ ...pageHeader, headerLargeTitle: false, title: 'Trip' }} />
           <Stack.Screen name="share-location" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.75], sheetGrabberVisible: true }} />
         </Stack.Protected>
       </Stack>

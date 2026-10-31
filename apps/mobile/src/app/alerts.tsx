@@ -50,7 +50,7 @@ export default function Alerts() {
               onPress={() => {
                 if (!n.readAt) markOne.mutate(n.id);
                 const r = routeForUrl(n.data.url as string | undefined);
-                if (r && r !== '/alerts') router.push(r as never);
+                if (r && r !== '/alerts') router.navigate(r as never);
               }}
               style={({ pressed }) => ({
                 flexDirection: 'row',

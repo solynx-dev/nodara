@@ -12,12 +12,27 @@ The native Nodara app, built with [Expo](https://expo.dev) (SDK 58) and React Na
 | **Background location** | Real iOS background updates (`Always` permission) through a background task, so your circle keeps seeing you when the app is closed. Two modes: *Battery saver* (≈100 m, iOS auto-pause) and *Precise*. |
 | **Geofence wake-ups** | Your family's places (up to 20 nearest) are registered with iOS region monitoring. iOS relaunches Nodara on arrival/departure — even if it was swiped away — and it sends a fresh fix right away. |
 | **Offline queue** | Fixes are queued on the phone (up to 5 000) and uploaded when you're back online. |
-| **Liquid Glass UI** | System tab bar (Liquid Glass on iOS 26), glass map controls (blur fallback on older iOS), large-title headers, native toolbar buttons & menus, form sheets with detents, SF Symbols, haptics, iOS system colours with automatic dark mode. |
-| **Apple Maps** | Members as avatar pins with heading arrows, places as geofence circles, long-press to add a place, “Directions” hands off to Apple Maps. |
+| **Map-first, one screen** | Everything happens on the map, like Find My: a persistent native sheet (People · Places · Trips) sits over it, and you can still pan and zoom the map while it's at small or half height. Tapping a person opens their details *inside* the sheet while the map follows them. |
+| **Liquid Glass** | The sheet is a native SwiftUI sheet, so iOS 26 gives it the system Liquid Glass material. Settings, circle switcher, alerts, map style and *Check in* are real SwiftUI `.glass` buttons and menus. On iOS 16.4–18 they fall back to the standard bordered style. Pushed pages use large titles over translucent headers. |
+| **Apple Maps** | People close together merge into one avatar bubble. A callout such as “Sam arrived · 3 h ago” floats above them. Places show as geofence circles. Long-press to add a place, and “Directions” hands off to Apple Maps. |
+| **Check in** | Sends your current location and notifies your circle (“Alex checked in at Home”), with an optional message. |
 | **Push notifications** | Arrivals, departures, low battery and circle activity as real iOS notifications. Tapping one opens the right screen. |
 | **Security** | Session and device tokens live in the iOS Keychain. Background uploads use a device token that can **only** submit locations. Signing out revokes it. |
 
-Screens: **Map** (live members, places, people strip) · **Member sheet** (where, freshness, speed, battery, accuracy, recent trips) · **People** (circles, sharing toggles, invite via share sheet) · **Trips** (by person, day-grouped, route map + speed) · **Alerts** · **Settings** (sharing, mode, permission, pause, push, units, web app, sign out).
+Layout:
+
+- **Home (map):**
+  - Top glass bar: Settings · circle switcher (native pull-down menu: switch circle, new circle, invite) · Alerts with an unread badge.
+  - Above the sheet: *Check in*, map style menu, and recenter.
+- **Sheet:**
+  - **People:** avatar cards with battery level, place/address and “Since 7:32 PM”.
+  - **Places:** who's there now, add a place.
+  - **Trips:** per person, grouped by day.
+  - **Person detail:** freshness, speed and heading, battery, accuracy, directions and recent trips.
+- **Pushed pages:**
+  - **Trip report:** route map and speed bars.
+  - **Alerts.**
+  - **Settings:** sharing, mode, permission, pause, per-circle sharing, push, units, web app, sign out.
 
 The web app still has a few things the iOS app doesn't yet (history calendar & playback, the full places editor, admin); Settings → *Open web app* gets you there.
 
@@ -87,7 +102,7 @@ In App Store Connect fill in the listing (screenshots, description, privacy poli
 
 ## Server requirements
 
-- Nodara server with this repository's version or newer (`/api/devices/:id/native-push` endpoint).
+- Nodara server with this repository's version or newer (`/api/devices/:id/native-push` and `/api/checkins` endpoints).
 - HTTPS (iOS App Transport Security blocks plain HTTP).
 - Push: the server relays notifications through Expo's push service (`EXPO_PUSH_ENABLED`, on by default). Apple only accepts pushes signed by the app publisher's key, so a self-hosted server can't talk to APNs directly. The relay sees only the notification title and body. Set `EXPO_PUSH_ENABLED=false` to turn it off; the app then shows alerts only while it's open.
 

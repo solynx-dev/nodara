@@ -188,6 +188,29 @@ describe('ingestion, trips and geofences', () => {
     expect(msg?.to).toBe('ExponentPushToken[abc123]');
   });
 
+  it('check-ins share a fix and notify circle-mates', async () => {
+    const a = await newUser(env, 'Checker');
+    const b = await newUser(env, 'Watcher2');
+    const outsider = await newUser(env, 'Stranger');
+    const c = (await a.client.post('/api/circles', { name: 'CheckFam' })).json();
+    const inv = (await a.client.post(`/api/circles/${c.id}/invitations`, {})).json();
+    await b.client.post(`/api/invitations/${inv.token}/accept`);
+    await a.client.post('/api/places', { name: 'Cottage', lat: 46, lon: -64, radiusM: 150, circleId: c.id });
+    const r = await a.client.post('/api/checkins', {
+      deviceId: a.deviceId,
+      message: 'Made it!',
+      location: { recordedAt: new Date().toISOString(), lat: 46.0003, lon: -64, accuracy: 10 },
+    });
+    expect(r.json()).toEqual({ notified: 1, where: 'Cottage' });
+    const note = (await b.client.get('/api/notifications')).json().items.find((n: { type: string }) => n.type === 'check_in');
+    expect(note.title).toBe('Checker checked in at Cottage');
+    expect(note.body).toBe('Made it!');
+    expect((await outsider.client.get('/api/notifications')).json().items).toHaveLength(0);
+    // Can't check in with someone else's device.
+    const bad = await outsider.client.post('/api/checkins', { deviceId: a.deviceId, location: { recordedAt: new Date().toISOString(), lat: 1, lon: 1 } });
+    expect(bad.statusCode).toBe(404);
+  });
+
   it('applies retention and tells the user', async () => {
     const u = await newUser(env, 'Retain');
     await u.client.post('/api/locations', {

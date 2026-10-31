@@ -8,6 +8,7 @@ export type NotificationType =
   | 'departure'
   | 'invitation'
   | 'member_joined'
+  | 'check_in'
   | 'sharing_changed'
   | 'low_battery'
   | 'device_offline'
@@ -21,6 +22,7 @@ const PREF_KEY: Record<NotificationType, string | null> = {
   departure: 'places',
   invitation: null,
   member_joined: 'circle',
+  check_in: 'circle',
   sharing_changed: 'sharing',
   low_battery: 'lowBattery',
   device_offline: 'deviceOffline',

@@ -5,6 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Application from 'expo-application';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { useCircles } from '@/lib/queries';
 import { useMe, useSession } from '@/lib/session';
 import { ago } from '@/lib/format';
 import { disablePush, enablePush, pushPermission } from '@/lib/push';
@@ -71,6 +72,17 @@ export default function Settings() {
     refresh();
   };
 
+  const { data: circles = [] } = useCircles();
+  const setCircleSharing = async (id: string, sharing: boolean) => {
+    try {
+      await api.patch(`/api/circles/${id}/me`, { sharing });
+      qc.invalidateQueries({ queryKey: ['circles'] });
+      qc.invalidateQueries({ queryKey: ['live'] });
+    } catch (e) {
+      Alert.alert('Could not update sharing', (e as Error).message);
+    }
+  };
+
   const setUnits = async (units: 'metric' | 'imperial') => setMe(await api.patch<Me>('/api/me', { preferences: { units } }));
 
   const permissionText =
@@ -107,6 +119,22 @@ export default function Settings() {
           last
         />
       </Section>
+
+      {circles.length > 0 && (
+        <Section title="Share with circles" footer="Turning sharing back on for a circle starts a new visible window — the gap stays private.">
+          {circles.map((c, i) => (
+            <Row
+              key={c.id}
+              icon="person.2.fill"
+              iconColor={c.color}
+              title={c.name}
+              subtitle={`${c.memberCount} ${c.memberCount === 1 ? 'member' : 'members'} · ${c.role}`}
+              accessory={<Switch value={c.sharing} onValueChange={(v) => void setCircleSharing(c.id, v)} trackColor={{ true: C.accent }} />}
+              last={i === circles.length - 1}
+            />
+          ))}
+        </Section>
+      )}
 
       <Section title="Notifications" footer="Arrivals, departures and alerts. Your server relays them through Expo and Apple's push service; only the alert text is sent.">
         <Row icon="bell.badge.fill" iconColor="#FF3B30" title="Push notifications" accessory={<Switch value={pushOn} onValueChange={(v) => void togglePush(v)} trackColor={{ true: C.accent }} />} last />

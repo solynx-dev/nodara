@@ -42,8 +42,9 @@ export async function pushPermission() {
 export function routeForUrl(url: string | undefined): string | null {
   if (!url) return null;
   const member = /member=([0-9a-f-]{36})/.exec(url);
-  if (member) return `/member/${member[1]}`;
-  if (url.startsWith('/circles')) return '/people';
-  if (url.startsWith('/trips/')) return url;
+  if (member) return `/?member=${member[1]}`;
+  const trip = /^\/trips\/([0-9a-f-]{36})/.exec(url);
+  if (trip) return `/trip/${trip[1]}`;
+  if (url.startsWith('/circles')) return '/';
   return '/alerts';
 }
