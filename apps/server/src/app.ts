@@ -1,4 +1,4 @@
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { LogController, type FastifyInstance } from 'fastify';
 import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
@@ -40,7 +40,7 @@ export async function buildApp(config: Config, opts: { sql?: Sql; logger?: boole
     logger: opts.logger === false ? false : { level: config.LOG_LEVEL },
     trustProxy: config.TRUST_PROXY,
     // Per-request logs would record who fetched whose location; keep them for debugging only.
-    disableRequestLogging: config.LOG_LEVEL !== 'debug' && config.LOG_LEVEL !== 'trace',
+    logController: new LogController({ disableRequestLogging: config.LOG_LEVEL !== 'debug' && config.LOG_LEVEL !== 'trace' }),
     bodyLimit: 1024 * 1024,
   });
   const sql = opts.sql ?? createDb(config.DATABASE_URL, config.DATABASE_POOL_SIZE);
