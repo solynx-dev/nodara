@@ -192,20 +192,12 @@ export default function Home() {
       },
     );
 
+  /** New place at a spot (long-press on the map, or the map centre). The editor sets name, zone and alerts. */
   const addPlace = (lat: number, lon: number) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.prompt('New place', 'Name it to see who is there and get arrival and departure alerts — like Home, School or Work.', async (name) => {
-      if (!name?.trim()) return;
-      try {
-        const icon = /home|house/i.test(name) ? 'home' : /work|office/i.test(name) ? 'work' : /school|college|uni/i.test(name) ? 'school' : /gym/i.test(name) ? 'gym' : 'pin';
-        await api.post('/api/places', { name: name.trim(), lat, lon, radiusM: 150, icon, color: '#FF6B3D', circleId: circleId ?? circles[0]?.id ?? null });
-        qc.invalidateQueries({ queryKey: ['places'] });
-        toast({ tone: 'success', title: `${name.trim()} saved`, body: circles.length ? 'Your circle will see arrivals and departures here.' : 'Only you can see this place.' });
-      } catch (e) {
-        toast({ tone: 'error', title: 'Could not save place', body: (e as Error).message });
-      }
-    });
+    router.push({ pathname: '/place/[id]', params: { id: 'new', lat: String(lat), lon: String(lon), ...(circleId ? { circleId } : {}) } });
   };
+  const openPlace = (p: PlaceWithMeta) => router.push({ pathname: '/place/[id]', params: { id: p.id } });
 
   const invite = () => {
     const doInvite = async (id: string, name: string) => {
@@ -282,6 +274,7 @@ export default function Home() {
         onSelect={selectPerson}
         onGroupPress={onGroupPress}
         onLongPress={addPlace}
+        onPlacePress={openPlace}
         onMapPress={() => selectedId && clearSelection()}
       />
 
@@ -335,7 +328,7 @@ export default function Home() {
         ) : segment === 'people' ? (
           <PeoplePanel members={members} events={events.byUser} loading={live.isLoading} circleId={circleId} onSelect={selectPerson} onInvite={invite} />
         ) : (
-          <PlacesPanel places={places} members={members} events={events.list} onFocus={focusPlace} onAdd={() => addPlace(region?.latitude ?? 0, region?.longitude ?? 0)} />
+          <PlacesPanel places={places} members={members} events={events.list} onFocus={focusPlace} onOpen={openPlace} onAdd={() => addPlace(region?.latitude ?? 0, region?.longitude ?? 0)} />
         )}
       </MapSheet>
 

@@ -61,11 +61,16 @@ export default async function placeRoutes(app: FastifyInstance, ctx: Ctx) {
         WHERE me.user_id = ${a.userId} AND t.sharing AND NOT u.sharing_paused`).map((r) => r.user_id),
     );
     visible.add(a.userId);
+    // Same rule as PATCH/DELETE: the creator, or an owner/admin of the place's circle.
+    const adminOf = new Set(
+      (await sql<{ circle_id: string }[]>`
+        SELECT circle_id FROM circle_members WHERE user_id = ${a.userId} AND role IN ('owner', 'admin')`).map((r) => r.circle_id),
+    );
     return rows.map((r) => ({
       ...serializePlace(r),
       membersInside: (r.inside ?? []).filter((id) => visible.has(id)),
       alertCount: r.alerts,
-      canEdit: r.owner_id === a.userId,
+      canEdit: r.owner_id === a.userId || (r.circle_id != null && adminOf.has(r.circle_id)),
     }));
   });
 

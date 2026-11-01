@@ -88,10 +88,11 @@ export const NodaraMap = forwardRef<
     onRegion: (r: Region) => void;
     onSelect: (id: string) => void;
     onGroupPress: (members: MemberLocation[]) => void;
+    onPlacePress: (p: PlaceWithMeta) => void;
     onLongPress: (lat: number, lon: number) => void;
     onMapPress: () => void;
   }
->(function NodaraMap({ members, places, meId, units, selectedId, mapType, region, bottomInset, attributionInsets, onRegion, onSelect, onGroupPress, onLongPress, onMapPress }, ref) {
+>(function NodaraMap({ members, places, meId, units, selectedId, mapType, region, bottomInset, attributionInsets, onRegion, onSelect, onGroupPress, onPlacePress, onLongPress, onMapPress }, ref) {
   const screen = useWindowDimensions();
   const view = region ?? { latitude: 0, longitude: 0, latitudeDelta: 0.2, longitudeDelta: 0.2 };
   const tier = tierFor(view.latitudeDelta);
@@ -129,7 +130,7 @@ export const NodaraMap = forwardRef<
         places
           .filter((p) => !occupied.has(p.id))
           .map((p) => (
-            <Marker key={`place-${p.id}`} coordinate={{ latitude: p.lat, longitude: p.lon }} tracksViewChanges={false}>
+            <Marker key={`place-${p.id}`} coordinate={{ latitude: p.lat, longitude: p.lon }} tracksViewChanges={false} onPress={() => onPlacePress(p)}>
               <View collapsable={false} style={styles.placeLabel}>
                 <View style={[styles.placeIcon, { backgroundColor: p.color }]}>
                   <PlaceSymbol icon={p.icon} size={10} color="white" />

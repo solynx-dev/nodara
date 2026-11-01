@@ -63,6 +63,9 @@ export interface PlaceWithMeta {
   color: string;
   membersInside: string[];
   canEdit: boolean;
+  address?: string | null;
+  /** How many alert rules you have for this place. */
+  alertCount?: number;
 }
 export interface PlaceEvent {
   id: string;

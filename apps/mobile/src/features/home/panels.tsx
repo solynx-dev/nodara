@@ -128,12 +128,14 @@ export function PlacesPanel({
   members,
   events,
   onFocus,
+  onOpen,
   onAdd,
 }: {
   places: PlaceWithMeta[];
   members: MemberLocation[];
   events: PlaceEvent[];
   onFocus: (p: PlaceWithMeta) => void;
+  onOpen: (p: PlaceWithMeta) => void;
   onAdd: () => void;
 }) {
   const me = useMe();
@@ -149,7 +151,7 @@ export function PlacesPanel({
         const inside = p.membersInside.map((id) => byId.get(id)).filter(Boolean) as MemberLocation[];
         const last = lastByPlace.get(p.id);
         return (
-          <Card key={p.id} onPress={() => onFocus(p)} index={i} label={p.name}>
+          <Card key={p.id} onPress={() => onOpen(p)} index={i} label={`${p.name}. Opens place settings.`}>
             <View style={[styles.roundIcon, { backgroundColor: p.color }]}>
               <PlaceSymbol icon={p.icon} size={22} color="white" />
             </View>
@@ -164,10 +166,16 @@ export function PlacesPanel({
                 </Text>
               )}
               <Text style={[T.caption, { color: C.tertiaryLabel, fontWeight: '500' }]}>
-                {formatDistance(p.radiusM, me.preferences.units)} radius · {p.circleId ? 'shared' : 'only you'}
+                {formatDistance(p.radiusM, me.preferences.units)} zone · {p.circleId ? 'shared' : 'only you'}
+                {p.alertCount ? ' · alerts on' : ''}
               </Text>
             </View>
-            <AvatarStack people={inside} size={28} max={3} />
+            <View style={{ alignItems: 'flex-end', gap: 8 }}>
+              <Tap onPress={() => onFocus(p)} hitSlop={8} style={styles.mapButton} accessibilityRole="button" accessibilityLabel={`Show ${p.name} on the map`}>
+                <SymbolView name="map.fill" size={15} tintColor={C.accent} />
+              </Tap>
+              <AvatarStack people={inside} size={26} max={3} />
+            </View>
           </Card>
         );
       })}
@@ -185,5 +193,6 @@ export const styles = StyleSheet.create({
   batteryText: { fontSize: 10, fontWeight: '800', color: C.label },
   placeBadge: { position: 'absolute', top: -2, right: -4, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'white' },
   roundIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  mapButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: C.accentSoft },
   hint: { fontSize: 13, color: C.tertiaryLabel, textAlign: 'center', marginTop: 8, marginHorizontal: 16, lineHeight: 18 },
 });
