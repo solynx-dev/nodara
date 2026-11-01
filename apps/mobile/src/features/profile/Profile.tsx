@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Linking, ScrollView, Share, StyleSheet, Text, View, type ColorValue } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
+import { appear } from '@/lib/motion';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useMe } from '@/lib/session';
 import { useAddress, useDayTimeline, useTripPages, useWeekTrips, type TimelineItem } from '@/lib/queries';
@@ -23,7 +24,7 @@ export function ProfileHeader({ m, ev, onBack, onEdit }: { m: MemberLocation; ev
   const isMe = m.id === me.id;
   const s = describeMember(m, ev, null, me.preferences.units);
   return (
-    <Animated.View entering={FadeIn.duration(220)} style={styles.header}>
+    <Animated.View entering={appear} style={styles.header}>
       <Tap onPress={onBack} accessibilityLabel="Back to everyone" hitSlop={12} style={styles.back}>
         <SymbolView name="chevron.left" size={16} weight="bold" tintColor={C.label} />
       </Tap>
@@ -82,7 +83,7 @@ function NowCard({ m, ev }: { m: MemberLocation; ev?: PlaceEvent }) {
 
   if (!loc) {
     return (
-      <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.card}>
+      <Animated.View entering={appear} style={styles.card}>
         <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
           <View style={[styles.placeIcon, { backgroundColor: C.fill }]}>
             <SymbolView name={m.sharing ? 'location.slash' : 'eye.slash.fill'} size={20} tintColor={C.secondaryLabel} />
@@ -99,7 +100,7 @@ function NowCard({ m, ev }: { m: MemberLocation; ev?: PlaceEvent }) {
   }
 
   return (
-    <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.card}>
+    <Animated.View entering={appear} style={styles.card}>
       <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
         <View style={[styles.placeIcon, { backgroundColor: m.currentPlace?.color ?? (moving ? HEX.blue : C.accent) }]}>
           {m.currentPlace ? <PlaceSymbol icon={m.currentPlace.icon} size={20} color="white" /> : <SymbolView name={moving ? 'car.fill' : 'mappin'} size={20} tintColor="white" />}
@@ -274,7 +275,7 @@ function HistoryTab({ m, onOpenTrip }: { m: MemberLocation; onOpenTrip: (id: str
       ) : !items?.length ? (
         <Empty icon="calendar" title="Nothing recorded" body={daysAgo === 0 ? `No movement recorded yet today.` : `No location history for this day.`} />
       ) : (
-        <Animated.View key={daysAgo} entering={FadeIn.duration(200)} style={styles.card}>
+        <Animated.View key={daysAgo} entering={appear} style={styles.card}>
           {items.map((item, i) => (
             <TimelineRow key={i} item={item} last={i === items.length - 1} current={daysAgo === 0 && i === items.length - 1} units={units} onOpenTrip={onOpenTrip} />
           ))}

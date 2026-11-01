@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
 import { ActionSheetIOS, Alert, Linking, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
+import { appear } from '@/lib/motion';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import * as WebBrowser from 'expo-web-browser';
 import * as Application from 'expo-application';
@@ -37,8 +38,8 @@ const deviceKind = (kind: string) => (kind === 'ios' ? 'iPhone app' : kind === '
 
 function ProfileCard({ me, circles, places, trips, distance }: { me: Me; circles: number; places: number; trips: number; distance: string }) {
   return (
-    <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.profile}>
-      <Tap onPress={() => router.push('/edit-profile')} style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }} accessibilityRole="button" accessibilityLabel="Edit profile" scaleTo={0.98}>
+    <Animated.View entering={appear} style={styles.profile}>
+      <Tap onPress={() => router.push('/edit-profile')} style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }} accessibilityRole="button" accessibilityLabel="Edit profile">
         <View>
           <Avatar name={me.displayName} color={me.avatarColor} url={me.avatarUrl} size={76} />
           <View style={styles.camera}>
@@ -102,7 +103,7 @@ function HealthCard({ paused, running, always, lastSent, pending, onFix }: { pau
         ? { icon: 'exclamationmark.triangle.fill', color: HEX.orange, title: 'Only while Nodara is open', body: 'iOS stops sharing in the background unless location access is "Always".', action: 'Open iOS Settings' }
         : { icon: 'checkmark.seal.fill', color: HEX.green, title: 'Sharing in the background', body: `All good. Last update sent ${ago(lastSent)}${pending ? `, ${pending} waiting to upload` : ''}.` };
   return (
-    <Animated.View entering={FadeInDown.delay(60).springify().damping(18)} style={[styles.health, { borderColor: `${state.color}55` }]}>
+    <Animated.View entering={appear} style={[styles.health, { borderColor: `${state.color}55` }]}>
       <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
         <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: `${state.color}22`, alignItems: 'center', justifyContent: 'center' }}>
           <SymbolView name={state.icon} size={26} tintColor={state.color} />

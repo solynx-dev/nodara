@@ -1,5 +1,6 @@
 import { ActionSheetIOS, Alert, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-native';
-import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
+import { appear } from '@/lib/motion';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -128,7 +129,7 @@ export default function CircleScreen() {
     <ScrollView contentInsetAdjustmentBehavior="automatic" style={{ backgroundColor: C.groupedBackground }} contentContainerStyle={{ paddingTop: 8, paddingBottom: 100 }}>
       <Stack.Screen options={{ title: c.name }} />
 
-      <Animated.View entering={ZoomIn.springify().damping(16)} style={styles.hero}>
+      <Animated.View entering={appear} style={styles.hero}>
         <View style={[styles.badge, { backgroundColor: c.color }]}>
           <Text style={styles.badgeText}>{c.name.trim()[0]?.toUpperCase()}</Text>
         </View>
@@ -144,7 +145,7 @@ export default function CircleScreen() {
         )}
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(60).springify().damping(18)}>
+      <Animated.View entering={appear}>
         <Section title="Members" footer={isAdmin ? 'Tap someone to change their role or remove them.' : undefined}>
           {c.members.map((m, i) => {
             const manageable = isAdmin && m.id !== me.id && RANK[m.role] < RANK[c.role];

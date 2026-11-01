@@ -1,25 +1,16 @@
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import Animated, {
-  Extrapolation,
-  interpolate,
-  useAnimatedRef,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  type SharedValue,
-} from 'react-native-reanimated';
+import Animated, { Extrapolation, interpolate, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { GestureDetector, useNativeGesture, usePanGesture, useSimultaneousGestures, useTapGesture } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { C } from '@/lib/theme';
+import { GLIDE } from '@/lib/motion';
 import { Glass } from '@/components/ui';
 
 export type SheetIndex = 0 | 1 | 2; // peek, half, full
 
-const SPRING = { damping: 28, stiffness: 280, mass: 0.9 } as const;
 
 /** Y positions (distance from the top of the screen to the sheet's top edge) for each detent. */
 export function useSheetPositions() {
@@ -73,7 +64,7 @@ export function MapSheet({
   // Follow index changes made from outside (selecting a person, etc.).
   useEffect(() => {
     const target = positions[index];
-    if (Math.abs(y.get() - target) > 1) y.set(withSpring(target, SPRING));
+    if (Math.abs(y.get() - target) > 1) y.set(withTiming(target, GLIDE));
   }, [index, positions, y]);
 
   // Below full height the list is "parked" at the top.
@@ -91,11 +82,8 @@ export function MapSheet({
 
   const follow = (translationY: number) => {
     'worklet';
-    let next = start.get() + translationY;
-    // Rubber-band beyond the top and bottom detents.
-    if (next < full) next = full - (full - next) * 0.2;
-    if (next > peek) next = peek + (next - peek) * 0.25;
-    y.set(next);
+    // Follows the finger exactly, and stops hard at the top and bottom detents.
+    y.set(Math.min(peek, Math.max(full, start.get() + translationY)));
   };
 
   const snap = (velocityY: number) => {
@@ -104,7 +92,8 @@ export function MapSheet({
     const pts = [peek, half, full];
     let best = 0;
     for (let i = 1; i < 3; i++) if (Math.abs(pts[i]! - projected) < Math.abs(pts[best]! - projected)) best = i;
-    y.set(withSpring(pts[best]!, { ...SPRING, velocity: velocityY }));
+    // Glide to the detent and stop: no spring, no overshoot.
+    y.set(withTiming(pts[best]!, GLIDE));
     scheduleOnRN(settle, best as SheetIndex);
   };
 
@@ -159,7 +148,7 @@ export function MapSheet({
       'worklet';
       if (e.canceled) return;
       const next: SheetIndex = index === 2 ? 1 : ((index + 1) as SheetIndex);
-      y.set(withSpring([peek, half, full][next]!, SPRING));
+      y.set(withTiming([peek, half, full][next]!, GLIDE));
       scheduleOnRN(settle, next);
     },
   });
@@ -173,11 +162,8 @@ export function MapSheet({
   const container = useAnimatedStyle(() => ({ transform: [{ translateY: y.get() }] }));
   // Opaque backdrop fades in between half and full height so long lists stay readable.
   const solid = useAnimatedStyle(() => ({ opacity: interpolate(y.get(), [half, full], [0, 1], Extrapolation.CLAMP) }));
-  // Floating buttons fade and shrink away as the sheet takes over the screen.
-  const accessoryStyle = useAnimatedStyle(() => {
-    const v = interpolate(y.get(), [full + 90, half - 10], [0, 1], Extrapolation.CLAMP);
-    return { opacity: v, transform: [{ scale: 0.92 + 0.08 * v }] };
-  });
+  // Floating buttons fade away as the sheet takes over the screen.
+  const accessoryStyle = useAnimatedStyle(() => ({ opacity: interpolate(y.get(), [full + 90, half - 10], [0, 1], Extrapolation.CLAMP) }));
 
   return (
     <Animated.View style={[styles.sheet, { height: height - full }, container]}>

@@ -1,16 +1,6 @@
 import { createContext, use, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, {
-  Easing,
-  FadeInUp,
-  FadeOutUp,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
@@ -18,24 +8,25 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { C, HEX, T } from '@/lib/theme';
+import { appear, disappear, EASE, GLIDE } from '@/lib/motion';
 import { initials } from '@/lib/format';
 import { serverImage } from '@/lib/api';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-/** Pressable with a springy scale-down, used for every tappable surface. */
-export function Tap({ style, children, haptic = 'selection', scaleTo = 0.97, onPress, ...rest }: PressableProps & { style?: StyleProp<ViewStyle>; haptic?: 'selection' | 'light' | 'none'; scaleTo?: number; children?: ReactNode }) {
-  const scale = useSharedValue(1);
-  const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+/** Pressable that dims while pressed (like native iOS controls), used for every tappable surface. */
+export function Tap({ style, children, haptic = 'selection', onPress, ...rest }: PressableProps & { style?: StyleProp<ViewStyle>; haptic?: 'selection' | 'light' | 'none'; children?: ReactNode }) {
+  const opacity = useSharedValue(1);
+  const animated = useAnimatedStyle(() => ({ opacity: opacity.get() }));
   return (
     <AnimatedPressable
       {...rest}
       onPressIn={(e) => {
-        scale.set(withSpring(scaleTo, { damping: 18, stiffness: 400 }));
+        opacity.set(withTiming(0.55, { duration: 60 }));
         rest.onPressIn?.(e);
       }}
       onPressOut={(e) => {
-        scale.set(withSpring(1, { damping: 14, stiffness: 300 }));
+        opacity.set(withTiming(1, { duration: 180, easing: EASE }));
         rest.onPressOut?.(e);
       }}
       onPress={(e) => {
@@ -68,8 +59,8 @@ export function Glass({ style, children, interactive, tint }: { style?: StylePro
 
 export function GlassButton({ icon, label, onPress, badge, size = 48, tintIcon }: { icon: SFSymbol; label: string; onPress: () => void; badge?: number; size?: number; tintIcon?: string }) {
   return (
-    <Tap accessibilityLabel={label} accessibilityRole="button" onPress={onPress} scaleTo={0.9}>
-      <Glass interactive style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center' }}>
+    <Tap accessibilityLabel={label} accessibilityRole="button" onPress={onPress}>
+      <Glass style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center' }}>
         <SymbolView name={icon} size={size * 0.42} weight="medium" tintColor={tintIcon ?? C.label} />
       </Glass>
       {!!badge && (
@@ -84,7 +75,7 @@ export function GlassButton({ icon, label, onPress, badge, size = 48, tintIcon }
 export function GlassPill({ icon, label, onPress, accent, sub }: { icon: SFSymbol; label: string; onPress: () => void; accent?: boolean; sub?: string }) {
   return (
     <Tap accessibilityRole="button" accessibilityLabel={label} onPress={onPress} haptic="light">
-      <Glass interactive tint={accent ? 'rgba(255,107,61,0.85)' : undefined} style={styles.pill}>
+      <Glass tint={accent ? 'rgba(255,107,61,0.85)' : undefined} style={styles.pill}>
         <SymbolView name={icon} size={18} weight="semibold" tintColor={accent ? 'white' : C.label} />
         <View>
           <Text style={[styles.pillText, accent && { color: 'white' }]}>{label}</Text>
@@ -174,14 +165,14 @@ export function Segmented<K extends string>({
   const [width, setWidth] = useState(0);
   const i = Math.max(0, items.findIndex((s) => s.key === value));
   const seg = width / items.length;
-  const pill = useAnimatedStyle(() => ({ width: seg - 4, transform: [{ translateX: withSpring(i * seg + 2, { damping: 20, stiffness: 260 }) }] }), [i, seg]);
+  const pill = useAnimatedStyle(() => ({ width: seg - 4, transform: [{ translateX: withTiming(i * seg + 2, GLIDE) }] }), [i, seg]);
   return (
     <View style={[styles.segment, style]} onLayout={(e) => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist">
       {width > 0 && <Animated.View style={[styles.segmentPill, pill]} />}
       {items.map((s) => {
         const on = s.key === value;
         return (
-          <Tap key={s.key} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => onChange(s.key)} style={styles.segmentItem} scaleTo={0.95}>
+          <Tap key={s.key} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => onChange(s.key)} style={styles.segmentItem}>
             {s.icon && <SymbolView name={s.icon} size={15} tintColor={on ? C.accent : C.secondaryLabel} />}
             <Text style={[styles.segmentText, on && { color: C.label }]}>{s.label}</Text>
             {!!s.count && <Text style={styles.segmentCount}>{s.count}</Text>}
@@ -305,7 +296,7 @@ export function PrimaryButton({ title, onPress, loading, disabled, icon, tone = 
 
 export function Empty({ icon, title, body, action }: { icon: SFSymbol; title: string; body?: string; action?: ReactNode }) {
   return (
-    <Animated.View entering={FadeInUp.duration(350)} style={{ alignItems: 'center', paddingVertical: 36, paddingHorizontal: 28, gap: 8 }}>
+    <Animated.View entering={appear} style={{ alignItems: 'center', paddingVertical: 36, paddingHorizontal: 28, gap: 8 }}>
       <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
         <SymbolView name={icon} size={36} tintColor={C.accent} type="hierarchical" />
       </View>
@@ -345,7 +336,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastCtx value={show}>
       {children}
       {toast && (
-        <Animated.View key={toast.id} entering={FadeInUp.springify().damping(18)} exiting={FadeOutUp.duration(200)} style={[styles.toastWrap, { top: insets.top + 8 }]} pointerEvents="box-none">
+        <Animated.View key={toast.id} entering={appear} exiting={disappear} style={[styles.toastWrap, { top: insets.top + 8 }]} pointerEvents="box-none">
           <Pressable onPress={() => setToast(null)}>
             <Glass style={styles.toast}>
               <SymbolView name={icon[toast.tone]} size={24} tintColor={color[toast.tone]} />

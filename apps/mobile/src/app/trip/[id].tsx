@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { ScrollView, Share, Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
+import { appear } from '@/lib/motion';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { useQuery } from '@tanstack/react-query';
@@ -66,7 +67,7 @@ export default function TripScreen() {
         />
       </Stack.Toolbar>
 
-      <Animated.View entering={FadeInDown.springify()} style={{ height: 320, marginHorizontal: 16, marginTop: 8, borderRadius: 28, borderCurve: 'continuous', overflow: 'hidden' }}>
+      <Animated.View entering={appear} style={{ height: 320, marginHorizontal: 16, marginTop: 8, borderRadius: 28, borderCurve: 'continuous', overflow: 'hidden' }}>
         <MapView ref={map} style={{ flex: 1 }} mapType="mutedStandard" pitchEnabled={false} showsPointsOfInterests={false}>
           {coords.length > 1 && <Polyline coordinates={coords} strokeColor="rgba(0,0,0,0.25)" strokeWidth={9} lineCap="round" lineJoin="round" />}
           {coords.length > 1 && <Polyline coordinates={coords} strokeColor="#FF6B3D" strokeWidth={5} lineCap="round" lineJoin="round" />}
@@ -88,7 +89,7 @@ export default function TripScreen() {
         </MapView>
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(60).springify()} style={{ paddingHorizontal: 20, gap: 6 }}>
+      <Animated.View entering={appear} style={{ paddingHorizontal: 20, gap: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {person && <Avatar name={person.displayName} color={person.avatarColor} url={person.avatarUrl} size={26} />}
           <Text style={[T.subhead, { color: C.secondaryLabel }]}>
@@ -103,7 +104,7 @@ export default function TripScreen() {
         </View>
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(110).springify()} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 16 }}>
+      <Animated.View entering={appear} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 16 }}>
         <Stat icon="road.lanes" label="Distance" value={formatDistance(trip.distanceM, units)} />
         <Stat icon="clock.fill" label="Duration" value={formatDuration(trip.durationSec)} sub={`${formatDuration(trip.movingSec)} moving`} />
         <Stat icon="gauge.with.dots.needle.67percent" label="Top speed" value={formatSpeed(trip.maxSpeed, units)} sub="Spikes filtered out" />
@@ -111,7 +112,7 @@ export default function TripScreen() {
       </Animated.View>
 
       {valid.length > 3 && (
-        <Animated.View entering={FadeInDown.delay(160).springify()} style={card}>
+        <Animated.View entering={appear} style={card}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
             <Text style={[T.headline, { color: C.label }]}>Speed</Text>
             <Text style={[T.footnote, { color: C.secondaryLabel }]}>peak {Math.round(peak * factor)} {units === 'imperial' ? 'mph' : 'km/h'}</Text>
@@ -132,7 +133,7 @@ export default function TripScreen() {
         </Animated.View>
       )}
 
-      <Animated.View entering={FadeInDown.delay(210).springify()} style={card}>
+      <Animated.View entering={appear} style={card}>
         <Text style={[T.headline, { color: C.label, marginBottom: 12 }]}>Route</Text>
         <Step icon="flag.fill" color={HEX.green} title={trip.startLabel ?? 'Start'} sub={`Left at ${clock(trip.startedAt)}`} />
         {trip.stops.map((s, i) => (

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { RefreshControl, SectionList, Text, View } from 'react-native';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { router, Stack } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
@@ -71,7 +71,7 @@ export default function Alerts() {
           const meta = ICONS[n.type] ?? { icon: 'bell.circle.fill' as SFSymbol, color: '#FF6B3D', label: 'Alert' };
           const route = routeForUrl(n.data.url as string | undefined);
           return (
-            <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 30).springify()} layout={LinearTransition}>
+            <Animated.View>
               <Tap
                 onPress={() => {
                   if (!n.readAt) markOne.mutate(n.id);

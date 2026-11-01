@@ -41,4 +41,3 @@ export const T: Record<'largeTitle' | 'title1' | 'title2' | 'title3' | 'headline
   caption: { fontSize: 12, fontWeight: '600' },
 };
 
-export const SPRING = { damping: 22, stiffness: 240, mass: 0.9 } as const;

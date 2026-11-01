@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { SymbolView } from 'expo-symbols';
 import { useMe } from '@/lib/session';
 import { useAddress } from '@/lib/queries';
@@ -14,7 +14,7 @@ export type Segment = 'people' | 'places';
 
 function Card({ children, onPress, index = 0, label }: { children: React.ReactNode; onPress?: () => void; index?: number; label?: string }) {
   return (
-    <Animated.View entering={FadeInDown.delay(index * 40).springify().damping(18)} layout={LinearTransition.springify()}>
+    <Animated.View>
       <Tap onPress={onPress} disabled={!onPress} style={styles.card} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={label}>
         {children}
       </Tap>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
+import { appear } from '@/lib/motion';
 import { KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useSession } from '@/lib/session';
@@ -35,7 +36,7 @@ export default function SignIn() {
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: C.groupedBackground }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, gap: 24 }} keyboardShouldPersistTaps="handled">
-        <Animated.View entering={FadeInDown.springify()} style={{ gap: 8 }}>
+        <Animated.View entering={appear} style={{ gap: 8 }}>
           <Text style={{ fontSize: 34, fontWeight: '800', color: C.label, letterSpacing: -0.5 }}>
             {step === 'password' ? 'Sign in' : 'Verification'}
           </Text>
@@ -43,7 +44,7 @@ export default function SignIn() {
             {step === 'password' ? `to ${config?.instanceName ?? 'Nodara'} · ${host}` : 'Enter the code from your authenticator app, or a recovery code.'}
           </Text>
         </Animated.View>
-        <Animated.View key={step} entering={FadeInDown.delay(80).springify()} style={[styles.section, { marginHorizontal: 0 }]}>
+        <Animated.View key={step} entering={appear} style={[styles.section, { marginHorizontal: 0 }]}>
           {step === 'password' ? (
             <>
               <TextInput

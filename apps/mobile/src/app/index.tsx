@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, Share, StyleSheet, Text, View } from 'react-native';
 import type MapView from 'react-native-maps';
 import type { MapType, Region } from 'react-native-maps';
-import Animated, { FadeIn, useSharedValue } from 'react-native-reanimated';
+import Animated, { useSharedValue } from 'react-native-reanimated';
+import { appear } from '@/lib/motion';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
@@ -268,7 +269,7 @@ export default function Home() {
           selected ? (
             <ProfileHeader key={selected.id} m={selected} ev={events.byUser.get(selected.id)} onBack={clearSelection} onEdit={() => router.push('/edit-profile')} />
           ) : (
-            <Animated.View entering={FadeIn}>
+            <Animated.View entering={appear}>
               <View style={styles.sheetHeader}>
                 <Text style={[T.title1, { color: C.label }]} numberOfLines={1}>
                   {circle?.name ?? 'Everyone'}

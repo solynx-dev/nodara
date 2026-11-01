@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
+import { appear } from '@/lib/motion';
 import { KeyboardAvoidingView, ScrollView, Text, TextInput, View, Linking } from 'react-native';
 import { Image } from 'expo-image';
 import { useSession } from '@/lib/session';
@@ -27,14 +28,14 @@ export default function Welcome() {
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: C.groupedBackground }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, gap: 28 }} keyboardShouldPersistTaps="handled">
-        <Animated.View entering={FadeInDown.springify().damping(16)} style={{ alignItems: 'center', gap: 14 }}>
+        <Animated.View entering={appear} style={{ alignItems: 'center', gap: 14 }}>
           <Image source={require('../../assets/icon.png')} style={{ width: 96, height: 96, borderRadius: 22 }} />
           <Text style={{ fontSize: 34, fontWeight: '800', color: C.label, letterSpacing: -0.5 }}>Nodara</Text>
           <Text style={{ fontSize: 17, color: C.secondaryLabel, textAlign: 'center', lineHeight: 23 }}>
             Your people. Your places. Your data.{'\n'}Connect to your family&apos;s Nodara server.
           </Text>
         </Animated.View>
-        <Animated.View entering={FadeInDown.delay(120).springify()} style={{ gap: 8 }}>
+        <Animated.View entering={appear} style={{ gap: 8 }}>
           <View style={[styles.section, { marginHorizontal: 0 }]}>
             <TextInput
               style={styles.input}

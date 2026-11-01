@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeOut, ZoomIn, ZoomOut } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
+import { appear, disappear } from '@/lib/motion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -45,7 +46,7 @@ export function TopBar({
       <View style={styles.row} pointerEvents="box-none">
         <GlassButton icon="gearshape.fill" label="Settings" onPress={onSettings} />
         <Tap onPress={() => setOpen(true)} style={{ flex: 1 }} accessibilityRole="button" accessibilityLabel={`Circle: ${circle?.name ?? 'All circles'}. Switch circle`}>
-          <Glass interactive style={styles.switcher}>
+          <Glass style={styles.switcher}>
             <View style={[styles.circleDot, { backgroundColor: circle?.color ?? C.accent }]}>
               <SymbolView name="person.2.fill" size={12} tintColor="white" />
             </View>
@@ -65,10 +66,10 @@ export function TopBar({
       <SharingBanner onPress={onFixSharing} />
 
       <Modal visible={open} transparent animationType="none" onRequestClose={() => setOpen(false)}>
-        <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(150)} style={StyleSheet.absoluteFill}>
+        <Animated.View entering={appear} exiting={disappear} style={StyleSheet.absoluteFill}>
           <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.18)' }]} onPress={() => setOpen(false)} accessibilityLabel="Close circle menu" />
         </Animated.View>
-        <Animated.View entering={ZoomIn.springify().damping(18).stiffness(260)} exiting={ZoomOut.duration(140)} style={[styles.menu, { top: insets.top + 62 }]}>
+        <Animated.View entering={appear} exiting={disappear} style={[styles.menu, { top: insets.top + 62 }]}>
           <Glass style={styles.menuInner}>
             <Text style={styles.menuTitle}>Your circles</Text>
             <MenuItem icon="globe" color={HEX.gray} label="All circles" sub="Everyone you share with" checked={!circleId} onPress={pick(() => onSelectCircle(null))} />
@@ -96,7 +97,7 @@ export function TopBar({
 
 function MenuItem({ icon, color, label, sub, checked, onPress }: { icon: SFSymbol; color: string; label: string; sub?: string; checked?: boolean; onPress: () => void }) {
   return (
-    <Tap onPress={onPress} style={styles.menuItem} scaleTo={0.98} accessibilityRole="menuitem" accessibilityState={{ selected: checked }}>
+    <Tap onPress={onPress} style={styles.menuItem} accessibilityRole="menuitem" accessibilityState={{ selected: checked }}>
       <View style={[styles.menuIcon, { backgroundColor: color }]}>
         <SymbolView name={icon} size={14} tintColor="white" />
       </View>
@@ -122,9 +123,9 @@ function SharingBanner({ onPress }: { onPress: () => void }) {
   else if (t.background !== 'granted') banner = { icon: 'exclamationmark.triangle.fill', color: HEX.orange, title: 'Only sharing while Nodara is open', sub: 'Allow “Always” so your circle sees you in the background.' };
   if (!banner) return null;
   return (
-    <Animated.View entering={FadeInDown.springify()} exiting={FadeOut} style={{ marginTop: 10 }}>
+    <Animated.View entering={appear} exiting={disappear} style={{ marginTop: 10 }}>
       <Tap onPress={onPress} haptic="light" accessibilityRole="button" accessibilityLabel={`${banner.title}. ${banner.sub}`}>
-        <Glass interactive style={styles.banner}>
+        <Glass style={styles.banner}>
           <SymbolView name={banner.icon} size={22} tintColor={banner.color} />
           <View style={{ flex: 1 }}>
             <Text style={[T.subhead, { color: C.label, fontWeight: '700' }]}>{banner.title}</Text>

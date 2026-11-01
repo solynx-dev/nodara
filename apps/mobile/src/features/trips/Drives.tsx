@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
+import { appear } from '@/lib/motion';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useMe } from '@/lib/session';
 import { clock, dayLabel, formatDistance, formatDuration, formatSpeed, weekdayShort } from '@/lib/format';
@@ -23,7 +24,7 @@ export function DriveCard({ t, onOpen, index = 0 }: { t: Trip; onOpen: (id: stri
   const units = useMe().preferences.units;
   const live = t.status === 'in_progress';
   return (
-    <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 35).springify().damping(18)} layout={LinearTransition.springify()}>
+    <Animated.View>
       <Tap onPress={() => onOpen(t.id)} style={styles.card} accessibilityRole="button" accessibilityLabel={`${modeLabel(t)} from ${t.startLabel ?? 'somewhere'} to ${live ? 'now' : (t.endLabel ?? 'somewhere')}, ${formatDistance(t.distanceM, units)}, ${formatDuration(t.durationSec)}`}>
         <View style={styles.rail}>
           <View style={[styles.dot, { backgroundColor: HEX.green }]} />
@@ -115,7 +116,7 @@ export function WeekSummary({ trips }: { trips: Trip[] }) {
   }, [trips]);
   const max = Math.max(1, ...days.map((d) => d.distance));
   return (
-    <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.week}>
+    <Animated.View entering={appear} style={styles.week}>
       <Text style={styles.weekTitle}>Last 7 days</Text>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Big value={String(count)} label={count === 1 ? 'trip' : 'trips'} />

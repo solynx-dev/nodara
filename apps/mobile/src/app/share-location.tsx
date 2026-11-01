@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
+import { appear } from '@/lib/motion';
 import { Linking, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
@@ -36,7 +37,7 @@ export default function ShareLocation() {
       <Point delay={120} icon="person.2.fill" title="Only your circles" body="Just the circles you choose can see you. Pause any time from Settings." />
       <Point delay={180} icon="moon.zzz.fill" title="Works in the background" body={'Choose "Allow While Using App" first, then "Change to Always Allow" when iOS asks, so your family still sees you when Nodara is closed.'} />
       {result === 'always' && (
-        <Animated.View entering={ZoomIn.springify()} style={{ alignItems: 'center', gap: 8, paddingVertical: 8 }}>
+        <Animated.View entering={appear} style={{ alignItems: 'center', gap: 8, paddingVertical: 8 }}>
           <SymbolView name="checkmark.circle.fill" size={56} tintColor={C.green} />
           <Text style={{ fontSize: 17, fontWeight: '600', color: C.label }}>You&apos;re sharing in the background</Text>
         </Animated.View>
@@ -58,7 +59,7 @@ export default function ShareLocation() {
 
 function Point({ icon, title, body, delay = 0 }: { icon: SFSymbol; title: string; body: string; delay?: number }) {
   return (
-    <Animated.View entering={FadeInDown.delay(delay).springify()} style={{ flexDirection: 'row', gap: 14 }}>
+    <Animated.View entering={appear} style={{ flexDirection: 'row', gap: 14 }}>
       <SymbolView name={icon} size={26} tintColor={C.accent} style={{ width: 32 }} />
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ fontSize: 17, fontWeight: '600', color: C.label }}>{title}</Text>

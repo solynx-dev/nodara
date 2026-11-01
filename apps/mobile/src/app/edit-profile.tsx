@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, KeyboardAvoidingView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
+import { appear } from '@/lib/motion';
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useQueryClient } from '@tanstack/react-query';
@@ -89,8 +90,8 @@ export default function EditProfile() {
         <Stack.Toolbar.Button icon="xmark" accessibilityLabel="Close" onPress={() => router.back()} />
       </Stack.Toolbar>
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: 60, gap: 26 }}>
-        <Animated.View entering={ZoomIn.springify().damping(16)} style={{ alignItems: 'center', gap: 14, marginTop: 8 }}>
-          <Tap onPress={changePhoto} accessibilityRole="button" accessibilityLabel="Change profile photo" scaleTo={0.94}>
+        <Animated.View entering={appear} style={{ alignItems: 'center', gap: 14, marginTop: 8 }}>
+          <Tap onPress={changePhoto} accessibilityRole="button" accessibilityLabel="Change profile photo">
             <Avatar name={name || me.displayName} color={color} url={me.avatarUrl} size={128} />
             <View style={styles.cameraBadge}>{uploading ? <ActivityIndicator color="white" /> : <SymbolView name="camera.fill" size={17} tintColor="white" />}</View>
           </Tap>
@@ -99,7 +100,7 @@ export default function EditProfile() {
           </Tap>
         </Animated.View>
 
-        <Animated.View entering={FadeIn.delay(80)} style={{ gap: 8 }}>
+        <Animated.View entering={appear} style={{ gap: 8 }}>
           <Text style={styles.label}>NAME</Text>
           <View style={styles.field}>
             <TextInput
@@ -119,13 +120,13 @@ export default function EditProfile() {
           <Text style={styles.help}>Shown to everyone in your circles.</Text>
         </Animated.View>
 
-        <Animated.View entering={FadeIn.delay(140)} style={{ gap: 8 }}>
+        <Animated.View entering={appear} style={{ gap: 8 }}>
           <Text style={styles.label}>COLOUR</Text>
           <View style={[styles.field, styles.swatches]}>
             {AVATAR_COLORS.map((c) => {
               const on = c.toLowerCase() === color.toLowerCase();
               return (
-                <Tap key={c} onPress={() => setColor(c)} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={`Colour ${c}`} scaleTo={0.85} style={[styles.swatch, { backgroundColor: c }, on && styles.swatchOn]}>
+                <Tap key={c} onPress={() => setColor(c)} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={`Colour ${c}`} style={[styles.swatch, { backgroundColor: c }, on && styles.swatchOn]}>
                   {on && <SymbolView name="checkmark" size={16} weight="bold" tintColor="white" />}
                 </Tap>
               );
