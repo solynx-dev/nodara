@@ -9,6 +9,7 @@ import { C, HEX, T } from '@/lib/theme';
 import type { MemberLocation, PlaceEvent, PlaceWithMeta } from '@/lib/types';
 import { Avatar, AvatarStack, Empty, LiveDot, PrimaryButton, Skeleton, StatusPill, Tap } from '@/components/ui';
 import { PlaceSymbol } from './placeIcons';
+import { DrivingSummaryCard } from '@/features/driving/components';
 
 export type Segment = 'people' | 'places';
 
@@ -75,7 +76,21 @@ function PersonCard({ m, ev, onPress, index }: { m: MemberLocation; ev?: PlaceEv
   );
 }
 
-export function PeoplePanel({ members, events, loading, onSelect, onInvite }: { members: MemberLocation[]; events: Map<string, PlaceEvent>; loading: boolean; onSelect: (id: string) => void; onInvite: () => void }) {
+export function PeoplePanel({
+  members,
+  events,
+  loading,
+  circleId,
+  onSelect,
+  onInvite,
+}: {
+  members: MemberLocation[];
+  events: Map<string, PlaceEvent>;
+  loading: boolean;
+  circleId: string | null;
+  onSelect: (id: string) => void;
+  onInvite: () => void;
+}) {
   if (loading && !members.length) {
     return (
       <View style={styles.list}>
@@ -89,6 +104,7 @@ export function PeoplePanel({ members, events, loading, onSelect, onInvite }: { 
       {members.map((m, i) => (
         <PersonCard key={m.id} m={m} ev={events.get(m.id)} index={i} onPress={() => onSelect(m.id)} />
       ))}
+      <DrivingSummaryCard circleId={circleId} />
       <Card onPress={onInvite} index={members.length} label="Invite someone">
         <View style={[styles.roundIcon, { backgroundColor: C.accentSoft }]}>
           <SymbolView name="person.badge.plus" size={24} tintColor={C.accent} />

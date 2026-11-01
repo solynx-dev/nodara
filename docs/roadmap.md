@@ -44,6 +44,8 @@ Status legend: ✅ done · 🟡 partial / limited · ⬜ planned
 - ✅ Server-side decimation, distance totals, retention (user + admin), deletion of ranges
 - ✅ Incremental trip detection with stops, confidence flags, rebuild
 - ✅ Trip reports: route, speed graph, stats; driving insights (week/month/year, comparisons)
+- ✅ Weekly driving reports in the iOS app: speeding, phone use, hard braking, rapid acceleration (estimates), speed on the map
+- ⬜ Driving events in the web app; optional speed-limit data (self-hosted OSM) for "over the limit" instead of a fixed speed
 - ✅ km/h and mph
 
 ### Places & notifications

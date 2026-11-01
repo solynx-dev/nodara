@@ -151,6 +151,8 @@ export interface PublicConfig {
   passkeys: boolean;
   emailEnabled: boolean;
   defaultRetentionDays: number | null;
+  /** Driving reports: speed counted as speeding. */
+  driving?: { speedingKmh: number };
 }
 
 /** Messages the server pushes over the realtime WebSocket. */

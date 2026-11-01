@@ -5,6 +5,7 @@ import { processDeviceTrips } from './trips.js';
 import { evaluateGeofences } from './geofence.js';
 import { viewersOf } from './access.js';
 import { LOCATION_COLUMNS, serializeLocation, type LocationRow } from './serialize.js';
+import { recordDrivingEvents, type DrivingFix } from './driving.js';
 
 const num = (min: number, max: number) => z.number().finite().min(min).max(max);
 
@@ -72,8 +73,8 @@ export async function ingestFixes(
   }
 
   // Previous fix from this device, for derived speeds and battery transitions.
-  const [prevRow] = await sql<{ recorded_at: Date; lat: number; lon: number; accuracy: number | null; speed: number | null; battery: number | null }[]>`
-    SELECT recorded_at, lat, lon, accuracy, speed, battery FROM locations
+  const [prevRow] = await sql<{ recorded_at: Date; lat: number; lon: number; accuracy: number | null; speed: number | null; speed_source: DrivingFix['source']; shared: boolean; battery: number | null }[]>`
+    SELECT recorded_at, lat, lon, accuracy, speed, speed_source, shared, battery FROM locations
     WHERE device_id = ${deviceId} AND recorded_at < ${new Date(ordered[0]!.t)}
     ORDER BY recorded_at DESC LIMIT 1`;
   let prev: SpeedInput | null = prevRow
@@ -142,6 +143,25 @@ export async function ingestFixes(
         .map((r) => ({ t: r.recorded_at, lat: r.lat, lon: r.lon, accuracy: r.accuracy })),
     ).catch((err) => ctx.log.error({ err }, 'geofence evaluation failed'));
   }
+
+  // Speeding, hard braking and rapid acceleration for weekly driving reports.
+  const toDriving = (r: { recorded_at: Date; lat: number; lon: number; accuracy: number | null; speed: number | null; speed_source: DrivingFix['source']; shared: boolean }): DrivingFix => ({
+    t: r.recorded_at.getTime(),
+    lat: r.lat,
+    lon: r.lon,
+    accuracy: r.accuracy,
+    speed: r.speed,
+    source: r.speed_source,
+    shared: r.shared,
+  });
+  // Awaited: it costs nothing unless an event is found, and keeps reports consistent.
+  await recordDrivingEvents(
+    ctx,
+    userId,
+    deviceId,
+    prevRow ? toDriving(prevRow) : null,
+    [...inserted].sort((a, b) => a.recorded_at.getTime() - b.recorded_at.getTime()).map((r) => toDriving({ ...r, shared: rows[0]!.shared })),
+  ).catch((err) => ctx.log.error({ err }, 'driving events failed'));
 
   const trips = processDeviceTrips(ctx, deviceId).catch((err) => ctx.log.error({ err }, 'trip processing failed'));
   if (opts.awaitTrips) await trips;

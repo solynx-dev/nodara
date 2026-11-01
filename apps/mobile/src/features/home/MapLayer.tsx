@@ -6,6 +6,7 @@ import { ago, firstName, formatSpeed, freshness, type Units } from '@/lib/format
 import { stayDuration } from '@/lib/status';
 import { C } from '@/lib/theme';
 import { Avatar } from '@/components/ui';
+import { liveSpeed, redSpeedMps, speedUnit, speedValue } from '@/lib/driving';
 import { PlaceSymbol } from './placeIcons';
 
 /**
@@ -16,6 +17,7 @@ import { PlaceSymbol } from './placeIcons';
  * People whose markers would overlap on screen merge into one group marker.
  */
 export type Tier = 'near' | 'mid' | 'far';
+const RED = '#FF3B30';
 const SIZE: Record<Tier, number> = { near: 44, mid: 34, far: 22 };
 const RING: Record<Tier, number> = { near: 3, mid: 2.5, far: 2 };
 const LABEL_H = 22;
@@ -59,7 +61,8 @@ function labelFor(g: Group, meId: string, units: Units): string {
   const loc = m.location!;
   const f = freshness(loc.recordedAt);
   let status = '';
-  if (f === 'live' && (loc.speed ?? 0) > 1.5) status = formatSpeed(loc.speed, units);
+  if (liveSpeed(m) != null) status = ''; // the speed badge next to the photo says it
+  else if (f === 'live' && (loc.speed ?? 0) > 1.5) status = formatSpeed(loc.speed, units);
   else if (f === 'stale' || f === 'old') status = ago(loc.recordedAt);
   else if (m.currentPlace) {
     const stay = stayDuration(m);
@@ -146,6 +149,10 @@ export const NodaraMap = forwardRef<
         const total = bubble + (showLabel ? LABEL_GAP + LABEL_H : 0);
         const single = g.members.length === 1;
         const label = showLabel ? labelFor(g, meId, units) : null;
+        // Speed next to the photo while driving; a red ring over 130 km/h (80 mph).
+        const speed = single && tier !== 'far' ? liveSpeed(g.members[0]!) : null;
+        const tooFast = g.members.some((m) => (liveSpeed(m) ?? 0) >= redSpeedMps(units));
+        const ringColor = tooFast ? RED : selected ? C.accent : 'white';
         return (
           <Marker
             // Re-mount whenever the marker's size could change: react-native-maps only ever grows
@@ -163,7 +170,7 @@ export const NodaraMap = forwardRef<
               pushes the photo off the real location.
             */}
             <View collapsable={false} style={{ alignItems: 'center' }}>
-              <View style={[styles.bubble, { height: bubble, minWidth: bubble, borderRadius: bubble / 2, padding: ring, backgroundColor: selected ? C.accent : 'white' }]}>
+              <View style={[styles.bubble, { height: bubble, minWidth: bubble, borderRadius: bubble / 2, padding: ring, backgroundColor: ringColor }, tooFast && styles.redGlow]}>
                 {g.members.slice(0, 3).map((m, i) => {
                   const f = freshness(m.location!.recordedAt);
                   return (
@@ -176,6 +183,17 @@ export const NodaraMap = forwardRef<
                   <Text style={[styles.more, { fontSize: Math.max(10, size * 0.32) }]} allowFontScaling={false}>
                     +{g.members.length - 3}
                   </Text>
+                )}
+                {speed != null && (
+                  // Absolutely positioned, so it never changes the pin's size (and its alignment).
+                  <View style={[styles.speed, tier === 'mid' && styles.speedSmall, { left: bubble - (tier === 'near' ? 12 : 10) }, tooFast && { backgroundColor: RED }]}>
+                    <Text style={[styles.speedValue, tier === 'mid' && { fontSize: 11 }]} allowFontScaling={false}>
+                      {speedValue(speed, units)}
+                    </Text>
+                    <Text style={styles.speedUnit} allowFontScaling={false}>
+                      {speedUnit(units)}
+                    </Text>
+                  </View>
                 )}
               </View>
               {label && (
@@ -206,6 +224,24 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
   },
   more: { marginHorizontal: 5, fontWeight: '800', color: '#1c1c1e' },
+  redGlow: { shadowColor: RED, shadowOpacity: 0.8, shadowRadius: 8, shadowOffset: { width: 0, height: 0 } },
+  speed: {
+    position: 'absolute',
+    top: -7,
+    height: 22,
+    paddingHorizontal: 7,
+    borderRadius: 11,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 2,
+    paddingTop: 3,
+    backgroundColor: '#1C1C1E',
+    borderWidth: 1.5,
+    borderColor: 'white',
+  },
+  speedSmall: { top: -6, height: 18, paddingHorizontal: 5, paddingTop: 1.5, borderRadius: 9 },
+  speedValue: { fontSize: 13, fontWeight: '800', color: 'white', fontVariant: ['tabular-nums'] },
+  speedUnit: { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.8)' },
   label: {
     marginTop: LABEL_GAP,
     height: LABEL_H,

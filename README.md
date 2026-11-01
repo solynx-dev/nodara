@@ -79,7 +79,8 @@ Everything below is implemented and wired to the real backend — there is no fa
 | **Speed** | GNSS speed preferred, distance-derived speed as fallback, spike filtering, stationary-noise suppression, km/h or mph, estimated values clearly marked. |
 | **Places & geofences** | Search or drop a pin, radius, icon, colour, private or shared with a circle. Arrive/leave detection with hysteresis, cooldown and duplicate prevention; per-member alert subscriptions. |
 | **Notifications** | In-app notification centre (read/unread), realtime toasts, Web Push (VAPID keys generated automatically), arrivals, departures, circle joins, sharing changes, low battery, device offline. Per-type preferences. |
-| **Driving insights** | Weekly / monthly / yearly totals with comparisons, distance and time charts. Travel mode is estimated and labelled as such; Nodara does **not** pretend to score driving behaviour from GPS. |
+| **Driving insights** | Weekly / monthly / yearly totals with comparisons, distance and time charts. Travel mode is estimated and labelled as such. |
+| **Weekly driving reports** (iOS app) | Per person and per circle: drives, distance, top speed, and four kinds of events with week-over-week trends — **speeding** (over a fixed 130 km/h by default; there is no speed-limit data), **hard braking** and **rapid acceleration** (estimated from GPS speed changes), and **phone use** (the iPhone unlocked while moving; passengers count too). Events show on each trip's map. These are estimates for families, not an insurance-grade score. |
 | **Accounts & security** | Argon2id passwords, server-side sessions, TOTP 2FA with recovery codes, passkeys (WebAuthn), password reset, email verification (optional SMTP), session management, account deletion, rate limiting, CSRF protection, audit log. |
 | **Devices** | Browser/PWA tracking, plus device tokens for **OwnTracks** and **Overland** today (real background tracking on iOS/Android) and future native apps — all through the same ingestion API. |
 | **Administration** | System status, database & storage stats, ingestion stats, user management (create, disable, promote, reset links), registration policy (open / invite / closed), retention, opt-in anonymous telemetry with a full payload preview, audit log, demo-data removal. |
@@ -93,7 +94,8 @@ Everything below is implemented and wired to the real backend — there is no fa
 
 - **Browsers cannot track you reliably in the background.** iOS Safari stops sharing as soon as Nodara is not on screen; Android pauses after a while. Nodara says so in the UI and never shows stale data as live. For continuous background sharing use the **[iOS app](apps/mobile/README.md)** (early) or connect **[OwnTracks or Overland](docs/clients.md)**. Details: [docs/background-location.md](docs/background-location.md).
 - **Geofence alerts depend on the device reporting.** If a phone isn't sending locations, the server can't know it arrived.
-- **No crash detection, SOS, or driving-behaviour scoring** — these need reliable native sensors and are not claimed.
+- **Driving reports are estimates.** Speeding means "over a fixed speed" (no speed-limit data); hard braking and rapid acceleration come from GPS speed, so they're best in the app's Precise mode; phone use can't tell drivers from passengers.
+- **No crash detection or SOS** — these need reliable sensor access and emergency handling, and are not claimed.
 - **Address lookup is optional** and needs a Nominatim-compatible geocoder you configure.
 
 ## Quick start (Docker Compose)

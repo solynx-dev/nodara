@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Battery from 'expo-battery';
 import type * as Location from 'expo-location';
 import { getItem, KEYS } from '@/lib/storage';
+import { flushPhoneUse } from './phoneUse';
 
 /** A fix in the shape the Nodara ingestion API expects. */
 export interface Fix {
@@ -96,6 +97,8 @@ async function flush() {
     await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(q));
     await AsyncStorage.setItem('nodara.lastUpload', new Date().toISOString());
   }
+  // Locations first, so the server knows whether you were moving when the phone was unlocked.
+  await flushPhoneUse(server, token);
 }
 
 export async function lastUpload() {

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { AppState } from 'react-native';
 import * as Location from 'expo-location';
 import { enqueueAndFlush, toFixes } from '@/background/upload';
+import { notePhoneUse } from '@/background/phoneUse';
 import { getItem, KEYS } from '@/lib/storage';
 import { LOCATION_TASK } from '@/background/tasks';
 
@@ -33,6 +34,8 @@ export function ForegroundReporter() {
     void start();
     const appSub = AppState.addEventListener('change', (s) => {
       if (s === 'active') {
+        // Opening Nodara counts as phone use if you turn out to be moving (driving reports).
+        void notePhoneUse();
         sub?.remove();
         sub = null;
         void start();

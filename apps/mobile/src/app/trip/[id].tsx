@@ -14,6 +14,8 @@ import { C, HEX, T } from '@/lib/theme';
 import type { TripDetail } from '@/lib/types';
 import { Avatar, Skeleton, StatusPill } from '@/components/ui';
 import { modeIcon, tripTitle } from '@/features/trips/Drives';
+import { EventList } from '@/features/driving/components';
+import { KIND_INFO } from '@/lib/driving';
 
 export default function TripScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -86,6 +88,11 @@ export default function TripScreen() {
               <Pin color={HEX.red} icon="flag.checkered" />
             </Marker>
           )}
+          {(trip.events ?? []).map((e) => (
+            <Marker key={`ev-${e.id}`} coordinate={{ latitude: e.lat, longitude: e.lon }} tracksViewChanges={false} title={KIND_INFO[e.kind].label} description={clock(e.startedAt)}>
+              <Pin color={KIND_INFO[e.kind].color} icon={KIND_INFO[e.kind].icon} small />
+            </Marker>
+          ))}
         </MapView>
       </Animated.View>
 
@@ -133,6 +140,23 @@ export default function TripScreen() {
         </Animated.View>
       )}
 
+      {trip.events && (
+        <Animated.View entering={appear} style={card}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <Text style={[T.headline, { color: C.label }]}>Driving events</Text>
+            {trip.events.length > 0 && <Text style={[T.footnote, { color: C.secondaryLabel }]}>{trip.events.length} on this trip</Text>}
+          </View>
+          {trip.events.length ? (
+            <EventList events={trip.events} />
+          ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <SymbolView name="checkmark.seal.fill" size={18} tintColor={HEX.green} />
+              <Text style={[T.subhead, { color: C.label }]}>No speeding, phone use, hard braking or rapid acceleration.</Text>
+            </View>
+          )}
+        </Animated.View>
+      )}
+
       <Animated.View entering={appear} style={card}>
         <Text style={[T.headline, { color: C.label, marginBottom: 12 }]}>Route</Text>
         <Step icon="flag.fill" color={HEX.green} title={trip.startLabel ?? 'Start'} sub={`Left at ${clock(trip.startedAt)}`} />
@@ -146,7 +170,7 @@ export default function TripScreen() {
         {trip.lowConfidence
           ? 'This trip had sparse or imprecise GPS (for example while the app was limited in the background), so distance and speeds may be underestimated. '
           : ''}
-        Speeds come from GPS. Lighter bars are estimated from distance between points. Nodara does not score driving behaviour.
+        Speeds come from GPS. Lighter bars are estimated from distance between points. Driving events are estimates from GPS speed and phone unlocks, not an insurance score.
       </Text>
     </ScrollView>
   );

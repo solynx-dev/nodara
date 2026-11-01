@@ -46,6 +46,8 @@ const schema = z.object({
 
   /** Default retention for location history in days. 0 / empty = keep forever. */
   DEFAULT_RETENTION_DAYS: z.coerce.number().int().min(0).default(0),
+  /** Speed treated as "speeding" in driving reports (there is no speed-limit data). */
+  DRIVING_SPEEDING_KMH: z.coerce.number().min(50).max(300).default(130),
 
   /** Telemetry is OFF unless an admin enables it *and* an endpoint is configured. */
   TELEMETRY_ENDPOINT: z.string().default(''),

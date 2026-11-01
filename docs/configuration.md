@@ -55,6 +55,7 @@ MAP_STYLES=[{"id":"streets","name":"Streets","url":"https://tiles.example.com/st
 | Variable | Default | Description |
 |---|---|---|
 | `DEFAULT_RETENTION_DAYS` | `0` (forever) | **admin UI.** Default history retention. Users can choose their own. Deletions are notified to the user and audited — never silent. |
+| `DRIVING_SPEEDING_KMH` | `130` | Speed counted as "speeding" in driving reports. Nodara has no speed-limit data, so this is one fixed "very fast" threshold for everyone on the server. |
 | `TELEMETRY_ENDPOINT` | — | Where anonymous statistics would be sent **if** an administrator also enables telemetry in the UI. With no endpoint nothing is ever sent. |
 
 ## Runtime settings (admin UI only)

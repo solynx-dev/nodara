@@ -38,6 +38,7 @@ Nodara is a **modular monolith**: one Node.js process serving the REST API, WebS
 |---|---|
 | `users` | Accounts, Argon2id hash, TOTP secret + hashed recovery codes, preferences (JSON), `sharing_paused`, `is_demo`. |
 | `user_avatars` | Profile photos (JPEG/PNG/WebP bytes, ≤ 2 MB), stored in the database so normal backups include them. `users.avatar_url` holds the versioned URL. |
+| `driving_events` | Speeding episodes (start, end, top speed, sample count), hard braking and rapid acceleration (m/s²) detected during ingestion, and phone use matched from app-reported unlocks. Same `shared` flag and visibility rules as locations. |
 | `sessions` | Server-side sessions; only SHA-256 of the token stored. `state` = `active` / `pending_2fa`. |
 | `auth_tokens` | Hashed one-time tokens (verify email, reset password, admin setup link). |
 | `passkeys`, `webauthn_challenges` | WebAuthn credentials and short-lived challenges. |

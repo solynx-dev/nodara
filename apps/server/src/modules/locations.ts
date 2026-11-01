@@ -12,7 +12,7 @@ const INGEST_RATE = { max: 240, timeWindow: '1 minute' };
 const uuid = z.string().uuid();
 
 /** Resolve (user, device) for ingestion from a session + deviceId, or a device token. */
-async function ingestIdentity(ctx: Ctx, req: FastifyRequest, deviceId?: string | null): Promise<{ userId: string; deviceId: string }> {
+export async function ingestIdentity(ctx: Ctx, req: FastifyRequest, deviceId?: string | null): Promise<{ userId: string; deviceId: string }> {
   const a = req.auth;
   if (a?.via === 'device' && a.deviceId) return { userId: a.userId, deviceId: a.deviceId };
   const user = requireUser(req);

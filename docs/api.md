@@ -80,6 +80,18 @@ Rate limits: 600 req/min/IP globally; auth endpoints ~10/min; ingestion 240/min.
 | `POST /trips/rebuild` | Recompute your trips from history. |
 | `GET /insights?userId&period=week\|month\|year&offset&tz&mode=driving\|all` | Totals, previous-period comparison and buckets. |
 
+## Driving reports
+
+Events are detected on the server from uploaded fixes (speeding, hard braking, rapid acceleration) and from phone unlocks sent by the iOS app (phone use). They follow the same visibility rules as trips (`tripsVisible`, `sharing_since`, paused periods).
+
+| Endpoint | Description |
+|---|---|
+| `POST /driving/phone-use` | `{deviceId?, times: (ISO \| epoch ms)[]}` — device token or session. Each time becomes a `phone_use` event only if your own fixes show you moving faster than ~16 km/h within 45 s of it. → `{recorded}`. |
+| `GET /driving/events?userId&from&to` | Events for a person: `{id, kind, startedAt, endedAt, lat, lon, speed, value, tripId}`. `kind` is `speeding` (top `speed`, m/s), `hard_brake` / `rapid_accel` (`value` = m/s²) or `phone_use`. Speeding needs at least two fixes over the limit. |
+| `GET /driving/report?circleId&offset&tz` | Monday–Sunday week in `tz` (`offset` 0 = this week). Totals and per-person drives, distance, duration, top speed, event counts and last week's counts. People whose drives you can't see come back as `{user, hidden: true}`. |
+
+`GET /trips/:id` also includes `events` for that trip.
+
 ## Circles & invitations
 
 | Endpoint | Description |

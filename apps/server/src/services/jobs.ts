@@ -23,6 +23,7 @@ export async function runRetention(ctx: Ctx, opts: { dryRun?: boolean } = {}) {
       continue;
     }
     const loc = await sql`DELETE FROM locations WHERE user_id = ${u.id} AND recorded_at < ${cutoff}`;
+    await sql`DELETE FROM driving_events WHERE user_id = ${u.id} AND started_at < ${cutoff}`;
     const trips = await sql`DELETE FROM trips WHERE user_id = ${u.id} AND started_at < ${cutoff} AND status = 'completed'`;
     await sql`DELETE FROM place_events WHERE user_id = ${u.id} AND occurred_at < ${cutoff}`;
     if (loc.count || trips.count) {

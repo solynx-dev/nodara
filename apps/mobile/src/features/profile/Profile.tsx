@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Linking, ScrollView, Share, StyleSheet, Text, View, type ColorValue } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { appear } from '@/lib/motion';
+import { router } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useMe } from '@/lib/session';
 import { useAddress, useDayTimeline, useTripPages, useWeekTrips, type TimelineItem } from '@/lib/queries';
@@ -13,6 +14,7 @@ import { ApiError } from '@/lib/api';
 import { Avatar, Empty, LiveDot, PrimaryButton, Segmented, Skeleton, StatusPill, Tap } from '@/components/ui';
 import { PlaceSymbol } from '@/features/home/placeIcons';
 import { DriveList, modeIcon, WeekSummary } from '@/features/trips/Drives';
+import { DrivingWeekCard } from '@/features/driving/components';
 
 export type ProfileTab = 'drives' | 'history';
 
@@ -230,6 +232,7 @@ function DrivesTab({ m, onOpenTrip }: { m: MemberLocation; onOpenTrip: (id: stri
   }
   return (
     <View style={{ gap: 16 }}>
+      <DrivingWeekCard userId={m.id} onOpenReport={() => router.push({ pathname: '/driving', params: { user: m.id } })} />
       {!!week.data?.length && <WeekSummary trips={week.data} />}
       <DriveList trips={trips} onOpen={onOpenTrip} />
       {pages.hasNextPage && (

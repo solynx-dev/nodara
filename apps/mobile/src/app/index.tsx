@@ -333,7 +333,7 @@ export default function Home() {
         {selected ? (
           <ProfileBody key={selected.id} m={selected} ev={events.byUser.get(selected.id)} onOpenTrip={(id) => router.push(`/trip/${id}`)} />
         ) : segment === 'people' ? (
-          <PeoplePanel members={members} events={events.byUser} loading={live.isLoading} onSelect={selectPerson} onInvite={invite} />
+          <PeoplePanel members={members} events={events.byUser} loading={live.isLoading} circleId={circleId} onSelect={selectPerson} onInvite={invite} />
         ) : (
           <PlacesPanel places={places} members={members} events={events.list} onFocus={focusPlace} onAdd={() => addPlace(region?.latitude ?? 0, region?.longitude ?? 0)} />
         )}

@@ -1,6 +1,7 @@
 import type { SFSymbol } from 'expo-symbols';
 import { ago, firstName, formatSpeed, formatStay, freshness, sinceLabel, type Units } from './format';
 import { HEX } from './theme';
+import { redSpeedMps } from './driving';
 import type { MemberLocation, PlaceEvent } from './types';
 
 export interface MemberStatus {
@@ -36,7 +37,8 @@ export function describeMember(m: MemberLocation, ev: PlaceEvent | undefined, ad
   if (live && speed > MOVING) {
     const mode = speed > 7 ? 'Driving' : speed > 2.5 ? 'Moving' : 'Walking';
     const icon: SFSymbol = speed > 7 ? 'car.fill' : speed > 2.5 ? 'bicycle' : 'figure.walk';
-    pill = { text: `${mode} · ${formatSpeed(speed, units)}`, color: HEX.blue, icon };
+    const tooFast = speed >= redSpeedMps(units);
+    pill = { text: `${mode} · ${formatSpeed(speed, units)}`, color: tooFast ? HEX.red : HEX.blue, icon: tooFast ? 'exclamationmark.triangle.fill' : icon };
   } else if (m.inTrip && !stale) {
     pill = { text: 'On a trip', color: HEX.blue, icon: 'car.fill' };
   } else if (live) {

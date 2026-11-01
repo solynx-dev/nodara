@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { api } from './api';
-import type { Circle, MemberLocation, PlaceEvent, PlaceWithMeta, Trip } from './types';
+import type { Circle, DrivingEvent, DrivingReport, MemberLocation, PlaceEvent, PlaceWithMeta, Trip } from './types';
 
 /** Live members of one circle, or of every circle when circleId is null. */
 export const useLive = (circleId: string | null = null) =>
@@ -84,3 +84,26 @@ export function useWeekTrips(userId: string) {
     },
   });
 }
+
+const timeZone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+};
+
+/** Weekly driving report (Monday–Sunday). offset 0 = this week, 1 = last week… */
+export const useDrivingReport = (circleId: string | null, offset = 0) =>
+  useQuery({
+    queryKey: ['driving', 'report', circleId ?? 'all', offset],
+    queryFn: () => api.get<DrivingReport>(`/api/driving/report?offset=${offset}&tz=${encodeURIComponent(timeZone())}${circleId ? `&circleId=${circleId}` : ''}`),
+    staleTime: 60_000,
+  });
+
+export const useDrivingEvents = (userId: string, from: string, to: string, enabled = true) =>
+  useQuery({
+    queryKey: ['driving', 'events', userId, from, to],
+    enabled,
+    queryFn: () => api.get<DrivingEvent[]>(`/api/driving/events?userId=${userId}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+  });

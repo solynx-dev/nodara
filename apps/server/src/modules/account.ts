@@ -248,7 +248,10 @@ async function streamExport(
           WHERE e.user_id = ${userId} ORDER BY e.occurred_at`;
         out.write(`{"format":"nodara-export","version":1,"exportedAt":${JSON.stringify(new Date())},\n`);
         out.write(`"profile":${JSON.stringify(profile)},\n"circles":${JSON.stringify(circles)},\n"devices":${JSON.stringify(devices)},\n`);
-        out.write(`"places":${JSON.stringify(places)},\n"placeEvents":${JSON.stringify(events)},\n"trips":${JSON.stringify(trips)},\n"locations":[\n`);
+        const driving = await sql`
+          SELECT kind, started_at, ended_at, lat, lon, speed, value FROM driving_events
+          WHERE user_id = ${userId} AND started_at >= ${from} AND started_at < ${to} ORDER BY started_at`;
+        out.write(`"places":${JSON.stringify(places)},\n"placeEvents":${JSON.stringify(events)},\n"trips":${JSON.stringify(trips)},\n"drivingEvents":${JSON.stringify(driving)},\n"locations":[\n`);
         let first = true;
         await points.cursor(2000, (rows) => {
           for (const r of rows) {

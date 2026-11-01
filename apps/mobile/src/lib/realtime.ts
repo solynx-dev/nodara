@@ -15,6 +15,7 @@ function apply(qc: QueryClient, e: ServerEvent) {
       break;
     case 'trip':
       qc.invalidateQueries({ queryKey: ['trips'] });
+      qc.invalidateQueries({ queryKey: ['driving'] });
       qc.invalidateQueries({ queryKey: ['timeline'] });
       qc.invalidateQueries({ queryKey: ['live'] });
       break;
