@@ -9,7 +9,8 @@ declare const self: ServiceWorkerGlobalScope;
 // App shell: precached build assets, so Nodara opens offline.
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
-registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), { denylist: [/^\/api\//] }));
+// Server-rendered pages (not part of the app) always come from the network.
+registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), { denylist: [/^\/api\//, /^\/privacy(-policy)?\/?$/] }));
 
 // Map styles, glyphs, sprites and tiles: cache-first with a size cap so
 // recently viewed areas still render offline. API data is never cached.

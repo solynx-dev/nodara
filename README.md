@@ -163,7 +163,7 @@ Read **[docs/architecture.md](docs/architecture.md)** for the data model, ingest
 - Every endpoint enforces circle-level authorization; isolation is covered by automated tests.
 - People can only see your history **from the moment you started sharing with their circle**, and never what you recorded while paused.
 
-See **[SECURITY.md](SECURITY.md)** and **[docs/security.md](docs/security.md)**.
+See **[SECURITY.md](SECURITY.md)** and **[docs/security.md](docs/security.md)**. The privacy policy is **[PRIVACY.md](PRIVACY.md)**; every Nodara server also shows it at `/privacy-policy` (for example <https://nodara.ca/privacy-policy>).
 
 ## Nodara Cloud (future, optional)
 

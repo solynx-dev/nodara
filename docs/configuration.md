@@ -56,6 +56,7 @@ MAP_STYLES=[{"id":"streets","name":"Streets","url":"https://tiles.example.com/st
 |---|---|---|
 | `DEFAULT_RETENTION_DAYS` | `0` (forever) | **admin UI.** Default history retention. Users can choose their own. Deletions are notified to the user and audited — never silent. |
 | `DRIVING_SPEEDING_KMH` | `130` | Speed counted as "speeding" in driving reports. Nodara has no speed-limit data, so this is one fixed "very fast" threshold for everyone on the server. |
+| `PRIVACY_POLICY_FILE` | *(PRIVACY.md)* | Markdown file shown at `/privacy-policy`. By default the server shows the project's PRIVACY.md (built into the Docker image). If you run Nodara for other people, point this at your own policy. |
 | `TELEMETRY_ENDPOINT` | — | Where anonymous statistics would be sent **if** an administrator also enables telemetry in the UI. With no endpoint nothing is ever sent. |
 
 ## Runtime settings (admin UI only)

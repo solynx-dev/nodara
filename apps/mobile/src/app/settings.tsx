@@ -385,7 +385,8 @@ export default function Settings() {
       <Section title="About" footer="Nodara is open source and was built mainly with AI by a non-professional developer. Please report anything that looks wrong.">
         <Row icon="info.circle.fill" iconColor="#8E8E93" title="App version" value={`${Application.nativeApplicationVersion ?? '—'} (${Application.nativeBuildVersion ?? '—'})`} />
         <Row icon="server.rack" iconColor="#8E8E93" title={config?.instanceName ?? 'Server'} value={config?.version ? `v${config.version}` : undefined} subtitle={server ?? undefined} />
-        <Row icon="chevron.left.forwardslash.chevron.right" iconColor="#1C1C1E" title="Source code" subtitle="AGPL-3.0 on GitHub" onPress={() => void WebBrowser.openBrowserAsync(SOURCE_URL)} last />
+        <Row icon="chevron.left.forwardslash.chevron.right" iconColor="#1C1C1E" title="Source code" subtitle="AGPL-3.0 on GitHub" onPress={() => void WebBrowser.openBrowserAsync(SOURCE_URL)} />
+        <Row icon="hand.raised.fill" iconColor="#34C759" title="Privacy policy" onPress={() => openWeb('/privacy-policy')} last />
       </Section>
 
       <Section>
