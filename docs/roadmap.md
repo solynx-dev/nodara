@@ -44,6 +44,8 @@ Status legend: ✅ done · 🟡 partial / limited · ⬜ planned
 - ✅ Server-side decimation, distance totals, retention (user + admin), deletion of ranges
 - ✅ Incremental trip detection with stops, confidence flags, rebuild
 - ✅ Trip reports: route, speed graph, stats; driving insights (week/month/year, comparisons)
+- ✅ Weekly driving reports in the iOS app: speeding, phone use, hard braking, rapid acceleration (estimates), speed on the map
+- ⬜ Driving events in the web app; optional speed-limit data (self-hosted OSM) for "over the limit" instead of a fixed speed
 - ✅ km/h and mph
 
 ### Places & notifications
@@ -71,8 +73,9 @@ Status legend: ✅ done · 🟡 partial / limited · ⬜ planned
 ## Next
 
 ### Native apps
-- ⬜ iOS app (Swift): significant-change + standard location in background, region monitoring for places, APNs push — posting to `/api/locations` with device tokens
-- ⬜ Android app (Kotlin): fused location foreground service, geofencing API, FCM / UnifiedPush
+- 🟡 iOS app (Expo, `apps/mobile`): background location, region-monitoring wake-ups, offline queue, push via Expo, Liquid Glass UI, map, people, trips, alerts, settings — **not yet tested on a physical device or published**
+- ⬜ iOS app: history calendar & playback, places editor, passkeys, Live Activities, widgets
+- ⬜ Android build of `apps/mobile` (needs a foreground-service notification, FCM credentials, Google Maps key)
 - ⬜ Device-level battery optimisation and motion activity
 
 ### Product

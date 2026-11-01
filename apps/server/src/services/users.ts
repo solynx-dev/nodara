@@ -82,3 +82,33 @@ export async function deleteUser(sql: Sql, userId: string) {
     await tx`DELETE FROM circles c WHERE NOT EXISTS (SELECT 1 FROM circle_members m WHERE m.circle_id = c.id)`;
   });
 }
+
+/**
+ * Server-side account recovery (used by the `reset-password` CLI): sets a new
+ * password, optionally turns off two-factor and re-enables the account, and
+ * signs out every session. Returns null when no account has that email.
+ */
+export async function recoverAccount(
+  sql: Sql,
+  email: string,
+  passwordHash: string,
+  opts: { disable2fa?: boolean; enable?: boolean } = {},
+): Promise<{ id: string; was2fa: boolean; wasDisabled: boolean } | null> {
+  const [u] = await sql<{ id: string; totp_enabled_at: Date | null; disabled_at: Date | null }[]>`
+    SELECT id, totp_enabled_at, disabled_at FROM users WHERE email = ${email.trim().toLowerCase()}`;
+  if (!u) return null;
+  await sql.begin(async (tx) => {
+    await tx`
+      UPDATE users SET
+        password_hash = ${passwordHash},
+        email_verified_at = COALESCE(email_verified_at, now()),
+        ${opts.disable2fa ? tx`totp_secret = NULL, totp_enabled_at = NULL, recovery_codes = '{}',` : tx``}
+        ${opts.enable ? tx`disabled_at = NULL,` : tx``}
+        updated_at = now()
+      WHERE id = ${u.id}`;
+    await tx`DELETE FROM sessions WHERE user_id = ${u.id}`;
+    await tx`INSERT INTO audit_log (action, target_type, target_id, details)
+             VALUES ('cli.password_reset', 'user', ${u.id}, ${tx.json({ disable2fa: Boolean(opts.disable2fa), enable: Boolean(opts.enable) } as never)})`;
+  });
+  return { id: u.id, was2fa: Boolean(u.totp_enabled_at), wasDisabled: Boolean(u.disabled_at) };
+}

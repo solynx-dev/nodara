@@ -138,7 +138,7 @@ export default function CirclesPage() {
                 </div>
                 <div className="mt-5 flex items-center justify-between">
                   <div className="flex -space-x-2">
-                    {d?.members.slice(0, 6).map((m) => <Avatar key={m.id} name={m.displayName} color={m.avatarColor} size={30} className="ring-2 ring-surface" />)}
+                    {d?.members.slice(0, 6).map((m) => <Avatar key={m.id} name={m.displayName} color={m.avatarColor} url={m.avatarUrl} size={30} className="ring-2 ring-surface" />)}
                   </div>
                   {c.sharing ? <Badge tone="success">You're sharing</Badge> : <Badge tone="warning">Not sharing</Badge>}
                 </div>

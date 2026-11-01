@@ -114,7 +114,10 @@ function AccountSection() {
     <>
       <Panel title="Profile">
         <div className="flex items-center gap-4">
-          <Avatar name={me.displayName} color={me.avatarColor} size={64} />
+          <div className="flex flex-col items-center gap-2">
+            <Avatar name={me.displayName} color={me.avatarColor} url={me.avatarUrl} size={72} />
+            <ProfilePhotoButtons hasPhoto={Boolean(me.avatarUrl)} />
+          </div>
           <div>
             <div className="text-[17px] font-bold">{me.displayName}</div>
             <div className="text-[13.5px] text-muted">
@@ -142,6 +145,51 @@ function AccountSection() {
         </div>
       </Panel>
     </>
+  );
+}
+
+/** Resize a picked image to a 512×512 JPEG in the browser before uploading. */
+async function squareJpeg(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const side = Math.min(bitmap.width, bitmap.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 512;
+  canvas.getContext('2d')!.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, 512, 512);
+  bitmap.close();
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
+
+function ProfilePhotoButtons({ hasPhoto }: { hasPhoto: boolean }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const done = (me: Me) => {
+    qc.setQueryData(['me'], me);
+    qc.invalidateQueries({ queryKey: ['live'] });
+  };
+  const fail = (e: unknown) => toast({ tone: 'error', title: (e as Error).message });
+  const upload = useMutation({ mutationFn: async (file: File) => api.put<Me>('/api/me/avatar', { image: await squareJpeg(file) }), onSuccess: done, onError: fail });
+  const remove = useMutation({ mutationFn: () => api.del<Me>('/api/me/avatar'), onSuccess: done, onError: fail });
+  return (
+    <div className="flex gap-1">
+      <label className="cursor-pointer rounded-md px-2 py-1 text-[12.5px] font-semibold text-accent-text hover:bg-surface-2">
+        {upload.isPending ? 'Uploading…' : hasPhoto ? 'Change' : 'Add photo'}
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic"
+          className="sr-only"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) upload.mutate(f);
+            e.target.value = '';
+          }}
+        />
+      </label>
+      {hasPhoto && (
+        <button type="button" className="rounded-md px-2 py-1 text-[12.5px] font-semibold text-danger hover:bg-surface-2" onClick={() => remove.mutate()} disabled={remove.isPending}>
+          Remove
+        </button>
+      )}
+    </div>
   );
 }
 

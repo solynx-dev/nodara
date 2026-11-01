@@ -172,10 +172,11 @@ export function MemberPin({ member, selected, isMe, onClick }: { member: MemberL
       <div className="relative">
         {live && <span className="absolute inset-0 animate-pulse-ring rounded-full" style={{ background: member.avatarColor }} />}
         <div
-          className={cx('relative flex size-11 items-center justify-center rounded-full border-[3px] text-[15px] font-bold text-white shadow-[0_6px_16px_-4px_rgb(0_0_0/0.45)]', stale && 'grayscale-[0.85]')}
+          className={cx('relative flex size-11 items-center justify-center overflow-hidden rounded-full border-[3px] text-[15px] font-bold text-white shadow-[0_6px_16px_-4px_rgb(0_0_0/0.45)]', stale && 'grayscale-[0.85]')}
           style={{ background: member.avatarColor, borderColor: selected ? 'var(--accent)' : 'var(--surface)' }}
         >
           {initials(member.displayName)}
+          {member.avatarUrl && <img src={member.avatarUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />}
         </div>
         {moving && (
           <div className="absolute -inset-2.5" style={{ transform: `rotate(${loc.heading}deg)` }}>
@@ -198,8 +199,9 @@ function ClusterPin({ members, onClick }: { members: MemberLocation[]; onClick: 
   return (
     <button onClick={onClick} className="relative flex items-center rounded-full border-[3px] border-surface bg-surface p-0.5 shadow-[0_6px_16px_-4px_rgb(0_0_0/0.45)] transition hover:scale-105" aria-label={`${members.length} people`}>
       {members.slice(0, 3).map((m, i) => (
-        <div key={m.id} className="flex size-8 items-center justify-center rounded-full border-2 border-surface text-[11px] font-bold text-white" style={{ background: m.avatarColor, marginLeft: i ? -8 : 0, zIndex: 3 - i }}>
+        <div key={m.id} className="relative flex size-8 items-center justify-center overflow-hidden rounded-full border-2 border-surface text-[11px] font-bold text-white" style={{ background: m.avatarColor, marginLeft: i ? -8 : 0, zIndex: 3 - i }}>
           {initials(m.displayName)}
+          {m.avatarUrl && <img src={m.avatarUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />}
         </div>
       ))}
       {members.length > 3 && <div className="ml-1 pr-2 text-[12px] font-bold">+{members.length - 3}</div>}

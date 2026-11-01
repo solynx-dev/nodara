@@ -15,7 +15,13 @@ export function AuthLayout({ title, subtitle, children, footer }: { title: React
             {footer && <div className="mt-8 text-center text-[14px] text-muted">{footer}</div>}
           </div>
         </div>
-        <p className="text-[12px] text-muted">Your people. Your places. Your data.</p>
+        <p className="text-[12px] text-muted">
+          Your people. Your places. Your data. ·{' '}
+          {/* A real link (not the router): the policy is a server-rendered page. */}
+          <a href="/privacy-policy" className="underline underline-offset-2 hover:text-ink">
+            Privacy policy
+          </a>
+        </p>
       </div>
       <BrandCanvas />
     </div>

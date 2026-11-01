@@ -253,7 +253,7 @@ function UserMenu({ socket }: { socket: string }) {
   return (
     <div className="flex items-center gap-3 rounded-xl px-2 py-1.5">
       <div className="relative">
-        <Avatar name={me.displayName} color={me.avatarColor} size={34} />
+        <Avatar name={me.displayName} color={me.avatarColor} url={me.avatarUrl} size={34} />
         <span
           title={socket === 'open' ? 'Live updates connected' : 'Reconnecting…'}
           className={cx('absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-elevated', socket === 'open' ? 'bg-success' : 'bg-warning')}

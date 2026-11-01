@@ -12,7 +12,7 @@ const INGEST_RATE = { max: 240, timeWindow: '1 minute' };
 const uuid = z.string().uuid();
 
 /** Resolve (user, device) for ingestion from a session + deviceId, or a device token. */
-async function ingestIdentity(ctx: Ctx, req: FastifyRequest, deviceId?: string | null): Promise<{ userId: string; deviceId: string }> {
+export async function ingestIdentity(ctx: Ctx, req: FastifyRequest, deviceId?: string | null): Promise<{ userId: string; deviceId: string }> {
   const a = req.auth;
   if (a?.via === 'device' && a.deviceId) return { userId: a.userId, deviceId: a.deviceId };
   const user = requireUser(req);
@@ -94,6 +94,57 @@ export default async function locationRoutes(app: FastifyInstance, ctx: Ctx) {
     const fixes = fromOverland(req.body).slice(0, MAX_BATCH);
     if (fixes.length) await ingestFixes(ctx, auth.userId, auth.deviceId!, fixes);
     return { result: 'ok' };
+  });
+
+  /**
+   * Check in: share a fresh fix right now and tell circle-mates where you are
+   * ("Sam checked in at Home"). Optional circleId limits who is notified.
+   */
+  app.post('/api/checkins', { config: { rateLimit: { max: 20, timeWindow: '10 minutes' } } }, async (req) => {
+    const a = requireUser(req);
+    const body = parse(
+      z.object({
+        deviceId: uuid,
+        circleId: uuid.nullish(),
+        message: z.string().trim().max(140).nullish(),
+        location: fixSchema,
+      }),
+      req.body,
+    );
+    const id = await ingestIdentity(ctx, req, body.deviceId);
+    const [me] = await sql<{ display_name: string; sharing_paused: boolean }[]>`SELECT display_name, sharing_paused FROM users WHERE id = ${a.userId}`;
+    if (me!.sharing_paused) throw badRequest('Resume location sharing to check in');
+    if (body.circleId && !(await sql`SELECT 1 FROM circle_members WHERE circle_id = ${body.circleId} AND user_id = ${a.userId}`).length) {
+      throw notFound('Circle not found');
+    }
+    await ingestFixes(ctx, id.userId, id.deviceId, [body.location]);
+
+    const { lat, lon } = body.location;
+    const [place] = await sql<{ name: string }[]>`
+      SELECT p.name FROM places p
+      WHERE (p.circle_id IN (SELECT circle_id FROM circle_members WHERE user_id = ${a.userId}) OR (p.circle_id IS NULL AND p.owner_id = ${a.userId}))
+        AND ST_DWithin(p.geog, ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography, p.radius_m + 75)
+      ORDER BY ST_Distance(p.geog, ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography) LIMIT 1`;
+    const where = place?.name ?? (await ctx.geocoder.reverse(lat, lon));
+
+    // Notify people in circles where this user currently shares their location.
+    const recipients = await sql<{ user_id: string }[]>`
+      SELECT DISTINCT v.user_id FROM circle_members t
+      JOIN circle_members v ON v.circle_id = t.circle_id
+      WHERE t.user_id = ${a.userId} AND t.sharing AND v.user_id <> ${a.userId}
+        ${body.circleId ? sql`AND t.circle_id = ${body.circleId}` : sql``}
+        AND NOT COALESCE((v.notify_settings ->> 'muted')::boolean, false)`;
+    for (const r of recipients) {
+      await ctx.notify.notify({
+        userId: r.user_id,
+        type: 'check_in',
+        title: `${me!.display_name} checked in${where ? ` at ${where}` : ''}`,
+        body: body.message ?? '',
+        data: { userId: a.userId, lat, lon },
+        url: `/map?member=${a.userId}`,
+      });
+    }
+    return { notified: recipients.length, where };
   });
 
   // -- History ---------------------------------------------------------------

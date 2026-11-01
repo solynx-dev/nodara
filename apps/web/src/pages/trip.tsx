@@ -82,7 +82,7 @@ export default function TripPage() {
             {trip.lowConfidence && <Badge tone="warning">Low confidence</Badge>}
           </div>
           <div className="mt-1 flex items-center gap-2 text-[14px] text-muted">
-            {person && <Avatar name={person.displayName} color={person.avatarColor} size={20} />}
+            {person && <Avatar name={person.displayName} color={person.avatarColor} url={person.avatarUrl} size={20} />}
             {person?.displayName} · {format(new Date(trip.startedAt), 'EEEE, MMMM d · h:mm a')}
             {trip.endedAt && ` – ${clock(trip.endedAt)}`} · {MODE_META[trip.mode].label} (estimated)
           </div>

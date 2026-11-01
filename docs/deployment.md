@@ -116,6 +116,18 @@ docker compose exec -e NODARA_ADMIN_PASSWORD='a long passphrase' nodara \
 docker compose exec nodara node dist/cli/create-admin.js --email them@example.com --promote
 ```
 
+### Locked out?
+
+Set a new password from the server (no email needed):
+
+```bash
+docker compose exec nodara node dist/cli/reset-password.js --email you@example.com
+```
+
+It asks for the new password. Use `--generate` to print a random one instead. Add `--disable-2fa` if you also lost your authenticator app and recovery codes, and `--enable` if the account was disabled. Every session is signed out, so sign in again in the app and browser; location sharing keeps working because it uses a separate device token. The change is recorded in the audit log.
+
+Too many wrong passwords only lock sign-in for a few minutes (rate limiting). `docker compose restart nodara` clears it right away.
+
 ## 6. Updating
 
 ```bash

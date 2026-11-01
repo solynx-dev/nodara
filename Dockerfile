@@ -21,7 +21,8 @@ RUN pnpm --filter @nodara/web build && pnpm --filter @nodara/server build
 RUN pnpm --filter @nodara/server deploy --prod --legacy /out \
   && rm -rf /out/src /out/test /out/*.config.ts /out/tsconfig.json \
   && cp -r apps/server/dist /out/dist \
-  && cp -r apps/web/dist /out/web
+  && cp -r apps/web/dist /out/web \
+  && cp PRIVACY.md /out/PRIVACY.md
 
 # ---- runtime ---------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim

@@ -323,7 +323,7 @@ function MemberDetail({ member, onBack, onFocus }: { member: MemberLocation; onB
       </div>
       <div className="min-h-0 overflow-y-auto px-5 pb-5">
         <button className="flex w-full items-center gap-3.5 pt-1 text-left" onClick={onFocus}>
-          <Avatar name={member.displayName} color={member.avatarColor} size={54} ring={f === 'live'} dim={f === 'old'} />
+          <Avatar name={member.displayName} color={member.avatarColor} url={member.avatarUrl} size={54} ring={f === 'live'} dim={f === 'old'} />
           <div className="min-w-0">
             <h2 className="truncate text-[20px] font-extrabold tracking-tight">{member.displayName}</h2>
             <div className="truncate text-[14px] text-ink-2">{where}</div>

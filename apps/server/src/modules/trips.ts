@@ -8,6 +8,7 @@ import { historyAccess } from '../services/access.js';
 import { MODE_SQL, serializeTrip, TRIP_COLUMNS, type TripRow } from '../services/serialize.js';
 import { rebuildTrips } from '../services/trips.js';
 import { requireHistory } from './locations.js';
+import { drivingEvents } from './driving.js';
 
 const uuid = z.string().uuid();
 
@@ -67,6 +68,7 @@ export default async function tripRoutes(app: FastifyInstance, ctx: Ctx) {
       ) x WHERE (rn - 1) % ${step} = 0 ORDER BY recorded_at`;
 
     const route = t.route_geojson ? (JSON.parse(t.route_geojson) as { coordinates: [number, number][] }).coordinates : [];
+    const events = await drivingEvents(ctx, t.user_id, access, t.started_at, new Date(end.getTime() + 1000));
     return {
       ...serializeTrip(t),
       mode: t.mode,
@@ -74,6 +76,7 @@ export default async function tripRoutes(app: FastifyInstance, ctx: Ctx) {
       pointCount: t.point_count,
       route,
       stops: t.stops,
+      events: events.reverse(),
       samples: samples.map((s) => ({
         t: s.recorded_at.toISOString(),
         speed: s.speed,

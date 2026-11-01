@@ -36,8 +36,18 @@ const schema = z.object({
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().default('mailto:admin@localhost'),
 
+  /**
+   * Deliver notifications to the Nodara iOS/Android apps through Expo's push
+   * service (which relays to Apple/Google). Only used for devices whose owner
+   * enabled notifications in the native app. Set false to disable.
+   */
+  EXPO_PUSH_ENABLED: bool.default(true),
+  EXPO_PUSH_URL: z.string().url().default('https://exp.host/--/api/v2/push/send'),
+
   /** Default retention for location history in days. 0 / empty = keep forever. */
   DEFAULT_RETENTION_DAYS: z.coerce.number().int().min(0).default(0),
+  /** Speed treated as "speeding" in driving reports (there is no speed-limit data). */
+  DRIVING_SPEEDING_KMH: z.coerce.number().min(50).max(300).default(130),
 
   /** Telemetry is OFF unless an admin enables it *and* an endpoint is configured. */
   TELEMETRY_ENDPOINT: z.string().default(''),

@@ -1,0 +1,95 @@
+{
+  "expo": {
+    "name": "Nodara",
+    "slug": "nodara",
+    "scheme": "nodara",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "description": "Self-hosted location sharing for families. Your people. Your places. Your data.",
+    "ios": {
+      "bundleIdentifier": "ca.nodara.app",
+      "supportsTablet": true,
+      "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "owntracks"
+        ],
+        "NSLocationUsageDescription": "Nodara shares your location with the circles you choose, on the server you connect to."
+      }
+    },
+    "android": {
+      "package": "ca.nodara.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0C0E12",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Nodara shows your location on the map and shares it with the circles you choose. Locations go only to the Nodara server you connected to.",
+          "locationAlwaysAndWhenInUsePermission": "Allow \"Always\" so your family keeps seeing where you are, and gets arrival alerts, while Nodara is closed. You can pause sharing any time.",
+          "motionUsagePermission": "Nodara uses motion to tell when you're travelling, which saves battery.",
+          "isIosBackgroundLocationEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#FF6B3D"
+        }
+      ],
+      "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Nodara uses a photo you pick as your profile picture, which only your circles can see.",
+          "cameraPermission": "Nodara can take a profile picture, which only your circles can see.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "backgroundColor": "#F6F5F2",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#0C0E12"
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "10583545-6818-4042-9fc8-b1f617514a1f"
+      }
+    },
+    "owner": "joshuasippley"
+  }
+}

@@ -19,7 +19,7 @@ export function tripTitle(t: Trip) {
   return { from: s, to: e };
 }
 
-export function TripRow({ trip, person, compact }: { trip: Trip; person?: { displayName: string; avatarColor: string }; compact?: boolean }) {
+export function TripRow({ trip, person, compact }: { trip: Trip; person?: { displayName: string; avatarColor: string; avatarUrl?: string | null }; compact?: boolean }) {
   const me = useUser();
   const Mode = MODE_META[trip.mode].icon;
   const { from, to } = tripTitle(trip);
@@ -31,7 +31,7 @@ export function TripRow({ trip, person, compact }: { trip: Trip; person?: { disp
         </div>
         {person && (
           <div className="absolute -right-1.5 -bottom-1.5">
-            <Avatar name={person.displayName} color={person.avatarColor} size={20} className="ring-2 ring-surface" />
+            <Avatar name={person.displayName} color={person.avatarColor} url={person.avatarUrl} size={20} className="ring-2 ring-surface" />
           </div>
         )}
       </div>

@@ -22,6 +22,7 @@ import passkeyRoutes from './modules/passkeys.js';
 import circleRoutes from './modules/circles.js';
 import locationRoutes from './modules/locations.js';
 import tripRoutes from './modules/trips.js';
+import drivingRoutes from './modules/driving.js';
 import placeRoutes from './modules/places.js';
 import notificationRoutes from './modules/notifications.js';
 import deviceRoutes from './modules/devices.js';
@@ -29,6 +30,7 @@ import accountRoutes from './modules/account.js';
 import adminRoutes from './modules/admin.js';
 import systemRoutes from './modules/system.js';
 import realtimeRoutes from './modules/realtime.js';
+import legalRoutes from './modules/legal.js';
 
 export interface BuiltApp {
   app: FastifyInstance;
@@ -108,12 +110,14 @@ export async function buildApp(config: Config, opts: { sql?: Sql; logger?: boole
     circleRoutes,
     locationRoutes,
     tripRoutes,
+    drivingRoutes,
     placeRoutes,
     notificationRoutes,
     deviceRoutes,
     accountRoutes,
     adminRoutes,
     realtimeRoutes,
+    legalRoutes,
   ]) {
     await app.register(async (scope) => mod(scope, ctx));
   }

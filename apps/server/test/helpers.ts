@@ -1,4 +1,5 @@
 import { afterAll, beforeAll } from 'vitest';
+import { createServer, type Server } from 'node:http';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { loadConfig } from '../src/config.js';
 import { buildApp } from '../src/app.js';
@@ -14,8 +15,29 @@ export interface TestEnv {
 
 let shared: Promise<TestEnv> | null = null;
 
+/** Stand-in for Expo's push service: records what the server would send. */
+export const expoPushInbox: unknown[] = [];
+const EXPO_PORT = 18765;
+let expoServer: Server | null = null;
+function startExpoStub() {
+  if (expoServer) return;
+  expoServer = createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      const msgs = JSON.parse(body) as unknown[];
+      expoPushInbox.push(...msgs);
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ data: msgs.map(() => ({ status: 'ok', id: 'x' })) }));
+    });
+  }).listen(EXPO_PORT, '127.0.0.1');
+  expoServer.unref();
+}
+
 async function create(): Promise<TestEnv> {
+  startExpoStub();
   const config = loadConfig({
+    EXPO_PUSH_URL: `http://127.0.0.1:${EXPO_PORT}/push`,
     NODE_ENV: 'test',
     DATABASE_URL: process.env.TEST_DATABASE_URL!,
     PUBLIC_URL: 'http://localhost:5173',

@@ -1,7 +1,7 @@
 import { useNavigate, Link } from 'react-router';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, isToday, isYesterday } from 'date-fns';
-import { BatteryWarning, Bell, CheckCheck, Clock3, Eye, LogIn, LogOut, ShieldAlert, Trash2, UserPlus, X } from 'lucide-react';
+import { BatteryWarning, Bell, CheckCheck, Clock3, Eye, LogIn, LogOut, MapPin, ShieldAlert, Trash2, UserPlus, X } from 'lucide-react';
 import { api, qs } from '@/lib/api';
 import { ago } from '@/lib/format';
 import type { AppNotification } from '@/lib/types';
@@ -11,6 +11,7 @@ const ICONS: Record<string, { icon: typeof Bell; tone: string }> = {
   arrival: { icon: LogIn, tone: 'text-success bg-success/12' },
   departure: { icon: LogOut, tone: 'text-warning bg-warning/12' },
   member_joined: { icon: UserPlus, tone: 'text-info bg-info/12' },
+  check_in: { icon: MapPin, tone: 'text-accent bg-accent-soft' },
   invitation: { icon: UserPlus, tone: 'text-info bg-info/12' },
   sharing_changed: { icon: Eye, tone: 'text-ink-2 bg-surface-2' },
   low_battery: { icon: BatteryWarning, tone: 'text-danger bg-danger/12' },

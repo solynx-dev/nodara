@@ -11,6 +11,7 @@
     "migrate": "tsx src/cli/migrate.ts",
     "seed:demo": "tsx src/cli/seed-demo.ts",
     "create-admin": "tsx src/cli/create-admin.ts",
+    "reset-password": "tsx src/cli/reset-password.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   },
@@ -23,6 +24,7 @@
     "@node-rs/argon2": "^2.0.2",
     "@simplewebauthn/server": "^13.1.1",
     "fastify": "^5.12.0",
+    "marked": "^18.1.2",
     "nodemailer": "^6.10.1",
     "postgres": "^3.4.7",
     "web-push": "^3.6.7",

@@ -29,6 +29,7 @@ export default async function systemRoutes(app: FastifyInstance, ctx: Ctx) {
       passkeys: true,
       emailEnabled: ctx.mailer.enabled,
       defaultRetentionDays: s.defaultRetentionDays || null,
+      driving: { speedingKmh: ctx.config.DRIVING_SPEEDING_KMH },
     };
   });
 }

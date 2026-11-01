@@ -4,10 +4,20 @@ import { z } from 'zod';
 import type { Ctx } from '../context.js';
 import { audit, clearSessionCookie, requireUser } from '../auth.js';
 import { verifyPassword } from '../lib/crypto.js';
-import { conflict, HttpError } from '../lib/errors.js';
+import { badRequest, conflict, HttpError, notFound } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import { deleteUser, loadMe } from '../services/users.js';
-import { viewersOf } from '../services/access.js';
+import { circleMatesOf, viewersOf } from '../services/access.js';
+
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+
+/** Identify an image by its magic bytes; anything else (SVG, HTML…) is refused. */
+export function imageMime(b: Buffer): 'image/jpeg' | 'image/png' | 'image/webp' | null {
+  if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+  if (b.length > 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
+  if (b.length > 12 && b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP') return 'image/webp';
+  return null;
+}
 
 const notifPref = z.object({ inApp: z.boolean(), push: z.boolean() }).partial();
 
@@ -53,7 +63,59 @@ export default async function accountRoutes(app: FastifyInstance, ctx: Ctx) {
         preferences = preferences || ${sql.json((body.preferences ?? {}) as never)},
         updated_at = now()
       WHERE id = ${a.userId}`;
+    if (body.displayName || body.avatarColor) await announceProfile(a.userId);
     return loadMe(sql, a.userId);
+  });
+
+  // -- Profile photo ---------------------------------------------------------------
+  /** Tell everyone who can see this person to refresh their name / photo. */
+  const announceProfile = async (userId: string) => {
+    ctx.hub.publish([userId, ...(await circleMatesOf(sql, userId))], { type: 'profile', userId });
+  };
+
+  app.put(
+    '/api/me/avatar',
+    { bodyLimit: 4 * 1024 * 1024, config: { rateLimit: { max: 20, timeWindow: '10 minutes' } } },
+    async (req) => {
+      const a = requireUser(req);
+      const { image } = parse(z.object({ image: z.string().min(16).max(4 * 1024 * 1024) }), req.body);
+      const data = Buffer.from(image.replace(/^data:image\/[a-z]+;base64,/, ''), 'base64');
+      if (data.length > MAX_AVATAR_BYTES) throw badRequest('That photo is too large. Use one under 2 MB.');
+      const mime = imageMime(data);
+      if (!mime) throw badRequest('Use a JPEG, PNG or WebP photo.');
+      await sql`
+        INSERT INTO user_avatars (user_id, mime, data) VALUES (${a.userId}, ${mime}, ${data})
+        ON CONFLICT (user_id) DO UPDATE SET mime = EXCLUDED.mime, data = EXCLUDED.data, updated_at = now()`;
+      // The version in the URL lets clients cache the image forever.
+      const url = `/api/users/${a.userId}/avatar?v=${Date.now().toString(36)}`;
+      await sql`UPDATE users SET avatar_url = ${url}, updated_at = now() WHERE id = ${a.userId}`;
+      await announceProfile(a.userId);
+      return loadMe(sql, a.userId);
+    },
+  );
+
+  app.delete('/api/me/avatar', async (req) => {
+    const a = requireUser(req);
+    await sql`DELETE FROM user_avatars WHERE user_id = ${a.userId}`;
+    await sql`UPDATE users SET avatar_url = NULL, updated_at = now() WHERE id = ${a.userId}`;
+    await announceProfile(a.userId);
+    return loadMe(sql, a.userId);
+  });
+
+  /** Profile photos are visible to the person themself and anyone sharing a circle with them. */
+  app.get<{ Params: { id: string } }>('/api/users/:id/avatar', { config: { rateLimit: { max: 600, timeWindow: '1 minute' } } }, async (req, reply) => {
+    const a = requireUser(req);
+    const id = parse(z.string().uuid(), req.params.id);
+    if (id !== a.userId && !(await circleMatesOf(sql, a.userId)).includes(id)) throw notFound('Photo not found');
+    const [row] = await sql<{ mime: string; data: Buffer }[]>`SELECT mime, data FROM user_avatars WHERE user_id = ${id}`;
+    if (!row) throw notFound('Photo not found');
+    return reply
+      .header('Content-Type', row.mime)
+      .header('Cache-Control', 'private, max-age=31536000, immutable')
+      .header('X-Content-Type-Options', 'nosniff')
+      .header('Content-Security-Policy', "default-src 'none'; sandbox")
+      .header('Content-Disposition', 'inline')
+      .send(row.data);
   });
 
   /** Global pause: hides live location from every circle at once. */
@@ -186,7 +248,10 @@ async function streamExport(
           WHERE e.user_id = ${userId} ORDER BY e.occurred_at`;
         out.write(`{"format":"nodara-export","version":1,"exportedAt":${JSON.stringify(new Date())},\n`);
         out.write(`"profile":${JSON.stringify(profile)},\n"circles":${JSON.stringify(circles)},\n"devices":${JSON.stringify(devices)},\n`);
-        out.write(`"places":${JSON.stringify(places)},\n"placeEvents":${JSON.stringify(events)},\n"trips":${JSON.stringify(trips)},\n"locations":[\n`);
+        const driving = await sql`
+          SELECT kind, started_at, ended_at, lat, lon, speed, value FROM driving_events
+          WHERE user_id = ${userId} AND started_at >= ${from} AND started_at < ${to} ORDER BY started_at`;
+        out.write(`"places":${JSON.stringify(places)},\n"placeEvents":${JSON.stringify(events)},\n"trips":${JSON.stringify(trips)},\n"drivingEvents":${JSON.stringify(driving)},\n"locations":[\n`);
         let first = true;
         await points.cursor(2000, (rows) => {
           for (const r of rows) {

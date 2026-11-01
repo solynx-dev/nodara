@@ -39,18 +39,22 @@ Rate limits: 600 req/min/IP globally; auth endpoints ~10/min; ingestion 240/min.
 |---|---|
 | `PATCH /me` | `{displayName?, avatarColor?, preferences?}` — preferences: `units`, `theme`, `mapStyle`, `updateIntervalSec`, `adaptiveInterval`, `highAccuracy`, `retentionDays`, `notifyLowBattery`, `lowBatteryThreshold`, `notifications.{places,circle,sharing,lowBattery,deviceOffline}.{inApp,push}`. |
 | `POST /me/sharing` | `{paused}` — global pause/resume. |
+| `PUT /me/avatar` | `{image}` — base64 JPEG, PNG or WebP (≤ 2 MB; data URLs accepted). Anything else, including SVG, is refused. Returns the updated profile with a versioned `avatarUrl`. Clients should shrink photos first (the apps send 512×512 JPEG). |
+| `DELETE /me/avatar` | Remove the profile photo. |
+| `GET /users/:id/avatar?v=…` | The photo itself. Only for yourself and people who share a circle with you (404 otherwise). Cached forever per version; served with `nosniff` and a sandboxing CSP. |
 | `DELETE /me` | `{password, confirm: "DELETE"}` — delete the account and all data. |
 | `GET /me/export?format=json\|geojson\|gpx\|csv&from&to` | Streamed export of your own data. |
 
 ## Devices — `/devices`
 
-`GET /devices` · `POST /devices {name, kind}` → `{device, token}` (token for non-web kinds, shown once) · `PATCH /devices/:id {name}` · `POST /devices/:id/token` (rotate) · `DELETE /devices/:id` (revoke) · `PUT /devices/:id/push {subscription}` · `DELETE /devices/:id/push` · `POST /devices/:id/push/test`.
+`GET /devices` · `POST /devices {name, kind}` → `{device, token}` (token for non-web kinds, shown once) · `PATCH /devices/:id {name}` · `POST /devices/:id/token` (rotate) · `DELETE /devices/:id` (revoke) · `PUT /devices/:id/push {subscription}` · `DELETE /devices/:id/push` · `PUT /devices/:id/native-push {token}` (Expo push token from the iOS app) · `DELETE /devices/:id/native-push` · `POST /devices/:id/push/test`.
 
 ## Locations
 
 | Endpoint | Description |
 |---|---|
 | `POST /locations` | `{deviceId?, locations: Fix[≤1000]}` — see [clients.md](clients.md). Returns `{accepted, rejected, duplicates, latest, hint}`. |
+| `POST /checkins` | `{deviceId, circleId?, message?, location: Fix}` — records the fix and notifies circle-mates (“Alex checked in at Home”). |
 | `POST /ingest/owntracks` | OwnTracks HTTP payload. |
 | `POST /ingest/overland` | Overland GeoJSON batch. |
 | `GET /live` | Everyone visible to you across all circles (`MemberLocation[]`). |
@@ -76,12 +80,25 @@ Rate limits: 600 req/min/IP globally; auth endpoints ~10/min; ingestion 240/min.
 | `POST /trips/rebuild` | Recompute your trips from history. |
 | `GET /insights?userId&period=week\|month\|year&offset&tz&mode=driving\|all` | Totals, previous-period comparison and buckets. |
 
+## Driving reports
+
+Events are detected on the server from uploaded fixes (speeding, hard braking, rapid acceleration) and from phone unlocks sent by the iOS app (phone use). They follow the same visibility rules as trips (`tripsVisible`, `sharing_since`, paused periods).
+
+| Endpoint | Description |
+|---|---|
+| `POST /driving/phone-use` | `{deviceId?, times: (ISO \| epoch ms)[]}` — device token or session. Each time becomes a `phone_use` event only if your own fixes show you moving faster than ~16 km/h within 45 s of it. → `{recorded}`. |
+| `GET /driving/events?userId&from&to` | Events for a person: `{id, kind, startedAt, endedAt, lat, lon, speed, value, tripId}`. `kind` is `speeding` (top `speed`, m/s), `hard_brake` / `rapid_accel` (`value` = m/s²) or `phone_use`. Speeding needs at least two fixes over the limit. |
+| `GET /driving/report?circleId&offset&tz` | Monday–Sunday week in `tz` (`offset` 0 = this week). Totals and per-person drives, distance, duration, top speed, event counts and last week's counts. People whose drives you can't see come back as `{user, hidden: true}`. |
+
+`GET /trips/:id` also includes `events` for that trip.
+
 ## Circles & invitations
 
 | Endpoint | Description |
 |---|---|
 | `GET /circles` · `POST /circles {name, color}` | |
 | `GET /circles/:id` | Detail with members (emails only for admins). |
+| `GET /live` · `GET /circles/:id/live` | Members with their latest visible location, `currentPlace`, `inTrip`, and `stay: {since, atLeast} \| null` — when they arrived where they are now (geofence arrival, else the end of their last trip if it ended within 1 km). `atLeast` is true when the real arrival is earlier than what you're allowed to see. |
 | `PATCH /circles/:id` | Admin: `{name?, color?, settings?: {historyVisible, tripsVisible, membersCanInvite}}`. |
 | `DELETE /circles/:id` | Owner only. |
 | `PATCH /circles/:id/me` | `{sharing?, notify?: {muted}}`. |
@@ -119,6 +136,7 @@ Authenticated by the session cookie (or bearer) during the upgrade. Server → c
 { type: 'trip', userId, tripId, status }
 { type: 'presence', userId, placeId, inside }
 { type: 'circle', circleId }
+{ type: 'profile', userId }   // name, colour or photo changed
 ```
 
 The client may send the text `ping`; the server answers `{"type":"pong"}`. Type definitions: `packages/shared/src/types.ts`.

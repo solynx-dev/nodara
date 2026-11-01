@@ -117,7 +117,7 @@ export interface PlaceEvent {
   id: string;
   kind: 'arrive' | 'depart';
   occurredAt: string;
-  user: { id: string; displayName: string; avatarColor: string };
+  user: { id: string; displayName: string; avatarColor: string; avatarUrl: string | null };
   place: { id: string; name: string; icon: string; color: string };
 }
 
