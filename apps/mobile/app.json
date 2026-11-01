@@ -3,14 +3,14 @@
     "name": "Nodara",
     "slug": "nodara",
     "scheme": "nodara",
-    "version": "0.1.0",
+    "version": "1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "description": "Self-hosted location sharing for families. Your people. Your places. Your data.",
     "ios": {
       "bundleIdentifier": "ca.nodara.app",
-      "supportsTablet": true,
+      "supportsTablet": false,
       "buildNumber": "1",
       "config": {
         "usesNonExemptEncryption": false
