@@ -87,12 +87,20 @@ Edits to the code now appear on your phone instantly.
 
 ### 3. Share it with your family (TestFlight)
 
+Build and upload in one go:
+
 ```bash
-npx eas-cli@latest build --profile production --platform ios
-npx eas-cli@latest submit --platform ios --latest
+npx eas-cli@latest build --platform ios --profile production --auto-submit
 ```
 
-`submit` uploads the build to App Store Connect (it creates the app record for you on first run). In <https://appstoreconnect.apple.com> → your app → **TestFlight**, add your family as testers by email. They install the **TestFlight** app and get Nodara from there. Builds for testers stay valid for 90 days.
+The first run asks you to sign in with your Apple ID and lets EAS create the certificates, the provisioning profile and the push key (say yes to all). The upload also creates the app in App Store Connect; if the name "Nodara" is taken there, pick another, such as "Nodara Family". The build takes about 15–30 minutes, and Apple processes it for another 5–15 minutes.
+
+Then, in <https://appstoreconnect.apple.com> → your app → **TestFlight**:
+
+- **Internal testing** (instant): add yourself, or anyone you've added under *Users and Access*. No review.
+- **External testing** (for family without App Store Connect accounts): create a group, add the build, and invite people by email or with a public link. The first build needs a short Beta App Review, usually within a day.
+
+Testers install the **TestFlight** app and get Nodara from there. Builds stay valid for 90 days. Export compliance is pre-answered in `app.json`, so builds don't wait on that question.
 
 ### 4. Publish on the App Store (optional)
 
