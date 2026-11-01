@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { api } from './api';
+import { getItem, KEYS } from './storage';
 import { ensureDevice } from '@/background/tracking';
 
 Notifications.setNotificationHandler({
@@ -27,6 +28,29 @@ export async function enablePush(): Promise<void> {
   const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
   const deviceId = await ensureDevice();
   await api.put(`/api/devices/${deviceId}/native-push`, { token });
+}
+
+/**
+ * Re-send this iPhone's push token on launch when push is on. The token
+ * changes between development and TestFlight / App Store builds (Apple's
+ * sandbox vs production push service) and can rotate, and a stale one means
+ * notifications silently stop arriving.
+ */
+export async function syncPushToken(): Promise<void> {
+  try {
+    if (!Device.isDevice) return;
+    if ((await Notifications.getPermissionsAsync()).status !== 'granted') return;
+    const deviceId = await getItem(KEYS.deviceId);
+    if (!deviceId) return;
+    const devices = await api.get<{ id: string; pushEnabled: boolean }[]>('/api/devices');
+    if (!devices.find((d) => d.id === deviceId)?.pushEnabled) return; // they turned push off in Nodara
+    const projectId = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId ?? Constants.easConfig?.projectId;
+    if (!projectId) return;
+    const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
+    await api.put(`/api/devices/${deviceId}/native-push`, { token });
+  } catch {
+    // Best effort; the Settings switch still works.
+  }
 }
 
 export async function disablePush() {
