@@ -63,6 +63,12 @@ export interface MemberLocation extends PublicUser {
   deviceName: string | null;
   currentPlace: { id: string; name: string; icon: string; color: string } | null;
   inTrip: boolean;
+  /**
+   * When they arrived where they are now (null while travelling or unknown).
+   * `atLeast` is true when the real arrival is earlier than what the viewer may
+   * see (before they started sharing, or before recorded history begins).
+   */
+  stay: { since: string; atLeast: boolean } | null;
 }
 
 export interface Circle {
@@ -155,4 +161,5 @@ export type ServerEvent =
   | { type: 'notification'; notification: AppNotification }
   | { type: 'trip'; userId: string; tripId: string; status: 'in_progress' | 'completed' }
   | { type: 'presence'; userId: string; placeId: string; inside: boolean }
-  | { type: 'circle'; circleId: string };
+  | { type: 'circle'; circleId: string }
+  | { type: 'profile'; userId: string };

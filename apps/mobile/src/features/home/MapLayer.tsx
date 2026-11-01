@@ -2,7 +2,9 @@ import { forwardRef, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import MapView, { Circle as MapCircle, Marker, type MapType, type Region } from 'react-native-maps';
 import type { MemberLocation, PlaceEvent, PlaceWithMeta } from '@/lib/types';
-import { ago, clock, firstName, freshness, haversine, initials } from '@/lib/format';
+import { ago, clock, firstName, freshness, haversine } from '@/lib/format';
+import { Avatar } from '@/components/ui';
+import { stayDuration } from '@/lib/status';
 import { C } from '@/lib/theme';
 import { PlaceSymbol } from './placeIcons';
 
@@ -30,6 +32,10 @@ function groupMembers(members: MemberLocation[], region: Region | null): Group[]
 function calloutFor(m: MemberLocation, ev: PlaceEvent | undefined): { icon?: string; color?: string; line1: string; line2: string } | null {
   const loc = m.location!;
   const f = freshness(loc.recordedAt);
+  const stayFor = stayDuration(m);
+  if (m.currentPlace && stayFor) {
+    return { icon: m.currentPlace.icon, color: m.currentPlace.color, line1: `${firstName(m.displayName)} at ${m.currentPlace.name}`, line2: `for ${stayFor}` };
+  }
   if (m.currentPlace && ev?.kind === 'arrive' && ev.place.id === m.currentPlace.id) {
     return { icon: m.currentPlace.icon, color: m.currentPlace.color, line1: `${firstName(m.displayName)} arrived`, line2: ago(ev.occurredAt) };
   }
@@ -117,8 +123,8 @@ export const NodaraMap = forwardRef<
                   const f = freshness(m.location!.recordedAt);
                   const stale = f === 'stale' || f === 'old';
                   return (
-                    <View key={m.id} style={[styles.face, { backgroundColor: stale ? '#8E8E93' : m.avatarColor, marginLeft: i ? -14 : 0, zIndex: 3 - i }]}>
-                      <Text style={styles.faceText}>{initials(m.displayName)}</Text>
+                    <View key={m.id} style={{ marginLeft: i ? -14 : 0, zIndex: 3 - i }}>
+                      <Avatar name={m.displayName} color={m.avatarColor} url={m.avatarUrl} size={52} dim={stale} border={2.5} />
                     </View>
                   );
                 })}
@@ -168,8 +174,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
   },
-  face: { width: 52, height: 52, borderRadius: 26, borderWidth: 2.5, borderColor: 'white', alignItems: 'center', justifyContent: 'center' },
-  faceText: { color: 'white', fontSize: 18, fontWeight: '700' },
   more: { marginHorizontal: 8, fontWeight: '700', color: '#1c1c1e' },
   tail: { width: 14, height: 14, backgroundColor: 'white', transform: [{ rotate: '45deg' }], marginTop: -9 },
 });

@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, Share, StyleSheet, Text, View } from 'react-native';
 import type MapView from 'react-native-maps';
 import type { MapType, Region } from 'react-native-maps';
-import Animated, { Extrapolation, FadeIn, interpolate, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { router, useLocalSearchParams } from 'expo-router';
+import Animated, { FadeIn, useSharedValue } from 'react-native-reanimated';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
@@ -15,13 +15,14 @@ import { circleSummary } from '@/lib/status';
 import { C, T } from '@/lib/theme';
 import type { PlaceWithMeta } from '@/lib/types';
 import { getItem, KEYS } from '@/lib/storage';
+import { getMapType, MAP_TYPES, setMapTypePref } from '@/lib/prefs';
 import { ensureDevice, syncGeofences } from '@/background/tracking';
 import { toFixes } from '@/background/upload';
-import { GlassButton, GlassPill, useToast } from '@/components/ui';
+import { GlassButton, GlassPill, Segmented, useToast } from '@/components/ui';
 import { NodaraMap } from '@/features/home/MapLayer';
 import { MapSheet, useSheetPositions, type SheetIndex } from '@/features/home/Sheet';
-import { PeoplePanel, PlacesPanel, SegmentControl, TripsPanel, type Segment } from '@/features/home/panels';
-import { PersonPanel } from '@/features/home/PersonPanel';
+import { PeoplePanel, PlacesPanel, type Segment } from '@/features/home/panels';
+import { ProfileBody, ProfileHeader } from '@/features/profile/Profile';
 import { TopBar } from '@/features/home/TopBar';
 
 const CIRCLE_KEY = 'nodara.circle';
@@ -29,8 +30,9 @@ const ONBOARDED_KEY = 'nodara.onboarded';
 
 /**
  * Home: one map-first screen. Floating Liquid Glass controls on top, a
- * draggable sheet with People / Places / Trips at the bottom, and person
- * details opening inside that sheet while the map follows them.
+ * draggable sheet with People / Places at the bottom, and each person's
+ * profile (status, drives, history) opening inside that sheet while the map
+ * follows them.
  */
 export default function Home() {
   const me = useMe();
@@ -64,6 +66,12 @@ export default function Home() {
   useEffect(() => {
     void AsyncStorage.getItem(CIRCLE_KEY).then((v) => v && setCircleIdState(v));
   }, []);
+  // The default map style can be changed in Settings.
+  useFocusEffect(
+    useCallback(() => {
+      void getMapType().then((t) => t && setMapType(t));
+    }, []),
+  );
 
   // First run: explain and request location sharing once.
   useEffect(() => {
@@ -135,10 +143,12 @@ export default function Home() {
 
   const chooseMapType = () =>
     ActionSheetIOS.showActionSheetWithOptions(
-      { title: 'Map style', options: ['Standard', 'Muted', 'Satellite', 'Hybrid', 'Cancel'], cancelButtonIndex: 4 },
+      { title: 'Map style', options: [...MAP_TYPES.map((m) => m.label), 'Cancel'], cancelButtonIndex: MAP_TYPES.length },
       (i) => {
-        const types: MapType[] = ['standard', 'mutedStandard', 'satellite', 'hybrid'];
-        if (types[i]) setMapType(types[i]!);
+        const t = MAP_TYPES[i]?.type;
+        if (!t) return;
+        setMapType(t);
+        void setMapTypePref(t);
       },
     );
 
@@ -215,16 +225,6 @@ export default function Home() {
       'default',
     );
 
-  const refresh = async () => {
-    await Promise.all([qc.invalidateQueries({ queryKey: ['live'] }), qc.invalidateQueries({ queryKey: ['places'] }), qc.invalidateQueries({ queryKey: ['place-events'] }), qc.invalidateQueries({ queryKey: ['trips'] })]);
-  };
-
-  // Floating controls ride on top of the sheet and fade away as it expands.
-  const CONTROLS_H = 108;
-  const floating = useAnimatedStyle(() => ({
-    transform: [{ translateY: y.value - CONTROLS_H - 10 }],
-    opacity: interpolate(y.value, [positions[2] + 80, positions[1]], [0, 1], Extrapolation.CLAMP),
-  }));
   const mapInset = height - (sheetIndex === 0 ? positions[0] : positions[1]);
 
   return (
@@ -245,29 +245,29 @@ export default function Home() {
         onMapPress={() => selectedId && clearSelection()}
       />
 
-      <Animated.View style={[styles.floating, floating]} pointerEvents="box-none">
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end' }} pointerEvents="box-none">
-          <GlassPill icon="mappin.and.ellipse" label="Check in" sub="Tell your circle" onPress={checkIn} />
-          <View style={{ flex: 1 }} />
-          <View style={{ gap: 10 }}>
-            <GlassButton icon="square.3.layers.3d" label="Map style" onPress={chooseMapType} />
-            <GlassButton
-              icon={selectedId ? 'person.2.fill' : 'location.fill'}
-              label={selectedId ? 'Show everyone' : 'Show my location'}
-              onPress={selectedId ? () => (clearSelection(), fitAll()) : () => void locateMe()}
-            />
-          </View>
-        </View>
-      </Animated.View>
-
       <MapSheet
         y={y}
         index={sheetIndex}
         onIndexChange={setSheetIndex}
-        refreshing={live.isRefetching}
-        onRefresh={() => void refresh()}
+        resetKey={selected?.id ?? segment}
+        accessory={
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end' }} pointerEvents="box-none">
+            <GlassPill icon="mappin.and.ellipse" label="Check in" sub="Tell your circle" onPress={checkIn} />
+            <View style={{ flex: 1 }} pointerEvents="none" />
+            <View style={{ gap: 10 }}>
+              <GlassButton icon="square.3.layers.3d" label="Map style" onPress={chooseMapType} />
+              <GlassButton
+                icon={selectedId ? 'person.2.fill' : 'location.fill'}
+                label={selectedId ? 'Show everyone' : 'Show my location'}
+                onPress={selectedId ? () => (clearSelection(), fitAll()) : () => void locateMe()}
+              />
+            </View>
+          </View>
+        }
         header={
-          selected ? null : (
+          selected ? (
+            <ProfileHeader key={selected.id} m={selected} ev={events.byUser.get(selected.id)} onBack={clearSelection} onEdit={() => router.push('/edit-profile')} />
+          ) : (
             <Animated.View entering={FadeIn}>
               <View style={styles.sheetHeader}>
                 <Text style={[T.title1, { color: C.label }]} numberOfLines={1}>
@@ -277,19 +277,25 @@ export default function Home() {
                   {members.length ? circleSummary(members) : 'Nobody here yet'}
                 </Text>
               </View>
-              <SegmentControl value={segment} onChange={setSegment} counts={{ people: members.length, places: places.length }} />
+              <Segmented
+                value={segment}
+                onChange={setSegment}
+                style={{ marginHorizontal: 16, marginBottom: 14 }}
+                items={[
+                  { key: 'people', label: 'People', icon: 'person.2.fill', count: members.length },
+                  { key: 'places', label: 'Places', icon: 'mappin.and.ellipse', count: places.length },
+                ]}
+              />
             </Animated.View>
           )
         }
       >
         {selected ? (
-          <PersonPanel m={selected} ev={events.byUser.get(selected.id)} onBack={clearSelection} onOpenTrip={(id) => router.push(`/trip/${id}`)} />
+          <ProfileBody key={selected.id} m={selected} ev={events.byUser.get(selected.id)} onOpenTrip={(id) => router.push(`/trip/${id}`)} />
         ) : segment === 'people' ? (
           <PeoplePanel members={members} events={events.byUser} loading={live.isLoading} onSelect={selectPerson} onInvite={invite} />
-        ) : segment === 'places' ? (
-          <PlacesPanel places={places} members={members} events={events.list} onFocus={focusPlace} onAdd={() => addPlace(region?.latitude ?? 0, region?.longitude ?? 0)} />
         ) : (
-          <TripsPanel members={members} onOpen={(id) => router.push(`/trip/${id}`)} />
+          <PlacesPanel places={places} members={members} events={events.list} onFocus={focusPlace} onAdd={() => addPlace(region?.latitude ?? 0, region?.longitude ?? 0)} />
         )}
       </MapSheet>
 
@@ -309,6 +315,5 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  floating: { position: 'absolute', top: 0, left: 16, right: 16 },
   sheetHeader: { paddingHorizontal: 20, marginBottom: 12 },
 });

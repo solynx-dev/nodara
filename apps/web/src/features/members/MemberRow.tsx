@@ -46,7 +46,7 @@ export function MemberRow({ member, onClick, selected }: { member: MemberLocatio
       className={cx('flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition', selected ? 'bg-accent-soft' : 'hover:bg-surface-2')}
     >
       <div className="relative">
-        <Avatar name={member.displayName} color={member.avatarColor} size={42} dim={!loc || f === 'old'} />
+        <Avatar name={member.displayName} color={member.avatarColor} url={member.avatarUrl} size={42} dim={!loc || f === 'old'} />
         {member.currentPlace && (
           <span className="absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full border-2 border-surface text-white" style={{ background: member.currentPlace.color }}>
             <PlaceIcon name={member.currentPlace.icon} className="size-2.5" />

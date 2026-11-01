@@ -156,7 +156,7 @@ export default function HistoryPage() {
                 onClick={() => set({ member: m.id })}
                 className={cx('flex shrink-0 items-center gap-2 rounded-xl border py-1.5 pr-3 pl-1.5 text-[13px] font-semibold transition', m.id === memberId ? 'border-accent bg-accent-soft text-ink' : 'border-line bg-surface text-ink-2 hover:border-line-strong')}
               >
-                <Avatar name={m.displayName} color={m.avatarColor} size={24} />
+                <Avatar name={m.displayName} color={m.avatarColor} url={m.avatarUrl} size={24} />
                 {m.id === me.id ? 'You' : m.displayName.split(' ')[0]}
               </button>
             ))}
@@ -191,7 +191,7 @@ export default function HistoryPage() {
             <HtmlMarker map={map} lon={head.lon} lat={head.lat}>
               <div className="relative">
                 {playing && <span className="absolute inset-0 animate-pulse-ring rounded-full bg-accent" />}
-                <Avatar name={member.displayName} color={member.avatarColor} size={36} className="border-[3px] border-white shadow-lg" />
+                <Avatar name={member.displayName} color={member.avatarColor} url={member.avatarUrl} size={36} className="border-[3px] border-white shadow-lg" />
               </div>
             </HtmlMarker>
           )}

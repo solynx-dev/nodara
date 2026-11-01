@@ -21,6 +21,19 @@ let cache: { server: string | null; token: string | null } | null = null;
 export function setCredentialsCache(server: string | null, token: string | null) {
   cache = { server, token };
 }
+/** Synchronous view of the signed-in server and token (set by SessionProvider). */
+export const currentCredentials = () => cache;
+
+/** expo-image source for an image served by the Nodara server (profile photos need the bearer token). */
+export function serverImage(path: string | null | undefined) {
+  if (!path || !cache?.server) return null;
+  return {
+    uri: /^https?:/.test(path) ? path : `${cache.server}${path}`,
+    headers: cache.token ? { Authorization: `Bearer ${cache.token}` } : undefined,
+    cacheKey: `${cache.server}${path}`,
+  };
+}
+
 async function credentials() {
   cache ??= { server: await getItem(KEYS.server), token: await getItem(KEYS.session) };
   return cache;

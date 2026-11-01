@@ -164,8 +164,8 @@ export default async function placeRoutes(app: FastifyInstance, ctx: Ctx) {
       req.query,
     );
     // Events are visible for places the viewer can see, about people whose history they can see.
-    const rows = await sql<{ id: number; kind: string; occurred_at: Date; user_id: string; display_name: string; avatar_color: string; place_id: string; place_name: string; icon: string; color: string }[]>`
-      SELECT e.id, e.kind, e.occurred_at, e.user_id, u.display_name, u.avatar_color, p.id AS place_id, p.name AS place_name, p.icon, p.color
+    const rows = await sql<{ id: number; kind: string; occurred_at: Date; user_id: string; display_name: string; avatar_color: string; avatar_url: string | null; place_id: string; place_name: string; icon: string; color: string }[]>`
+      SELECT e.id, e.kind, e.occurred_at, e.user_id, u.display_name, u.avatar_color, u.avatar_url, p.id AS place_id, p.name AS place_name, p.icon, p.color
       FROM place_events e
       JOIN places p ON p.id = e.place_id
       JOIN users u ON u.id = e.user_id
@@ -182,7 +182,7 @@ export default async function placeRoutes(app: FastifyInstance, ctx: Ctx) {
       id: String(r.id),
       kind: r.kind,
       occurredAt: r.occurred_at.toISOString(),
-      user: { id: r.user_id, displayName: r.display_name, avatarColor: r.avatar_color },
+      user: { id: r.user_id, displayName: r.display_name, avatarColor: r.avatar_color, avatarUrl: r.avatar_url },
       place: { id: r.place_id, name: r.place_name, icon: r.icon, color: r.color },
     }));
   });

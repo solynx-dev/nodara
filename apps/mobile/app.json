@@ -55,6 +55,14 @@
         }
       ],
       "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Nodara uses a photo you pick as your profile picture, which only your circles can see.",
+          "cameraPermission": "Nodara can take a profile picture, which only your circles can see.",
+          "microphonePermission": false
+        }
+      ],
       "expo-font",
       [
         "expo-splash-screen",

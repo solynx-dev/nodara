@@ -102,7 +102,7 @@ export default function CirclePage() {
           <ul className="divide-y divide-line">
             {circle.members.map((m) => (
               <li key={m.id} className="flex items-center gap-3 py-3">
-                <Avatar name={m.displayName} color={m.avatarColor} size={40} dim={!m.sharing} />
+                <Avatar name={m.displayName} color={m.avatarColor} url={m.avatarUrl} size={40} dim={!m.sharing} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate text-[15px] font-bold">{m.displayName}{m.id === me.id && ' (you)'}</span>

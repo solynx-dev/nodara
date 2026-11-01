@@ -22,6 +22,11 @@ function apply(qc: QueryClient, e: ServerEvent) {
       qc.invalidateQueries({ queryKey: ['place-events'] });
       qc.invalidateQueries({ queryKey: ['timeline'] });
     // falls through
+    case 'profile':
+      qc.invalidateQueries({ queryKey: ['me'] });
+      qc.invalidateQueries({ queryKey: ['circle'] });
+      qc.invalidateQueries({ queryKey: ['place-events'] });
+    // falls through
     case 'sharing':
     case 'circle':
       qc.invalidateQueries({ queryKey: ['live'] });

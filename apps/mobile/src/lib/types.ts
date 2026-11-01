@@ -32,6 +32,7 @@ export interface CircleMember {
   displayName: string;
   email: string | null;
   avatarColor: string;
+  avatarUrl: string | null;
   role: 'owner' | 'admin' | 'member';
   sharing: boolean;
   joinedAt: string;
@@ -64,6 +65,31 @@ export interface PlaceEvent {
   id: string;
   kind: 'arrive' | 'depart';
   occurredAt: string;
-  user: { id: string; displayName: string; avatarColor: string };
+  user: { id: string; displayName: string; avatarColor: string; avatarUrl: string | null };
   place: { id: string; name: string; icon: string; color: string };
+}
+
+export type NotifyKey = 'places' | 'circle' | 'sharing' | 'lowBattery' | 'deviceOffline';
+export type NotifyPrefs = Partial<Record<NotifyKey, { inApp?: boolean; push?: boolean }>>;
+
+export interface Device {
+  id: string;
+  name: string;
+  kind: string;
+  tokenHint: string | null;
+  pushEnabled: boolean;
+  lastSeenAt: string | null;
+  lastLocationAt: string | null;
+  createdAt: string;
+}
+
+export interface Invitation {
+  id: string;
+  role: 'admin' | 'member';
+  maxUses: number;
+  uses: number;
+  expiresAt: string;
+  createdAt: string;
+  note: string | null;
+  createdBy: string | null;
 }

@@ -165,7 +165,7 @@ export function OverviewPage() {
               <ol className="relative space-y-0.5">
                 {events.map((e) => (
                   <li key={e.id} className="flex items-center gap-3 rounded-xl px-1 py-2">
-                    <Avatar name={e.user.displayName} color={e.user.avatarColor} size={32} />
+                    <Avatar name={e.user.displayName} color={e.user.avatarColor} url={e.user.avatarUrl} size={32} />
                     <div className="min-w-0 flex-1 text-[14px]">
                       <span className="font-bold">{firstName(e.user.displayName)}</span> <span className="text-muted">{e.kind === 'arrive' ? 'arrived at' : 'left'}</span>{' '}
                       <span className="inline-flex items-center gap-1 font-semibold">

@@ -62,6 +62,8 @@ function RootStack() {
           <Stack.Screen name="settings" options={{ ...pageHeader, title: 'Settings' }} />
           <Stack.Screen name="alerts" options={{ ...pageHeader, title: 'Alerts' }} />
           <Stack.Screen name="trip/[id]" options={{ ...pageHeader, headerLargeTitle: false, title: 'Trip' }} />
+          <Stack.Screen name="circle/[id]" options={{ ...pageHeader, headerLargeTitle: false, title: 'Circle' }} />
+          <Stack.Screen name="edit-profile" options={{ ...pageHeader, presentation: 'modal', headerLargeTitle: false, title: 'Edit profile' }} />
           <Stack.Screen name="share-location" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.75], sheetGrabberVisible: true }} />
         </Stack.Protected>
       </Stack>

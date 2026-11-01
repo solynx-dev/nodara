@@ -132,7 +132,7 @@ export default function PlacesPage() {
                               <div className="flex -space-x-1.5">
                                 {p.membersInside.map((id) => {
                                   const m = byId.get(id);
-                                  return m ? <Avatar key={id} name={m.displayName} color={m.avatarColor} size={20} className="ring-2 ring-surface" /> : null;
+                                  return m ? <Avatar key={id} name={m.displayName} color={m.avatarColor} url={m.avatarUrl} size={20} className="ring-2 ring-surface" /> : null;
                                 })}
                               </div>
                               <span className="text-[12px] font-semibold text-success">here now</span>
@@ -399,7 +399,7 @@ function AlertsDialog({ place, onClose }: { place: PlaceWithMeta; onClose: () =>
         {others.length === 0 && <p className="py-4 text-[14px] text-muted">Invite people to this circle to get alerts about them.</p>}
         {others.map((m) => (
           <div key={m.id} className="flex items-center gap-3 py-3">
-            <Avatar name={m.displayName} color={m.avatarColor} size={34} />
+            <Avatar name={m.displayName} color={m.avatarColor} url={m.avatarUrl} size={34} />
             <div className="flex-1 text-[14px] font-semibold">{m.displayName}</div>
             <label className="flex items-center gap-1.5 text-[12.5px] font-semibold text-muted">
               Arrives
@@ -427,7 +427,7 @@ function PlaceEvents({ placeId }: { placeId: string }) {
       <ul className="space-y-1.5">
         {data.map((e) => (
           <li key={e.id} className="flex items-center gap-2.5 text-[13px]">
-            <Avatar name={e.user.displayName} color={e.user.avatarColor} size={24} />
+            <Avatar name={e.user.displayName} color={e.user.avatarColor} url={e.user.avatarUrl} size={24} />
             <span className="flex-1">
               <b>{e.user.displayName.split(' ')[0]}</b> {e.kind === 'arrive' ? 'arrived' : 'left'}
             </span>

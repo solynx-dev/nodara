@@ -57,7 +57,7 @@ export default function InsightsPage() {
               onClick={() => setParams(m.id === me.id ? {} : { member: m.id })}
               className={cx('flex shrink-0 items-center gap-2 rounded-xl border py-1.5 pr-3 pl-1.5 text-[13px] font-semibold', m.id === memberId ? 'border-accent bg-accent-soft' : 'border-line bg-surface text-ink-2')}
             >
-              <Avatar name={m.displayName} color={m.avatarColor} size={24} />
+              <Avatar name={m.displayName} color={m.avatarColor} url={m.avatarUrl} size={24} />
               {m.id === me.id ? 'You' : m.displayName.split(' ')[0]}
             </button>
           ))}

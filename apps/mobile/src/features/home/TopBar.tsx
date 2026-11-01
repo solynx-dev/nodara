@@ -3,6 +3,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeOut, ZoomIn, ZoomOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useMe } from '@/lib/session';
 import { C, HEX, T } from '@/lib/theme';
@@ -84,6 +85,7 @@ export function TopBar({
             ))}
             <View style={styles.divider} />
             <MenuItem icon="person.badge.plus" color={C.accent} label="Invite someone" onPress={pick(onInvite)} />
+            {circleId && <MenuItem icon="gearshape.fill" color={HEX.gray} label="Manage this circle" sub="Members, roles, what people can see" onPress={pick(() => router.push(`/circle/${circleId}`))} />}
             <MenuItem icon="plus.circle.fill" color={HEX.blue} label="New circle" onPress={pick(onNewCircle)} />
           </Glass>
         </Animated.View>

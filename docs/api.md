@@ -39,6 +39,9 @@ Rate limits: 600 req/min/IP globally; auth endpoints ~10/min; ingestion 240/min.
 |---|---|
 | `PATCH /me` | `{displayName?, avatarColor?, preferences?}` — preferences: `units`, `theme`, `mapStyle`, `updateIntervalSec`, `adaptiveInterval`, `highAccuracy`, `retentionDays`, `notifyLowBattery`, `lowBatteryThreshold`, `notifications.{places,circle,sharing,lowBattery,deviceOffline}.{inApp,push}`. |
 | `POST /me/sharing` | `{paused}` — global pause/resume. |
+| `PUT /me/avatar` | `{image}` — base64 JPEG, PNG or WebP (≤ 2 MB; data URLs accepted). Anything else, including SVG, is refused. Returns the updated profile with a versioned `avatarUrl`. Clients should shrink photos first (the apps send 512×512 JPEG). |
+| `DELETE /me/avatar` | Remove the profile photo. |
+| `GET /users/:id/avatar?v=…` | The photo itself. Only for yourself and people who share a circle with you (404 otherwise). Cached forever per version; served with `nosniff` and a sandboxing CSP. |
 | `DELETE /me` | `{password, confirm: "DELETE"}` — delete the account and all data. |
 | `GET /me/export?format=json\|geojson\|gpx\|csv&from&to` | Streamed export of your own data. |
 
@@ -83,6 +86,7 @@ Rate limits: 600 req/min/IP globally; auth endpoints ~10/min; ingestion 240/min.
 |---|---|
 | `GET /circles` · `POST /circles {name, color}` | |
 | `GET /circles/:id` | Detail with members (emails only for admins). |
+| `GET /live` · `GET /circles/:id/live` | Members with their latest visible location, `currentPlace`, `inTrip`, and `stay: {since, atLeast} \| null` — when they arrived where they are now (geofence arrival, else the end of their last trip if it ended within 1 km). `atLeast` is true when the real arrival is earlier than what you're allowed to see. |
 | `PATCH /circles/:id` | Admin: `{name?, color?, settings?: {historyVisible, tripsVisible, membersCanInvite}}`. |
 | `DELETE /circles/:id` | Owner only. |
 | `PATCH /circles/:id/me` | `{sharing?, notify?: {muted}}`. |
@@ -120,6 +124,7 @@ Authenticated by the session cookie (or bearer) during the upgrade. Server → c
 { type: 'trip', userId, tripId, status }
 { type: 'presence', userId, placeId, inside }
 { type: 'circle', circleId }
+{ type: 'profile', userId }   // name, colour or photo changed
 ```
 
 The client may send the text `ping`; the server answers `{"type":"pong"}`. Type definitions: `packages/shared/src/types.ts`.

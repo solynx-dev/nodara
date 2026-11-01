@@ -71,3 +71,28 @@ export function initials(name: string) {
 
 export const firstName = (n: string) => n.trim().split(/\s+/)[0] ?? n;
 export const coords = (lat: number, lon: number) => `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+
+/** Long, human durations for how long someone has been somewhere: "12 min", "3 h 12 min", "2 days 4 h". */
+export function formatStay(sec: number) {
+  const m = Math.max(1, Math.floor(sec / 60));
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return m % 60 ? `${h} h ${m % 60} min` : `${h} h`;
+  const d = Math.floor(h / 24);
+  const rh = h % 24;
+  return `${d} day${d === 1 ? '' : 's'}${rh && d < 3 ? ` ${rh} h` : ''}`;
+}
+
+/** "7:32 PM", "yesterday 7:32 PM", "Mon 7:32 PM" or "Oct 12". */
+export function sinceLabel(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  const days = Math.floor((new Date(now.toDateString()).getTime() - new Date(d.toDateString()).getTime()) / 86_400_000);
+  if (days <= 0) return clock(iso);
+  if (days === 1) return `yesterday ${clock(iso)}`;
+  if (days < 7) return `${d.toLocaleDateString(undefined, { weekday: 'short' })} ${clock(iso)}`;
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/** Short weekday letter/label for charts and chips. */
+export const weekdayShort = (d: Date) => d.toLocaleDateString(undefined, { weekday: 'short' });

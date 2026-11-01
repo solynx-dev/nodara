@@ -16,8 +16,10 @@ import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { C, HEX, T } from '@/lib/theme';
 import { initials } from '@/lib/format';
+import { serverImage } from '@/lib/api';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -96,23 +98,96 @@ export function GlassPill({ icon, label, onPress, accent, sub }: { icon: SFSymbo
 /** Kept for older call sites. */
 export const GlassIconButton = ({ icon, onPress, label }: { icon: SFSymbol; onPress: () => void; label: string; active?: boolean }) => <GlassButton icon={icon} label={label} onPress={onPress} size={44} />;
 
-export function Avatar({ name, color, size = 40, dim, ring }: { name: string; color: string; size?: number; dim?: boolean; ring?: boolean }) {
+/**
+ * Profile photo, or coloured initials when there is none (or while it loads).
+ * Photos come from the Nodara server with the session token.
+ */
+export function Avatar({
+  name,
+  color,
+  url,
+  size = 40,
+  dim,
+  ring,
+  border,
+}: {
+  name: string;
+  color: string;
+  url?: string | null;
+  size?: number;
+  dim?: boolean;
+  ring?: boolean;
+  /** Draw a white outline (for stacks and map markers). */
+  border?: number;
+}) {
+  const src = serverImage(url);
   return (
     <View
       style={{
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: dim ? HEX.gray : color,
+        backgroundColor: dim && !src ? HEX.gray : color,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: ring ? 3 : 0,
-        borderColor: C.accent,
+        overflow: 'hidden',
+        borderWidth: ring ? 3 : (border ?? 0),
+        borderColor: ring ? C.accent : 'white',
+        opacity: dim && src ? 0.55 : 1,
       }}
+      accessibilityIgnoresInvertColors
     >
       <Text style={{ color: 'white', fontWeight: '700', fontSize: size * 0.38 }} allowFontScaling={false}>
         {initials(name)}
       </Text>
+      {src && <Image source={src} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} cachePolicy="memory-disk" recyclingKey={url ?? undefined} />}
+    </View>
+  );
+}
+
+/** Overlapping row of avatars: "who's here". */
+export function AvatarStack({ people, size = 28, max = 4 }: { people: { id: string; displayName: string; avatarColor: string; avatarUrl?: string | null }[]; size?: number; max?: number }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      {people.slice(0, max).map((p, i) => (
+        <View key={p.id} style={{ marginLeft: i ? -size * 0.3 : 0, zIndex: max - i }}>
+          <Avatar name={p.displayName} color={p.avatarColor} url={p.avatarUrl} size={size} border={2} />
+        </View>
+      ))}
+      {people.length > max && <Text style={{ marginLeft: 6, fontSize: 13, fontWeight: '700', color: C.secondaryLabel }}>+{people.length - max}</Text>}
+    </View>
+  );
+}
+
+/** Segmented control with a sliding selection pill. */
+export function Segmented<K extends string>({
+  value,
+  onChange,
+  items,
+  style,
+}: {
+  value: K;
+  onChange: (k: K) => void;
+  items: { key: K; label: string; icon?: SFSymbol; count?: number }[];
+  style?: StyleProp<ViewStyle>;
+}) {
+  const [width, setWidth] = useState(0);
+  const i = Math.max(0, items.findIndex((s) => s.key === value));
+  const seg = width / items.length;
+  const pill = useAnimatedStyle(() => ({ width: seg - 4, transform: [{ translateX: withSpring(i * seg + 2, { damping: 20, stiffness: 260 }) }] }), [i, seg]);
+  return (
+    <View style={[styles.segment, style]} onLayout={(e) => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist">
+      {width > 0 && <Animated.View style={[styles.segmentPill, pill]} />}
+      {items.map((s) => {
+        const on = s.key === value;
+        return (
+          <Tap key={s.key} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => onChange(s.key)} style={styles.segmentItem} scaleTo={0.95}>
+            {s.icon && <SymbolView name={s.icon} size={15} tintColor={on ? C.accent : C.secondaryLabel} />}
+            <Text style={[styles.segmentText, on && { color: C.label }]}>{s.label}</Text>
+            {!!s.count && <Text style={styles.segmentCount}>{s.count}</Text>}
+          </Tap>
+        );
+      })}
     </View>
   );
 }
@@ -307,6 +382,11 @@ export const styles = StyleSheet.create({
   primary: { height: 54, borderRadius: 27, backgroundColor: C.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   primaryText: { color: 'white', fontSize: 17, fontWeight: '600' },
   input: { fontSize: 17, color: C.label, paddingHorizontal: 16, paddingVertical: 15 },
+  segment: { flexDirection: 'row', height: 40, borderRadius: 20, backgroundColor: C.fill, padding: 2 },
+  segmentPill: { position: 'absolute', top: 2, bottom: 2, borderRadius: 18, backgroundColor: C.cell, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } },
+  segmentItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  segmentText: { fontSize: 14, fontWeight: '600', color: C.secondaryLabel },
+  segmentCount: { fontSize: 12, fontWeight: '700', color: C.tertiaryLabel },
   toastWrap: { position: 'absolute', left: 12, right: 12, zIndex: 100 },
   toast: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 24 },
 });

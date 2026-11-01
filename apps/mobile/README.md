@@ -12,12 +12,14 @@ The native Nodara app, built with [Expo](https://expo.dev) (SDK 58) and React Na
 | **Background location** | Real iOS background updates (`Always` permission) through a background task, so your circle keeps seeing you when the app is closed. Two modes: *Battery saver* (≈100 m, iOS auto-pause) and *Precise*. |
 | **Geofence wake-ups** | Your family's places (up to 20 nearest) are registered with iOS region monitoring. iOS relaunches Nodara on arrival/departure — even if it was swiped away — and it sends a fresh fix right away. |
 | **Offline queue** | Fixes are queued on the phone (up to 5 000) and uploaded when you're back online. |
-| **Map-first, one screen** | Everything happens on the map: a draggable sheet (People · Places · Trips) snaps between peek, half and full with spring physics, and the map stays usable behind it. Tapping a person opens their details *inside* the sheet while the map follows them. Floating buttons ride on top of the sheet and fade out as it expands. |
+| **Map-first, one screen** | Everything happens on the map: a draggable sheet (People · Places) snaps between peek, half and full with spring physics. Drag the header *or the list itself*; at full height the list scrolls, and pulling down from its top brings the sheet back down. The floating Check-in and map buttons are part of the sheet, so they ride on top of it and fade out as it expands. |
 | **Liquid Glass** | Top bar, circle switcher, sheet, floating buttons, sharing banner and toasts are drawn with `expo-glass-effect` (real Liquid Glass on iOS 26, system blur on older iOS). The sheet fades to a solid background at full height so long lists stay readable. |
-| **Readable status everywhere** | Every person is described the same way: where they are (“At Home”, “Near 12 King St”), since when (“Since 7:32 PM · 3 h”), and a coloured status (*Live*, *Driving · 54 km/h*, *Updated 2 h ago*, *Last seen yesterday*). The circle header summarises everyone (“2 at a saved place · 1 on the move”). |
-| **Today timeline** | Each person's detail shows today's stays and trips in order, plus speed, battery, last update, accuracy, *Directions* and *Share spot*. |
+| **Profiles** | Tap anyone to open their profile in the sheet while the map follows them: where they are, **how long they've been there** (“Here for 3 h 12 min · since 7:32 PM”), battery, last update and accuracy, then **Drives** (last 7 days chart and totals, every drive grouped by day, “Show older drives”) and **History** (stays and trips for any of the last 7 days). |
+| **Profile photos** | Take or choose a photo (cropped to a square and shrunk to 512 px on the phone). It shows on the map, in lists and in profiles, for people in your circles only. Pick a colour for when there's no photo. |
+| **Readable status everywhere** | Every person is described the same way: where they are (“At Home”, “Near 12 King St”), how long (“Here for 3 h”), and a coloured status (*Live*, *Driving · 54 km/h*, *Updated 2 h ago*, *Last seen yesterday*). The circle header summarises everyone (“2 at a saved place · 1 on the move”). |
+| **Settings & circles** | A profile card with your week at a glance, a sharing health check, accuracy mode, per-circle management (members, roles, invitations, what members can see, leave/delete), notification types, units and default map style, your devices, and account links. |
 | **Know when you're not sharing** | A banner (and the Settings health card) appears when this iPhone is paused, not sharing, or only sharing while open, with a one-tap fix. |
-| **Apple Maps** | People close together merge into one avatar bubble with a callout such as “Sam arrived · 3 h ago”. Places show as geofence circles. Long-press to add a place, and tap empty map to deselect. |
+| **Apple Maps** | People show as their photo (or initials). People close together merge into one bubble with a callout such as “Sam at Home · for 3 h”. Places show as geofence circles. Long-press to add a place, and tap empty map to deselect. |
 | **Check in** | Sends your current location and notifies your circle (“Alex checked in at Home”), with an optional message. |
 | **Push notifications** | Arrivals, departures, low battery and circle activity as real iOS notifications. Tapping one opens the right screen. |
 | **Security** | Session and device tokens live in the iOS Keychain. Background uploads use a device token that can **only** submit locations. Signing out revokes it. |
@@ -105,7 +107,7 @@ In App Store Connect fill in the listing (screenshots, description, privacy poli
 
 ## Server requirements
 
-- Nodara server with this repository's version or newer (`/api/devices/:id/native-push` and `/api/checkins` endpoints).
+- Nodara server with this repository's version or newer (`/api/devices/:id/native-push`, `/api/checkins`, `/api/me/avatar` and the `stay` field on live members). Older servers still work, but photos and "here for" times won't show.
 - HTTPS (iOS App Transport Security blocks plain HTTP).
 - Push: the server relays notifications through Expo's push service (`EXPO_PUSH_ENABLED`, on by default). Apple only accepts pushes signed by the app publisher's key, so a self-hosted server can't talk to APNs directly. The relay sees only the notification title and body. Set `EXPO_PUSH_ENABLED=false` to turn it off; the app then shows alerts only while it's open.
 

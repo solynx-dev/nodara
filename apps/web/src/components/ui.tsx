@@ -5,6 +5,7 @@ import {
   useEffect,
   useId,
   useRef,
+  useState,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
@@ -214,6 +215,7 @@ export function SectionHeader({ title, action, className }: { title: ReactNode; 
 export function Avatar({
   name,
   color,
+  url,
   size = 40,
   ring,
   dim,
@@ -221,14 +223,18 @@ export function Avatar({
 }: {
   name: string;
   color: string;
+  /** Profile photo (served by the Nodara API); falls back to initials. */
+  url?: string | null;
   size?: number;
   ring?: boolean;
   dim?: boolean;
   className?: string;
 }) {
+  const [broken, setBroken] = useState<string | null>(null);
+  const showPhoto = url && broken !== url;
   return (
     <div
-      className={cx('relative inline-flex shrink-0 items-center justify-center rounded-full font-bold text-white select-none', dim && 'grayscale-[0.7] opacity-70', className)}
+      className={cx('relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full font-bold text-white select-none', dim && 'grayscale-[0.7] opacity-70', className)}
       style={{
         width: size,
         height: size,
@@ -239,6 +245,7 @@ export function Avatar({
       aria-hidden
     >
       {initials(name)}
+      {showPhoto && <img src={url} alt="" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" onError={() => setBroken(url)} />}
     </div>
   );
 }

@@ -12,7 +12,7 @@ import { clock, formatDistance, formatDuration, formatSpeed } from '@/lib/format
 import { C, HEX, T } from '@/lib/theme';
 import type { TripDetail } from '@/lib/types';
 import { Avatar, Skeleton, StatusPill } from '@/components/ui';
-import { modeIcon, tripTitle } from '@/features/home/panels';
+import { modeIcon, tripTitle } from '@/features/trips/Drives';
 
 export default function TripScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -90,7 +90,7 @@ export default function TripScreen() {
 
       <Animated.View entering={FadeInDown.delay(60).springify()} style={{ paddingHorizontal: 20, gap: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {person && <Avatar name={person.displayName} color={person.avatarColor} size={26} />}
+          {person && <Avatar name={person.displayName} color={person.avatarColor} url={person.avatarUrl} size={26} />}
           <Text style={[T.subhead, { color: C.secondaryLabel }]}>
             {person ? (person.id === me.id ? 'You' : person.displayName) : ''} · {new Date(trip.startedAt).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
           </Text>

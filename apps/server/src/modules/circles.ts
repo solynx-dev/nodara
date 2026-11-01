@@ -8,6 +8,7 @@ import { badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import { CLOCK_SKEW_GRACE_MS, isCircleMember } from '../services/access.js';
 import { serializeLocation, type LocationRow } from '../services/serialize.js';
+import { haversine } from '@nodara/shared';
 
 const DEFAULT_SETTINGS: CircleSettings = { historyVisible: true, tripsVisible: true, membersCanInvite: false };
 const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
@@ -66,6 +67,9 @@ export async function memberLocations(ctx: Ctx, viewerId: string, circleId: stri
       in_trip: boolean;
       loc_id: number | null;
       since: Date | null;
+      last_trip_end: Date | null;
+      last_trip_lat: number | null;
+      last_trip_lon: number | null;
     })[]
   >`
     WITH members AS (
@@ -82,24 +86,53 @@ export async function memberLocations(ctx: Ctx, viewerId: string, circleId: stri
            u.sharing_paused, d.name AS device_name, l.id AS loc_id,
            l.user_id, l.device_id, l.recorded_at, l.lat, l.lon, l.accuracy, l.altitude, l.speed, l.speed_source,
            l.heading, l.battery, l.charging, l.activity,
-           EXISTS (SELECT 1 FROM trips tr WHERE tr.user_id = m.user_id AND tr.status = 'in_progress') AS in_trip
+           EXISTS (SELECT 1 FROM trips tr WHERE tr.user_id = m.user_id AND tr.status = 'in_progress') AS in_trip,
+           lt.ended_at AS last_trip_end, lt.end_lat AS last_trip_lat, lt.end_lon AS last_trip_lon
     FROM members m
     JOIN users u ON u.id = m.user_id
+    LEFT JOIN LATERAL (
+      SELECT tr.ended_at, tr.end_lat, tr.end_lon FROM trips tr
+      WHERE tr.user_id = m.user_id AND tr.status = 'completed' ORDER BY tr.started_at DESC LIMIT 1
+    ) lt ON true
     LEFT JOIN latest_locations ll ON ll.user_id = m.user_id
     LEFT JOIN locations l ON l.id = ll.location_id
     LEFT JOIN devices d ON d.id = l.device_id
     ORDER BY (m.user_id = ${viewerId}) DESC, u.display_name`;
 
   // Which saved place is each member currently at?
-  const presence = await sql<{ user_id: string; id: string; name: string; icon: string; color: string }[]>`
-    SELECT pp.user_id, p.id, p.name, p.icon, p.color FROM place_presence pp
+  const presence = await sql<{ user_id: string; id: string; name: string; icon: string; color: string; changed_at: Date }[]>`
+    SELECT pp.user_id, p.id, p.name, p.icon, p.color, pp.changed_at FROM place_presence pp
     JOIN places p ON p.id = pp.place_id
     WHERE pp.inside AND pp.user_id = ANY(${rows.map((r) => r.member_id)}::uuid[])
       AND (p.circle_id IN (SELECT circle_id FROM circle_members WHERE user_id = ${viewerId})
            OR (p.circle_id IS NULL AND p.owner_id = ${viewerId}))
     ORDER BY p.radius_m ASC`;
   const placeOf = new Map<string, MemberLocation['currentPlace']>();
-  for (const p of presence) if (!placeOf.has(p.user_id)) placeOf.set(p.user_id, { id: p.id, name: p.name, icon: p.icon, color: p.color });
+  const arrivedAt = new Map<string, Date>();
+  for (const p of presence) {
+    if (placeOf.has(p.user_id)) continue;
+    placeOf.set(p.user_id, { id: p.id, name: p.name, icon: p.icon, color: p.color });
+    arrivedAt.set(p.user_id, p.changed_at);
+  }
+
+  /** How long they've been where they are: geofence arrival, else the end of their last trip. */
+  const stayOf = (r: (typeof rows)[number], self: boolean): MemberLocation['stay'] => {
+    if (r.in_trip || r.recorded_at == null) return null;
+    let since = arrivedAt.get(r.member_id) ?? null;
+    if (!since && r.last_trip_end) {
+      // Only trust the last trip if it actually ended near where they are now.
+      if (r.last_trip_lat == null || r.last_trip_lon == null || haversine(r.lat, r.lon, r.last_trip_lat, r.last_trip_lon) > 1000) return null;
+      since = r.last_trip_end;
+    }
+    if (!since) return null;
+    let atLeast = false;
+    // Never reveal anything from before they started sharing with this viewer.
+    if (!self && r.since && since < r.since) {
+      since = r.since;
+      atLeast = true;
+    }
+    return { since: since.toISOString(), atLeast };
+  };
 
   return rows.map((r) => {
     const self = r.member_id === viewerId;
@@ -117,6 +150,7 @@ export async function memberLocations(ctx: Ctx, viewerId: string, circleId: stri
       deviceName: visible ? r.device_name : null,
       currentPlace: visible ? placeOf.get(r.member_id) ?? null : null,
       inTrip: visible && r.in_trip,
+      stay: visible && r.loc_id != null ? stayOf(r, self) : null,
     };
   });
 }
