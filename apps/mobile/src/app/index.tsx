@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, Share, StyleSheet, Text, View } from 'react-native';
+import { ActionSheetIOS, Alert, Share, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type MapView from 'react-native-maps';
 import type { MapType, Region } from 'react-native-maps';
 import Animated, { useSharedValue } from 'react-native-reanimated';
@@ -12,9 +13,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/session';
 import { useCircles, useLive, usePlaceEvents, usePlaces } from '@/lib/queries';
-import { circleSummary } from '@/lib/status';
+import { circleSummary, nameOrYou } from '@/lib/status';
+import { haversine } from '@/lib/format';
 import { C, T } from '@/lib/theme';
-import type { PlaceWithMeta } from '@/lib/types';
+import type { MemberLocation, PlaceWithMeta } from '@/lib/types';
 import { getItem, KEYS } from '@/lib/storage';
 import { getMapType, MAP_TYPES, setMapTypePref } from '@/lib/prefs';
 import { ensureDevice, syncGeofences } from '@/background/tracking';
@@ -101,13 +103,50 @@ export default function Home() {
     void (id ? AsyncStorage.setItem(CIRCLE_KEY, id) : AsyncStorage.removeItem(CIRCLE_KEY));
   };
 
+  // The map is full-screen, but the top bar and the sheet cover parts of it.
+  // These keep people in the part you can actually see.
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const visibleTop = insets.top + 80;
+  const mapInset = height - (sheetIndex === 0 ? positions[0] : positions[1]);
+  const regionRef = useRef<Region | null>(null);
+  const onRegion = (r: Region) => {
+    regionRef.current = r;
+    setRegion(r);
+  };
+
+  const centerOn = useCallback(
+    (lat: number, lon: number, idx: SheetIndex, latitudeDelta?: number) => {
+      const d = latitudeDelta ?? regionRef.current?.latitudeDelta ?? 0.01;
+      const sheetTop = positions[idx === 0 ? 0 : 1] - 60; // minus the floating buttons
+      const dy = height / 2 - (visibleTop + sheetTop) / 2;
+      map.current?.animateToRegion({ latitude: lat - (dy * d) / height, longitude: lon, latitudeDelta: d, longitudeDelta: (d * width) / height }, 650);
+    },
+    [positions, height, width, visibleTop],
+  );
+
+  const fitCoords = useCallback(
+    (coords: { latitude: number; longitude: number }[]) =>
+      map.current?.fitToCoordinates(coords, { edgePadding: { top: visibleTop + 20, right: 60, bottom: mapInset + 90, left: 60 }, animated: true }),
+    [visibleTop, mapInset],
+  );
+
   const fitAll = useCallback(() => {
     if (!located.length) return;
-    map.current?.fitToCoordinates(
-      located.map((m) => ({ latitude: m.location!.lat, longitude: m.location!.lon })),
-      { edgePadding: { top: 190, right: 70, bottom: 70, left: 70 }, animated: true },
-    );
-  }, [located]);
+    if (located.length === 1) return centerOn(located[0]!.location!.lat, located[0]!.location!.lon, sheetIndex, 0.02);
+    fitCoords(located.map((m) => ({ latitude: m.location!.lat, longitude: m.location!.lon })));
+  }, [located, centerOn, fitCoords, sheetIndex]);
+
+  /** Tapping a group: zoom in to separate them, or pick one if they're in the same spot. */
+  const onGroupPress = (group: MemberLocation[]) => {
+    const pts = group.map((m) => ({ latitude: m.location!.lat, longitude: m.location!.lon }));
+    const spread = Math.max(...pts.flatMap((a) => pts.map((b) => haversine(a.latitude, a.longitude, b.latitude, b.longitude))));
+    if (spread > 60) return void fitCoords(pts);
+    ActionSheetIOS.showActionSheetWithOptions({ title: 'Who do you want to see?', options: [...group.map((m) => nameOrYou(m, me.id)), 'Cancel'], cancelButtonIndex: group.length }, (i) => {
+      const m = group[i];
+      if (m) selectPerson(m.id);
+    });
+  };
   const fitted = useRef(false);
   useEffect(() => {
     if (!fitted.current && located.length) {
@@ -119,19 +158,19 @@ export default function Home() {
   // Follow the selected person as their location updates.
   const selLoc = selected?.location;
   useEffect(() => {
-    if (selLoc) map.current?.animateCamera({ center: { latitude: selLoc.lat, longitude: selLoc.lon } }, { duration: 700 });
-  }, [selLoc?.lat, selLoc?.lon, selLoc]);
+    if (selLoc) centerOn(selLoc.lat, selLoc.lon, 1);
+  }, [selLoc?.lat, selLoc?.lon, selLoc, centerOn]);
 
   const selectPerson = (id: string) => {
     void Haptics.selectionAsync();
     setSelectedId(id);
     setSheetIndex(1);
     const loc = members.find((m) => m.id === id)?.location;
-    if (loc) map.current?.animateCamera({ center: { latitude: loc.lat, longitude: loc.lon }, zoom: 16 }, { duration: 800 });
+    if (loc) centerOn(loc.lat, loc.lon, 1, 0.01);
   };
 
   const focusPlace = (p: PlaceWithMeta) => {
-    map.current?.animateCamera({ center: { latitude: p.lat, longitude: p.lon }, zoom: 16 }, { duration: 800 });
+    centerOn(p.lat, p.lon, 0, Math.max(0.006, (p.radiusM * 6) / 111_000));
     setSheetIndex(0);
   };
 
@@ -139,7 +178,7 @@ export default function Home() {
     const perm = await Location.getForegroundPermissionsAsync();
     if (perm.status !== 'granted') return router.push('/share-location');
     const p = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-    map.current?.animateCamera({ center: { latitude: p.coords.latitude, longitude: p.coords.longitude }, zoom: 15.5 }, { duration: 700 });
+    centerOn(p.coords.latitude, p.coords.longitude, sheetIndex, 0.012);
   };
 
   const chooseMapType = () =>
@@ -226,22 +265,22 @@ export default function Home() {
       'default',
     );
 
-  const mapInset = height - (sheetIndex === 0 ? positions[0] : positions[1]);
-
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
       <NodaraMap
         ref={map}
         members={members}
         places={places}
-        events={events.byUser}
         meId={me.id}
+        units={me.preferences.units}
         selectedId={selectedId}
         mapType={mapType}
         region={region}
         bottomInset={mapInset}
-        onRegion={setRegion}
+        attributionInsets={{ top: 0, right: 0, left: 22, bottom: mapInset + 70 }}
+        onRegion={onRegion}
         onSelect={selectPerson}
+        onGroupPress={onGroupPress}
         onLongPress={addPlace}
         onMapPress={() => selectedId && clearSelection()}
       />

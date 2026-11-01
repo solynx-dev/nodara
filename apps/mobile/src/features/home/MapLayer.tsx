@@ -1,50 +1,71 @@
 import { forwardRef, useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import MapView, { Circle as MapCircle, Marker, type MapType, type Region } from 'react-native-maps';
-import type { MemberLocation, PlaceEvent, PlaceWithMeta } from '@/lib/types';
-import { ago, clock, firstName, freshness, haversine } from '@/lib/format';
-import { Avatar } from '@/components/ui';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import MapView, { Circle as MapCircle, Marker, type EdgePadding, type MapType, type Region } from 'react-native-maps';
+import type { MemberLocation, PlaceWithMeta } from '@/lib/types';
+import { ago, firstName, formatSpeed, freshness, type Units } from '@/lib/format';
 import { stayDuration } from '@/lib/status';
 import { C } from '@/lib/theme';
+import { Avatar } from '@/components/ui';
 import { PlaceSymbol } from './placeIcons';
 
-interface Group {
+/**
+ * Marker size follows the zoom level:
+ * - near (streets): photo pin with a small name label
+ * - mid (city / region): smaller photo, no label
+ * - far (province / country): just a small icon
+ * People whose markers would overlap on screen merge into one group marker.
+ */
+export type Tier = 'near' | 'mid' | 'far';
+const SIZE: Record<Tier, number> = { near: 44, mid: 34, far: 22 };
+const RING: Record<Tier, number> = { near: 3, mid: 2.5, far: 2 };
+const LABEL_H = 22;
+const LABEL_GAP = 4;
+
+export const tierFor = (latitudeDelta: number): Tier => (latitudeDelta <= 0.06 ? 'near' : latitudeDelta <= 1.5 ? 'mid' : 'far');
+
+export interface Group {
   key: string;
   lat: number;
   lon: number;
   members: MemberLocation[];
 }
 
-/** Merge people standing close together (relative to the zoom level) into one marker. */
-function groupMembers(members: MemberLocation[], region: Region | null): Group[] {
-  const threshold = region ? region.latitudeDelta * 111_000 * 0.06 : 60;
+/** Merge people whose markers would touch on screen at the current zoom. */
+function groupMembers(members: MemberLocation[], region: Region, tier: Tier, screen: { width: number; height: number }): Group[] {
+  const ptsPerLat = screen.height / Math.max(region.latitudeDelta, 1e-6);
+  const ptsPerLon = screen.width / Math.max(region.longitudeDelta, 1e-6);
+  const minGap = SIZE[tier] + RING[tier] * 2 + 8;
   const groups: Group[] = [];
   for (const m of members) {
     const l = m.location!;
-    const g = groups.find((x) => haversine(x.lat, x.lon, l.lat, l.lon) < threshold);
-    if (g) g.members.push(m);
-    else groups.push({ key: m.id, lat: l.lat, lon: l.lon, members: [m] });
+    const g = groups.find((x) => Math.hypot((l.lon - x.lon) * ptsPerLon, (l.lat - x.lat) * ptsPerLat) < minGap);
+    if (g) {
+      g.members.push(m);
+      g.lat = g.members.reduce((s, x) => s + x.location!.lat, 0) / g.members.length;
+      g.lon = g.members.reduce((s, x) => s + x.location!.lon, 0) / g.members.length;
+    } else groups.push({ key: m.id, lat: l.lat, lon: l.lon, members: [m] });
   }
   return groups;
 }
 
-/** "Sam arrived · 3 h ago", "Sam left Work · 12 min ago", "Live · 42 km/h"… */
-function calloutFor(m: MemberLocation, ev: PlaceEvent | undefined): { icon?: string; color?: string; line1: string; line2: string } | null {
+/** One short line under a pin: "You · Home, 1 day", "Sam · 54 km/h", "Ana · 3 h ago". */
+function labelFor(g: Group, meId: string, units: Units): string {
+  const name = (m: MemberLocation) => (m.id === meId ? 'You' : firstName(m.displayName));
+  if (g.members.length > 1) {
+    const names = g.members.map(name);
+    return g.members.length <= 2 ? names.join(' & ') : `${names[0]} +${g.members.length - 1}`;
+  }
+  const m = g.members[0]!;
   const loc = m.location!;
   const f = freshness(loc.recordedAt);
-  const stayFor = stayDuration(m);
-  if (m.currentPlace && stayFor) {
-    return { icon: m.currentPlace.icon, color: m.currentPlace.color, line1: `${firstName(m.displayName)} at ${m.currentPlace.name}`, line2: `for ${stayFor}` };
+  let status = '';
+  if (f === 'live' && (loc.speed ?? 0) > 1.5) status = formatSpeed(loc.speed, units);
+  else if (f === 'stale' || f === 'old') status = ago(loc.recordedAt);
+  else if (m.currentPlace) {
+    const stay = stayDuration(m);
+    status = stay ? `${m.currentPlace.name}, ${stay.replace('at least ', '')}` : m.currentPlace.name;
   }
-  if (m.currentPlace && ev?.kind === 'arrive' && ev.place.id === m.currentPlace.id) {
-    return { icon: m.currentPlace.icon, color: m.currentPlace.color, line1: `${firstName(m.displayName)} arrived`, line2: ago(ev.occurredAt) };
-  }
-  if (m.currentPlace) return { icon: m.currentPlace.icon, color: m.currentPlace.color, line1: `${firstName(m.displayName)} at ${m.currentPlace.name}`, line2: f === 'live' ? 'Now' : ago(loc.recordedAt) };
-  if (ev?.kind === 'depart' && Date.now() - Date.parse(ev.occurredAt) < 3 * 3600_000) {
-    return { icon: ev.place.icon, color: ev.place.color, line1: `${firstName(m.displayName)} left ${ev.place.name}`, line2: ago(ev.occurredAt) };
-  }
-  if (f === 'stale' || f === 'old') return { line1: `${firstName(m.displayName)} · last seen`, line2: `${ago(loc.recordedAt)} (${clock(loc.recordedAt)})` };
-  return null;
+  return status ? `${name(m)} · ${status}` : name(m);
 }
 
 export const NodaraMap = forwardRef<
@@ -52,30 +73,42 @@ export const NodaraMap = forwardRef<
   {
     members: MemberLocation[];
     places: PlaceWithMeta[];
-    events: Map<string, PlaceEvent>;
     meId: string;
+    units: Units;
     selectedId: string | null;
     mapType: MapType;
     region: Region | null;
+    /** Space covered by the sheet and floating buttons at the bottom of the screen. */
     bottomInset: number;
+    /** Where Apple's logo and Legal link go so the floating buttons don't cover them. */
+    attributionInsets: EdgePadding;
     onRegion: (r: Region) => void;
     onSelect: (id: string) => void;
+    onGroupPress: (members: MemberLocation[]) => void;
     onLongPress: (lat: number, lon: number) => void;
     onMapPress: () => void;
   }
->(function NodaraMap({ members, places, events, meId, selectedId, mapType, region, bottomInset, onRegion, onSelect, onLongPress, onMapPress }, ref) {
+>(function NodaraMap({ members, places, meId, units, selectedId, mapType, region, bottomInset, attributionInsets, onRegion, onSelect, onGroupPress, onLongPress, onMapPress }, ref) {
+  const screen = useWindowDimensions();
+  const view = region ?? { latitude: 0, longitude: 0, latitudeDelta: 0.2, longitudeDelta: 0.2 };
+  const tier = tierFor(view.latitudeDelta);
   const located = useMemo(() => members.filter((m) => m.location), [members]);
-  const groups = useMemo(() => groupMembers(located, region), [located, region]);
+  // Cheap for family-sized circles; region only changes when a pan or zoom finishes.
+  const groups = groupMembers(located, view, tier, screen);
+  const occupied = new Set(located.filter((m) => m.currentPlace).map((m) => m.currentPlace!.id));
 
   return (
     <MapView
       ref={ref}
       style={StyleSheet.absoluteFill}
       mapType={mapType}
-      showsUserLocation
+      // Your own photo pin already shows where you are; the blue dot only appears if it can't.
+      showsUserLocation={!located.some((m) => m.id === meId)}
       showsCompass={false}
       showsPointsOfInterests
       mapPadding={{ top: 0, left: 0, right: 0, bottom: bottomInset }}
+      legalLabelInsets={{ ...attributionInsets, left: attributionInsets.left + 48 }}
+      appleLogoInsets={attributionInsets}
       onRegionChangeComplete={onRegion}
       onLongPress={(e) => onLongPress(e.nativeEvent.coordinate.latitude, e.nativeEvent.coordinate.longitude)}
       onPress={(e) => {
@@ -84,53 +117,67 @@ export const NodaraMap = forwardRef<
       }}
       initialRegion={{ latitude: 45.42, longitude: -75.69, latitudeDelta: 0.2, longitudeDelta: 0.2 }}
     >
-      {places.map((p) => (
-        <MapCircle key={`fence-${p.id}`} center={{ latitude: p.lat, longitude: p.lon }} radius={p.radiusM} strokeColor={p.color} strokeWidth={1.5} fillColor={`${p.color}26`} />
-      ))}
-      {places.map((p) => (
-        <Marker key={`place-${p.id}`} coordinate={{ latitude: p.lat, longitude: p.lon }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
-          <View style={styles.placeLabel}>
-            <View style={[styles.placeIcon, { backgroundColor: p.color }]}>
-              <PlaceSymbol icon={p.icon} size={11} color="white" />
-            </View>
-            <Text style={styles.placeText}>{p.name}</Text>
-          </View>
-        </Marker>
-      ))}
-      {groups.map((g) => {
-        const focus = g.members.find((m) => m.id === selectedId) ?? g.members.find((m) => m.id !== meId) ?? g.members[0]!;
-        const selected = g.members.some((m) => m.id === selectedId);
-        // With someone selected, only their callout shows, to keep the map calm.
-        const callout = selectedId && !selected ? null : calloutFor(focus, events.get(focus.id));
-        return (
-          <Marker key={g.members.map((m) => m.id).join()} coordinate={{ latitude: g.lat, longitude: g.lon }} anchor={{ x: 0.5, y: 1 }} onPress={() => onSelect(focus.id)} zIndex={selected ? 3 : 2}>
-            <View style={{ alignItems: 'center' }}>
-              {callout && (
-                <View style={styles.callout}>
-                  {callout.icon && (
-                    <View style={[styles.calloutIcon, { backgroundColor: callout.color ?? C.accent }]}>
-                      <PlaceSymbol icon={callout.icon} size={13} color="white" />
-                    </View>
-                  )}
-                  <View>
-                    <Text style={styles.calloutLine1}>{callout.line1}</Text>
-                    <Text style={styles.calloutLine2}>{callout.line2}</Text>
-                  </View>
+      {tier !== 'far' &&
+        places.map((p) => (
+          <MapCircle key={`fence-${p.id}`} center={{ latitude: p.lat, longitude: p.lon }} radius={p.radiusM} strokeColor={p.color} strokeWidth={1.5} fillColor={`${p.color}22`} />
+        ))}
+      {/* Place names only up close, and not where someone's pin already says it. */}
+      {tier === 'near' &&
+        places
+          .filter((p) => !occupied.has(p.id))
+          .map((p) => (
+            <Marker key={`place-${p.id}`} coordinate={{ latitude: p.lat, longitude: p.lon }} tracksViewChanges={false}>
+              <View style={styles.placeLabel}>
+                <View style={[styles.placeIcon, { backgroundColor: p.color }]}>
+                  <PlaceSymbol icon={p.icon} size={10} color="white" />
                 </View>
-              )}
-              <View style={[styles.bubble, selected && { borderColor: C.accent }]}>
+                <Text style={styles.placeText} allowFontScaling={false} numberOfLines={1}>
+                  {p.name}
+                </Text>
+              </View>
+            </Marker>
+          ))}
+      {groups.map((g) => {
+        const selected = g.members.some((m) => m.id === selectedId);
+        const showLabel = selected || (tier === 'near' && !selectedId);
+        const size = SIZE[tier];
+        const ring = RING[tier];
+        const bubble = size + ring * 2;
+        const total = bubble + (showLabel ? LABEL_GAP + LABEL_H : 0);
+        const single = g.members.length === 1;
+        return (
+          <Marker
+            // Re-mount when the marker's size changes; Apple Maps keeps the old frame otherwise.
+            key={`${g.members.map((m) => m.id).join()}:${tier}:${showLabel ? 'l' : ''}:${selected ? 's' : ''}`}
+            coordinate={{ latitude: g.lat, longitude: g.lon }}
+            // Apple Maps centres the view on the coordinate; shift so the photo (not the label) sits on it.
+            centerOffset={{ x: 0, y: total / 2 - bubble / 2 }}
+            onPress={() => (single ? onSelect(g.members[0]!.id) : onGroupPress(g.members))}
+            zIndex={selected ? 3 : 2}
+          >
+            <View style={{ alignItems: 'center' }}>
+              <View style={[styles.bubble, { height: bubble, minWidth: bubble, borderRadius: bubble / 2, padding: ring, backgroundColor: selected ? C.accent : 'white' }]}>
                 {g.members.slice(0, 3).map((m, i) => {
                   const f = freshness(m.location!.recordedAt);
-                  const stale = f === 'stale' || f === 'old';
                   return (
-                    <View key={m.id} style={{ marginLeft: i ? -14 : 0, zIndex: 3 - i }}>
-                      <Avatar name={m.displayName} color={m.avatarColor} url={m.avatarUrl} size={52} dim={stale} border={2.5} />
+                    <View key={m.id} style={{ marginLeft: i ? -size * 0.4 : 0, zIndex: 3 - i }}>
+                      <Avatar name={m.displayName} color={m.avatarColor} url={m.avatarUrl} size={size} dim={f === 'stale' || f === 'old'} />
                     </View>
                   );
                 })}
-                {g.members.length > 3 && <Text style={styles.more}>+{g.members.length - 3}</Text>}
+                {g.members.length > 3 && (
+                  <Text style={[styles.more, { fontSize: Math.max(10, size * 0.32) }]} allowFontScaling={false}>
+                    +{g.members.length - 3}
+                  </Text>
+                )}
               </View>
-              <View style={[styles.tail, selected && { backgroundColor: C.accent }]} />
+              {showLabel && (
+                <View style={styles.label}>
+                  <Text style={styles.labelText} allowFontScaling={false} numberOfLines={1}>
+                    {labelFor(g, meId, units)}
+                  </Text>
+                </View>
+              )}
             </View>
           </Marker>
         );
@@ -140,40 +187,29 @@ export const NodaraMap = forwardRef<
 });
 
 const styles = StyleSheet.create({
-  placeLabel: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.94)', paddingLeft: 3, paddingRight: 8, paddingVertical: 3, borderRadius: 12 },
-  placeIcon: { width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  placeText: { fontSize: 12, fontWeight: '700', color: '#1c1c1e' },
-  callout: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.97)',
-    paddingVertical: 7,
-    paddingLeft: 8,
-    paddingRight: 14,
-    borderRadius: 18,
-    marginBottom: 6,
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-  },
-  calloutIcon: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  calloutLine1: { fontSize: 13, color: '#3c3c43' },
-  calloutLine2: { fontSize: 15, fontWeight: '600', color: '#1c1c1e' },
+  placeLabel: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.92)', paddingLeft: 2, paddingRight: 7, height: 20, borderRadius: 10 },
+  placeIcon: { width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  placeText: { fontSize: 11, fontWeight: '700', color: '#1c1c1e', maxWidth: 140 },
   bubble: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 3,
-    backgroundColor: 'white',
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: 'white',
     shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
   },
-  more: { marginHorizontal: 8, fontWeight: '700', color: '#1c1c1e' },
-  tail: { width: 14, height: 14, backgroundColor: 'white', transform: [{ rotate: '45deg' }], marginTop: -9 },
+  more: { marginHorizontal: 5, fontWeight: '800', color: '#1c1c1e' },
+  label: {
+    marginTop: LABEL_GAP,
+    height: LABEL_H,
+    paddingHorizontal: 8,
+    borderRadius: LABEL_H / 2,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  labelText: { fontSize: 12, lineHeight: 16, fontWeight: '600', color: '#1c1c1e', maxWidth: 180 },
 });
