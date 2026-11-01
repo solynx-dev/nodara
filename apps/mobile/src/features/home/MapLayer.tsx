@@ -127,7 +127,7 @@ export const NodaraMap = forwardRef<
           .filter((p) => !occupied.has(p.id))
           .map((p) => (
             <Marker key={`place-${p.id}`} coordinate={{ latitude: p.lat, longitude: p.lon }} tracksViewChanges={false}>
-              <View style={styles.placeLabel}>
+              <View collapsable={false} style={styles.placeLabel}>
                 <View style={[styles.placeIcon, { backgroundColor: p.color }]}>
                   <PlaceSymbol icon={p.icon} size={10} color="white" />
                 </View>
@@ -145,17 +145,24 @@ export const NodaraMap = forwardRef<
         const bubble = size + ring * 2;
         const total = bubble + (showLabel ? LABEL_GAP + LABEL_H : 0);
         const single = g.members.length === 1;
+        const label = showLabel ? labelFor(g, meId, units) : null;
         return (
           <Marker
-            // Re-mount when the marker's size changes; Apple Maps keeps the old frame otherwise.
-            key={`${g.members.map((m) => m.id).join()}:${tier}:${showLabel ? 'l' : ''}:${selected ? 's' : ''}`}
+            // Re-mount whenever the marker's size could change: react-native-maps only ever grows
+            // an annotation's frame, so a changed size would leave the photo off-centre.
+            key={`${g.members.map((m) => m.id).join()}:${tier}:${selected ? 's' : ''}:${label ?? ''}`}
             coordinate={{ latitude: g.lat, longitude: g.lon }}
             // Apple Maps centres the view on the coordinate; shift so the photo (not the label) sits on it.
             centerOffset={{ x: 0, y: total / 2 - bubble / 2 }}
             onPress={() => (single ? onSelect(g.members[0]!.id) : onGroupPress(g.members))}
             zIndex={selected ? 3 : 2}
           >
-            <View style={{ alignItems: 'center' }}>
+            {/*
+              collapsable={false} keeps this wrapper as a real native view. Otherwise React Native
+              flattens it away, Apple Maps sizes the pin from the photo alone, and the wider label
+              pushes the photo off the real location.
+            */}
+            <View collapsable={false} style={{ alignItems: 'center' }}>
               <View style={[styles.bubble, { height: bubble, minWidth: bubble, borderRadius: bubble / 2, padding: ring, backgroundColor: selected ? C.accent : 'white' }]}>
                 {g.members.slice(0, 3).map((m, i) => {
                   const f = freshness(m.location!.recordedAt);
@@ -171,10 +178,10 @@ export const NodaraMap = forwardRef<
                   </Text>
                 )}
               </View>
-              {showLabel && (
+              {label && (
                 <View style={styles.label}>
                   <Text style={styles.labelText} allowFontScaling={false} numberOfLines={1}>
-                    {labelFor(g, meId, units)}
+                    {label}
                   </Text>
                 </View>
               )}
