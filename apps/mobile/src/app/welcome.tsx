@@ -7,9 +7,16 @@ import { useSession } from '@/lib/session';
 import { C } from '@/lib/theme';
 import { PrimaryButton, styles } from '@/components/ui';
 
+/**
+ * Server the first screen suggests, set at build time (eas.json → env →
+ * EXPO_PUBLIC_DEFAULT_SERVER). People can still type any other server; builds
+ * without it start with an empty field.
+ */
+const DEFAULT_SERVER = process.env.EXPO_PUBLIC_DEFAULT_SERVER?.trim() ?? '';
+
 export default function Welcome() {
   const { connect } = useSession();
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState(DEFAULT_SERVER);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +46,7 @@ export default function Welcome() {
           <View style={[styles.section, { marginHorizontal: 0 }]}>
             <TextInput
               style={styles.input}
-              placeholder="nodara.example.com"
+              placeholder={DEFAULT_SERVER || 'nodara.example.com'}
               placeholderTextColor={C.tertiaryLabel as string}
               value={address}
               onChangeText={setAddress}
@@ -52,7 +59,11 @@ export default function Welcome() {
             />
           </View>
           {error && <Text style={{ color: C.red, fontSize: 14, marginHorizontal: 4 }}>{error}</Text>}
-          <Text style={{ color: C.secondaryLabel, fontSize: 13, marginHorizontal: 4 }}>The address of your family&apos;s Nodara server, e.g. nodara.example.com. Ask whoever set it up.</Text>
+          <Text style={{ color: C.secondaryLabel, fontSize: 13, marginHorizontal: 4 }}>
+            {DEFAULT_SERVER
+              ? `Your family's Nodara server. If yours runs somewhere other than ${DEFAULT_SERVER}, enter its address instead.`
+              : "The address of your family's Nodara server, e.g. nodara.example.com. Ask whoever set it up."}
+          </Text>
         </Animated.View>
         <PrimaryButton title="Continue" onPress={submit} loading={busy} disabled={!address.trim()} />
         <Text style={{ fontSize: 13, color: C.secondaryLabel, textAlign: 'center', lineHeight: 19 }}>
