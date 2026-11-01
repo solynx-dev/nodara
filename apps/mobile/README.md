@@ -117,6 +117,10 @@ In App Store Connect fill in the listing (screenshots, description, privacy poli
 - **JavaScript-only changes:** `npx eas-cli@latest update --branch production` ([EAS Update](https://docs.expo.dev/eas-update/introduction/), pushed straight to installed apps).
 - **Native changes** (new native module, app.json permissions): build and submit again.
 
+## iPhone only
+
+`supportsTablet` is `false`, so the app is iPhone-only: App Store Connect doesn't ask for iPad screenshots, and iPad owners can still install it and run it in iPhone mode. Turn it on once there's an iPad layout to show.
+
 ## Default server
 
 The first screen is pre-filled with `EXPO_PUBLIC_DEFAULT_SERVER` from the build profile's `env` in `eas.json` (currently `nodara.ca`). People can still type any other server. If you publish your own build for a different server, change it there; remove it to start with an empty field. It's baked in when the app is built, so changing it needs a new build (or an EAS Update).
