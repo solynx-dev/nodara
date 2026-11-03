@@ -18,6 +18,8 @@ export interface PublicUser {
 export interface Me extends PublicUser {
   email: string;
   emailVerified: boolean;
+  /** New address waiting to be confirmed with the emailed code. */
+  pendingEmail?: string | null;
   isAdmin: boolean;
   isDemo: boolean;
   sharingPaused: boolean;
@@ -69,6 +71,31 @@ export interface MemberLocation extends PublicUser {
    * see (before they started sharing, or before recorded history begins).
    */
   stay: { since: string; atLeast: boolean } | null;
+  /**
+   * Their privacy bubble. For other people it replaces `location` (which is
+   * then null) with a general area; on your own entry it's your active bubble.
+   */
+  bubble?: MemberBubble | null;
+}
+
+/** A privacy bubble: a general area shown instead of an exact location. */
+export interface Bubble {
+  id: string;
+  /** Centre of the area (deliberately not where the person is). */
+  lat: number;
+  lon: number;
+  radiusM: number;
+  /** Town or district name, when the server can look it up. */
+  label: string | null;
+  startedAt: string;
+  endsAt: string;
+}
+
+export interface MemberBubble extends Bubble {
+  battery?: number | null;
+  charging?: boolean | null;
+  /** When their phone last checked in. */
+  seenAt?: string | null;
 }
 
 export interface Circle {
@@ -86,6 +113,8 @@ export interface CircleSettings {
   historyVisible: boolean;
   tripsVisible: boolean;
   membersCanInvite: boolean;
+  /** Members may hide in a bubble (on unless an owner/admin turns it off). */
+  bubblesAllowed: boolean;
 }
 
 export interface TripSummary {
@@ -149,6 +178,8 @@ export interface PublicConfig {
   geocoding: boolean;
   webPushPublicKey: string | null;
   passkeys: boolean;
+  /** Domain passkeys belong to (the host of PUBLIC_URL). */
+  passkeyRpId?: string;
   emailEnabled: boolean;
   defaultRetentionDays: number | null;
   /** Driving reports: speed counted as speeding. */
@@ -176,4 +207,5 @@ export type ServerEvent =
   | { type: 'trip'; userId: string; tripId: string; status: 'in_progress' | 'completed' }
   | { type: 'presence'; userId: string; placeId: string; inside: boolean }
   | { type: 'circle'; circleId: string }
-  | { type: 'profile'; userId: string };
+  | { type: 'profile'; userId: string }
+  | { type: 'bubble'; userId: string };

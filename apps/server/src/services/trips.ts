@@ -1,3 +1,4 @@
+import { liveViewersOf } from './bubbles.js';
 import type { Ctx } from '../context.js';
 import {
   DEFAULT_TRIP_CONFIG,
@@ -153,10 +154,7 @@ async function saveTrip(ctx: Ctx, userId: string, deviceId: string, trip: Detect
       RETURNING id`;
   });
 
-  const viewers = await sql<{ user_id: string }[]>`
-    SELECT DISTINCT v.user_id FROM circle_members t JOIN circle_members v ON v.circle_id = t.circle_id
-    WHERE t.user_id = ${userId} AND t.sharing`;
-  ctx.hub.publish([userId, ...viewers.map((v) => v.user_id)], { type: 'trip', userId, tripId: row!.id, status });
+  ctx.hub.publish(await liveViewersOf(sql, userId), { type: 'trip', userId, tripId: row!.id, status });
 
   // Fill in human-readable labels in the background when a geocoder is configured.
   if (status === 'completed' && (!startPlace || !endPlace) && (await ctx.geocoder.enabled())) {

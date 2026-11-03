@@ -11,6 +11,8 @@ export interface SystemSettings {
   geocodingChosen?: boolean;
   offlineAfterMinutes: number;
   geofenceCooldownSec: number;
+  /** New accounts must confirm their email before they can sign in (needs SMTP). */
+  requireEmailVerification: boolean;
   trip: {
     departRadiusM: number;
     endAfterSec: number;
@@ -39,6 +41,7 @@ export class SettingsService {
       geocodingEnabled: Boolean(this.config.GEOCODER_URL),
       offlineAfterMinutes: 120,
       geofenceCooldownSec: 180,
+      requireEmailVerification: this.config.REQUIRE_EMAIL_VERIFICATION,
       trip: { departRadiusM: 200, endAfterSec: 300, minDistanceM: 400 },
     };
   }

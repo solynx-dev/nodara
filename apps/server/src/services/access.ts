@@ -66,7 +66,11 @@ export async function canSeeLive(sql: Sql, viewerId: string, targetId: string): 
   return rows.length > 0;
 }
 
-export type HistoryAccess = { own: true } | { own: false; since: Date } | null;
+/**
+ * `bubbles`: the viewer sees this person only through circles that allow
+ * bubbles, so time the person spent in a bubble stays hidden from them.
+ */
+export type HistoryAccess = { own: true } | { own: false; since: Date; userId: string; bubbles: boolean } | null;
 
 /**
  * Tolerance for device clocks running slightly behind the server, so the first
@@ -86,13 +90,44 @@ export async function historyAccess(
 ): Promise<HistoryAccess> {
   if (viewerId === targetId) return { own: true };
   const key = kind === 'history' ? 'historyVisible' : 'tripsVisible';
-  const rows = await sql<{ since: Date | null }[]>`
-    SELECT min(t.sharing_since) AS since
+  const rows = await sql<{ since: Date | null; bubbles: boolean | null }[]>`
+    SELECT min(t.sharing_since) AS since, bool_and(${bubblesAllowedSql(sql, 'c')}) AS bubbles
     FROM circle_members me
     JOIN circle_members t ON t.circle_id = me.circle_id
     JOIN circles c ON c.id = me.circle_id
     WHERE me.user_id = ${viewerId} AND t.user_id = ${targetId} AND t.sharing
       AND COALESCE((c.settings ->> ${key})::boolean, true)`;
   const since = rows[0]?.since;
-  return since ? { own: false, since: new Date(since.getTime() - CLOCK_SKEW_GRACE_MS) } : null;
+  return since ? { own: false, since: new Date(since.getTime() - CLOCK_SKEW_GRACE_MS), userId: targetId, bubbles: rows[0]!.bubbles !== false } : null;
+}
+
+type Fragment = ReturnType<Sql>;
+
+/** Circle setting check, written once: bubbles are allowed unless turned off. */
+export const bubblesAllowedSql = (sql: Sql, alias: string) => sql`COALESCE((${sql(alias)}.settings ->> 'bubblesAllowed')::boolean, true)`;
+
+/** SQL condition: `timestamp` (an expression) falls inside one of `userIdExpr`'s bubbles. */
+export const inBubbleSql = (sql: Sql, userIdExpr: Fragment, timestamp: ReturnType<Sql>) => sql`EXISTS (
+  SELECT 1 FROM bubbles b WHERE b.user_id = ${userIdExpr}
+    AND ${timestamp} >= b.started_at AND ${timestamp} < COALESCE(b.ended_at, b.expires_at))`;
+
+/** SQL condition: a span [start, end) overlaps one of `userId`'s bubbles. */
+export const overlapsBubbleSql = (sql: Sql, userIdExpr: Fragment, start: Fragment, end: ReturnType<Sql>) => sql`EXISTS (
+  SELECT 1 FROM bubbles b WHERE b.user_id = ${userIdExpr}
+    AND ${start} < COALESCE(b.ended_at, b.expires_at) AND COALESCE(${end}, now()) > b.started_at)`;
+
+/** SQL filter: a person's location rows (in `table`) that the viewer may see. */
+export function locationsVisibleSql(sql: Sql, access: Exclude<HistoryAccess, null>, table = 'locations'): Fragment {
+  if (access.own) return sql``;
+  const t = sql(table);
+  return sql`AND ${t}.shared AND ${t}.recorded_at >= ${access.since}
+    ${access.bubbles ? sql`AND NOT ${inBubbleSql(sql, sql`${access.userId}::uuid`, sql`${t}.recorded_at`)}` : sql``}`;
+}
+
+/** SQL filter: a person's trips (in `table`) that the viewer may see. */
+export function tripsVisibleSql(sql: Sql, access: Exclude<HistoryAccess, null>, table = 'trips'): Fragment {
+  if (access.own) return sql``;
+  const t = sql(table);
+  return sql`AND ${t}.started_at >= ${access.since}
+    ${access.bubbles ? sql`AND NOT ${overlapsBubbleSql(sql, sql`${access.userId}::uuid`, sql`${t}.started_at`, sql`${t}.ended_at`)}` : sql``}`;
 }

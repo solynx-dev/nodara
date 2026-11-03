@@ -31,6 +31,7 @@ import adminRoutes from './modules/admin.js';
 import systemRoutes from './modules/system.js';
 import realtimeRoutes from './modules/realtime.js';
 import legalRoutes from './modules/legal.js';
+import bubbleRoutes from './modules/bubbles.js';
 
 export interface BuiltApp {
   app: FastifyInstance;
@@ -118,6 +119,7 @@ export async function buildApp(config: Config, opts: { sql?: Sql; logger?: boole
     adminRoutes,
     realtimeRoutes,
     legalRoutes,
+    bubbleRoutes,
   ]) {
     await app.register(async (scope) => mod(scope, ctx));
   }

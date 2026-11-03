@@ -4,7 +4,7 @@ import type { Ctx } from '../context.js';
 import { requireUser } from '../auth.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
-import { historyAccess } from '../services/access.js';
+import { historyAccess, tripsVisibleSql } from '../services/access.js';
 import { MODE_SQL, serializeTrip, TRIP_COLUMNS, type TripRow } from '../services/serialize.js';
 import { rebuildTrips } from '../services/trips.js';
 import { requireHistory } from './locations.js';
@@ -34,7 +34,7 @@ export default async function tripRoutes(app: FastifyInstance, ctx: Ctx) {
     const rows = await sql<(TripRow & { mode: string })[]>`
       SELECT ${sql(TRIP_COLUMNS as unknown as string[])}, ${sql.unsafe(MODE_SQL)} AS mode FROM trips
       WHERE user_id = ${target}
-        ${access.own ? sql`` : sql`AND started_at >= ${access.since}`}
+        ${tripsVisibleSql(sql, access)}
         ${q.from ? sql`AND started_at >= ${new Date(q.from)}` : sql``}
         ${q.to ? sql`AND started_at < ${new Date(q.to)}` : sql``}
         ${q.before ? sql`AND started_at < ${new Date(q.before)}` : sql``}
@@ -51,7 +51,11 @@ export default async function tripRoutes(app: FastifyInstance, ctx: Ctx) {
       FROM trips WHERE id = ${id}`;
     if (!t) throw notFound('Trip not found');
     const access = await historyAccess(sql, a.userId, t.user_id, 'trips');
-    if (!access || (!access.own && t.started_at < access.since)) throw notFound('Trip not found');
+    if (!access) throw notFound('Trip not found');
+    if (!access.own) {
+      const [ok] = await sql`SELECT 1 FROM trips WHERE id = ${id} ${tripsVisibleSql(sql, access)}`;
+      if (!ok) throw notFound('Trip not found');
+    }
 
     // Speed profile for the chart, decimated to at most ~400 samples.
     const end = t.ended_at ?? new Date();
@@ -131,7 +135,7 @@ export default async function tripRoutes(app: FastifyInstance, ctx: Ctx) {
     const { start, end, prev_start } = range!;
     const filter = sql`
       user_id = ${target} AND status = 'completed'
-      ${access.own ? sql`` : sql`AND started_at >= ${access.since}`}
+      ${tripsVisibleSql(sql, access)}
       ${q.mode === 'driving' ? sql`AND ${sql.unsafe(MODE_SQL)} = 'driving'` : sql``}`;
 
     const totals = async (from: Date, to: Date) => {

@@ -2,6 +2,7 @@ import { haversine } from '@nodara/shared';
 import type { Ctx } from '../context.js';
 import { evaluateFence } from './geofence-eval.js';
 import { canSeeLive } from './access.js';
+import { hiddenFromCircle } from './bubbles.js';
 
 export interface FenceFix {
   t: Date;
@@ -98,6 +99,7 @@ async function notifySubscribers(
       -- Never announce movements from before the member started sharing with this circle.
       AND EXISTS (SELECT 1 FROM circle_members t WHERE t.circle_id = ${place.circle_id} AND t.user_id = ${userId}
                   AND t.sharing AND t.sharing_since <= ${at})`;
+  if (subs.length && place.circle_id && (await hiddenFromCircle(ctx.sql, userId, place.circle_id))) return;
   for (const s of subs) {
     if (!(await canSeeLive(ctx.sql, s.subscriber_id, userId))) continue;
     const verb = kind === 'arrive' ? 'arrived at' : 'left';

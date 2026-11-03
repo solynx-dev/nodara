@@ -124,4 +124,14 @@ export default async function legalRoutes(app: FastifyInstance, ctx: Ctx) {
     return reply.type('text/html; charset=utf-8').header('Cache-Control', 'public, max-age=600').send(html);
   });
   app.get('/privacy', async (_req, reply) => reply.redirect('/privacy-policy', 301));
+
+  /**
+   * Lets the iOS app create and use passkeys for this domain (Apple reads this
+   * through its CDN before trusting the app's webcredentials entitlement).
+   */
+  app.get('/.well-known/apple-app-site-association', async (_req, reply) => {
+    const apps = ctx.config.APPLE_APP_IDS.split(',').map((s) => s.trim()).filter(Boolean);
+    if (!apps.length) return reply.code(404).type('text/plain').send('Not found');
+    return reply.type('application/json').header('Cache-Control', 'public, max-age=3600').send({ webcredentials: { apps } });
+  });
 }

@@ -1,3 +1,4 @@
+import { expireBubbles } from './bubbles.js';
 import type { Ctx } from '../context.js';
 import { labelUnnamedTrips, processDeviceTrips } from './trips.js';
 
@@ -162,6 +163,7 @@ export function startJobs(ctx: Ctx) {
     setTimeout(run, 10_000).unref();
   };
   every(60_000, 'close-idle-trips', () => closeIdleTrips(ctx));
+  every(60_000, 'expire-bubbles', () => expireBubbles(ctx).then(() => undefined));
   every(5 * 60_000, 'offline-devices', () => checkOfflineDevices(ctx));
   every(6 * 3600_000, 'retention', () => runRetention(ctx));
   every(3600_000, 'cleanup', () => cleanupExpired(ctx));

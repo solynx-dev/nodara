@@ -10,6 +10,8 @@ export type NotificationType =
   | 'member_joined'
   | 'check_in'
   | 'sharing_changed'
+  | 'bubble'
+  | 'bubble_ended'
   | 'low_battery'
   | 'device_offline'
   | 'retention'
@@ -24,6 +26,9 @@ const PREF_KEY: Record<NotificationType, string | null> = {
   member_joined: 'circle',
   check_in: 'circle',
   sharing_changed: 'sharing',
+  bubble: 'sharing',
+  // Your own bubble ending is always worth knowing.
+  bubble_ended: null,
   low_battery: 'lowBattery',
   device_offline: 'deviceOffline',
   retention: null,

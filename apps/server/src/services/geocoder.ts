@@ -132,6 +132,27 @@ export class Geocoder {
     return label;
   }
 
+  /**
+   * The town or district around a point ("Dieppe", "Downtown Moncton"), for
+   * labelling a privacy bubble without pointing at any one address. Bigger
+   * bubbles get a coarser name.
+   */
+  async area(lat: number, lon: number, radiusM: number): Promise<string | null> {
+    if (!(await this.enabled())) return null;
+    const zoom = radiusM <= 2_000 ? '14' : radiusM <= 15_000 ? '12' : '10';
+    const key = `area${zoom}:${lat.toFixed(2)},${lon.toFixed(2)}`;
+    const cached = await this.sql<{ label: string | null }[]>`SELECT label FROM geocode_cache WHERE key = ${key}`;
+    if (cached.length) return cached[0]!.label;
+    const item = await this.fetchJson<NominatimItem>('reverse', { lat: String(lat), lon: String(lon), format: 'jsonv2', zoom, addressdetails: '1' });
+    if (!item) return null;
+    const a = item.address ?? {};
+    const town = a.city ?? a.town ?? a.village ?? a.municipality ?? a.county ?? null;
+    const part = zoom === '14' ? (a.suburb ?? a.neighbourhood ?? a.quarter ?? a.city_district ?? null) : null;
+    const label = part && town && part !== town ? `${part}, ${town}` : (town ?? part ?? a.state ?? null);
+    await this.sql`INSERT INTO geocode_cache (key, label) VALUES (${key}, ${label}) ON CONFLICT (key) DO NOTHING`;
+    return label;
+  }
+
   async search(q: string, near?: { lat: number; lon: number }): Promise<GeocodeResult[]> {
     if (!(await this.enabled())) return [];
     const params: Record<string, string> = { q, format: 'jsonv2', addressdetails: '1', limit: '8' };

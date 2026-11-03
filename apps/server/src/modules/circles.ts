@@ -1,16 +1,17 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import type { Circle, CircleRole, CircleSettings, MemberLocation } from '@nodara/shared';
+import type { Circle, CircleRole, CircleSettings, MemberBubble, MemberLocation } from '@nodara/shared';
 import type { Ctx } from '../context.js';
 import { audit, requireUser } from '../auth.js';
 import { randomToken, sha256 } from '../lib/crypto.js';
 import { badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
-import { CLOCK_SKEW_GRACE_MS, isCircleMember } from '../services/access.js';
+import { bubblesAllowedSql, CLOCK_SKEW_GRACE_MS, isCircleMember } from '../services/access.js';
 import { serializeLocation, type LocationRow } from '../services/serialize.js';
+import { currentBubble } from '../services/bubbles.js';
 import { haversine } from '@nodara/shared';
 
-const DEFAULT_SETTINGS: CircleSettings = { historyVisible: true, tripsVisible: true, membersCanInvite: false };
+const DEFAULT_SETTINGS: CircleSettings = { historyVisible: true, tripsVisible: true, membersCanInvite: false, bubblesAllowed: true };
 const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const uuid = z.string().uuid();
 
@@ -70,19 +71,31 @@ export async function memberLocations(ctx: Ctx, viewerId: string, circleId: stri
       last_trip_end: Date | null;
       last_trip_lat: number | null;
       last_trip_lon: number | null;
+      exact: boolean;
+      bubble_id: string | null;
+      bubble_lat: number | null;
+      bubble_lon: number | null;
+      bubble_radius: number | null;
+      bubble_label: string | null;
+      bubble_started: Date | null;
+      bubble_ends: Date | null;
     })[]
   >`
     WITH members AS (
       SELECT t.user_id,
              (array_agg(t.role ORDER BY CASE t.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END))[1] AS role,
              bool_or(t.sharing) AS sharing,
-             min(t.sharing_since) FILTER (WHERE t.sharing) AS since
-      FROM circle_members me JOIN circle_members t ON t.circle_id = me.circle_id
+             min(t.sharing_since) FILTER (WHERE t.sharing) AS since,
+             -- Shared through a circle that turned bubbles off: bubbles don't hide them from this viewer.
+             bool_or(t.sharing AND NOT ${bubblesAllowedSql(sql, 'c')}) AS exact
+      FROM circle_members me JOIN circle_members t ON t.circle_id = me.circle_id JOIN circles c ON c.id = me.circle_id
       WHERE me.user_id = ${viewerId} ${circleId ? sql`AND me.circle_id = ${circleId}` : sql``}
       GROUP BY t.user_id
-      ${circleId ? sql`` : sql`UNION SELECT ${viewerId}::uuid, 'owner', true, NULL::timestamptz WHERE NOT EXISTS (SELECT 1 FROM circle_members WHERE user_id = ${viewerId})`}
+      ${circleId ? sql`` : sql`UNION SELECT ${viewerId}::uuid, 'owner', true, NULL::timestamptz, true WHERE NOT EXISTS (SELECT 1 FROM circle_members WHERE user_id = ${viewerId})`}
     )
-    SELECT m.user_id AS member_id, u.display_name, u.avatar_color, u.avatar_url, m.role, m.sharing AS member_sharing, m.since,
+    SELECT m.user_id AS member_id, u.display_name, u.avatar_color, u.avatar_url, m.role, m.sharing AS member_sharing, m.since, m.exact,
+           bb.id AS bubble_id, bb.lat AS bubble_lat, bb.lon AS bubble_lon, bb.radius_m AS bubble_radius, bb.label AS bubble_label,
+           bb.started_at AS bubble_started, bb.expires_at AS bubble_ends,
            u.sharing_paused, d.name AS device_name, l.id AS loc_id,
            l.user_id, l.device_id, l.recorded_at, l.lat, l.lon, l.accuracy, l.altitude, l.speed, l.speed_source,
            l.heading, l.battery, l.charging, l.activity,
@@ -94,6 +107,10 @@ export async function memberLocations(ctx: Ctx, viewerId: string, circleId: stri
       SELECT tr.ended_at, tr.end_lat, tr.end_lon FROM trips tr
       WHERE tr.user_id = m.user_id AND tr.status = 'completed' ORDER BY tr.started_at DESC LIMIT 1
     ) lt ON true
+    LEFT JOIN LATERAL (
+      SELECT b.id, b.lat, b.lon, b.radius_m, b.label, b.started_at, b.expires_at FROM bubbles b
+      WHERE b.user_id = m.user_id AND b.ended_at IS NULL AND b.expires_at > now() ORDER BY b.started_at DESC LIMIT 1
+    ) bb ON true
     LEFT JOIN latest_locations ll ON ll.user_id = m.user_id
     LEFT JOIN locations l ON l.id = ll.location_id
     LEFT JOIN devices d ON d.id = l.device_id
@@ -139,6 +156,21 @@ export async function memberLocations(ctx: Ctx, viewerId: string, circleId: stri
     // Like history: never reveal a fix recorded before the member started sharing with the viewer.
     const visible = self || (r.member_sharing && !r.sharing_paused && (!r.recorded_at || !r.since || r.recorded_at.getTime() >= r.since.getTime() - CLOCK_SKEW_GRACE_MS));
     const sharing = r.member_sharing && !r.sharing_paused;
+    const bubble: MemberBubble | null =
+      r.bubble_id && (self || (sharing && !r.exact))
+        ? {
+            id: r.bubble_id,
+            lat: r.bubble_lat!,
+            lon: r.bubble_lon!,
+            radiusM: r.bubble_radius!,
+            label: r.bubble_label,
+            startedAt: r.bubble_started!.toISOString(),
+            endsAt: r.bubble_ends!.toISOString(),
+            ...(self ? {} : { battery: visible ? r.battery : null, charging: visible ? r.charging : null, seenAt: visible ? r.recorded_at?.toISOString() ?? null : null }),
+          }
+        : null;
+    // In someone else's bubble you see the area only: no exact spot, place, trip or stay.
+    const shown = visible && !(bubble && !self);
     return {
       id: r.member_id,
       displayName: r.display_name,
@@ -146,11 +178,12 @@ export async function memberLocations(ctx: Ctx, viewerId: string, circleId: stri
       avatarUrl: r.avatar_url,
       role: r.role,
       sharing,
-      location: visible && r.loc_id != null ? serializeLocation({ ...r, id: r.loc_id }) : null,
-      deviceName: visible ? r.device_name : null,
-      currentPlace: visible ? placeOf.get(r.member_id) ?? null : null,
-      inTrip: visible && r.in_trip,
-      stay: visible && r.loc_id != null ? stayOf(r, self) : null,
+      location: shown && r.loc_id != null ? serializeLocation({ ...r, id: r.loc_id }) : null,
+      deviceName: shown ? r.device_name : null,
+      currentPlace: shown ? placeOf.get(r.member_id) ?? null : null,
+      inTrip: shown && r.in_trip,
+      stay: shown && r.loc_id != null ? stayOf(r, self) : null,
+      bubble,
     };
   });
 }
@@ -255,10 +288,14 @@ export default async function circleRoutes(app: FastifyInstance, ctx: Ctx) {
       z.object({
         name: z.string().trim().min(1).max(60).optional(),
         color: colorSchema.optional(),
-        settings: z.object({ historyVisible: z.boolean(), tripsVisible: z.boolean(), membersCanInvite: z.boolean() }).partial().optional(),
+        settings: z
+          .object({ historyVisible: z.boolean(), tripsVisible: z.boolean(), membersCanInvite: z.boolean(), bubblesAllowed: z.boolean() })
+          .partial()
+          .optional(),
       }),
       req.body,
     );
+    const [before] = await sql<{ name: string; settings: Partial<CircleSettings> }[]>`SELECT name, settings FROM circles WHERE id = ${id}`;
     await sql`
       UPDATE circles SET
         name = COALESCE(${body.name ?? null}, name),
@@ -268,6 +305,23 @@ export default async function circleRoutes(app: FastifyInstance, ctx: Ctx) {
     await audit(ctx, req, 'circle.updated', { type: 'circle', id }, body);
     const mates = await sql<{ user_id: string }[]>`SELECT user_id FROM circle_members WHERE circle_id = ${id}`;
     ctx.hub.publish(mates.map((m) => m.user_id), { type: 'circle', circleId: id });
+    const wasAllowed = settingsOf(before?.settings ?? {}).bubblesAllowed;
+    if (body.settings?.bubblesAllowed !== undefined && body.settings.bubblesAllowed !== wasAllowed) {
+      // Anyone in a bubble is now seen exactly (or hidden again) by this circle.
+      for (const m of mates) {
+        if (!(await currentBubble(sql, m.user_id))) continue;
+        ctx.hub.publish(mates.map((x) => x.user_id), { type: 'bubble', userId: m.user_id });
+        if (m.user_id === a.userId || body.settings.bubblesAllowed) continue;
+        await ctx.notify.notify({
+          userId: m.user_id,
+          type: 'bubble_ended',
+          title: `Bubbles were turned off in ${before?.name ?? 'a circle'}`,
+          body: 'People in that circle can see your exact location again. Your bubble still applies to your other circles.',
+          data: { circleId: id },
+          url: `/circles/${id}`,
+        });
+      }
+    }
     return (await listCircles(ctx, a.userId)).find((c) => c.id === id);
   });
 
