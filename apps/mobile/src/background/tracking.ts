@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
 import * as Device from 'expo-device';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '@/lib/api';
 import { getItem, KEYS, setItem } from '@/lib/storage';
 import { haversine } from '@/lib/format';
@@ -11,11 +12,11 @@ export type TrackingMode = 'balanced' | 'precise';
 export const MODES: Record<TrackingMode, { label: string; detail: string; options: Location.LocationTaskOptions }> = {
   balanced: {
     label: 'Battery saver',
-    detail: 'Updates when you move about 100 m. iOS pauses updates when you stay put.',
+    detail: 'Updates when you move about 100 m, about every 10 seconds while driving. iOS pauses updates when you stay put.',
     options: {
       accuracy: Location.Accuracy.Balanced,
       distanceInterval: 100,
-      deferredUpdatesInterval: 60_000,
+      deferredUpdatesInterval: 10_000,
       pausesUpdatesAutomatically: true,
       activityType: Location.ActivityType.Other,
       showsBackgroundLocationIndicator: false,
@@ -23,11 +24,11 @@ export const MODES: Record<TrackingMode, { label: string; detail: string; option
   },
   precise: {
     label: 'Precise',
-    detail: 'Detailed trips and quicker arrival alerts. Uses more battery.',
+    detail: 'Near-live driving (every 5 seconds), detailed trips and quicker arrival alerts. Uses more battery.',
     options: {
       accuracy: Location.Accuracy.High,
-      distanceInterval: 25,
-      deferredUpdatesInterval: 15_000,
+      distanceInterval: 15,
+      deferredUpdatesInterval: 5_000,
       pausesUpdatesAutomatically: false,
       activityType: Location.ActivityType.Other,
       showsBackgroundLocationIndicator: false,
@@ -86,10 +87,33 @@ export async function startTracking(mode: TrackingMode): Promise<'always' | 'for
   try {
     if (await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)) await Location.stopLocationUpdatesAsync(LOCATION_TASK);
     await Location.startLocationUpdatesAsync(LOCATION_TASK, MODES[mode].options);
+    await AsyncStorage.setItem(OPTIONS_KEY, OPTIONS_VERSION);
   } catch {
     // Not available in Expo Go — the foreground watcher in the app still reports while open.
   }
   return level;
+}
+
+/** Bump when MODES options change, so phones already sharing pick up the new settings. */
+const OPTIONS_VERSION = '2';
+const OPTIONS_KEY = 'nodara.trackingOptions';
+
+/**
+ * iOS keeps the options a location task was started with. After an app update
+ * changes them, restart the running task once (in the foreground, no prompts).
+ */
+export async function refreshTrackingOptions() {
+  try {
+    const mode = (await getItem(KEYS.tracking)) as TrackingMode | null;
+    if (!mode || !MODES[mode]) return;
+    if ((await AsyncStorage.getItem(OPTIONS_KEY)) === OPTIONS_VERSION) return;
+    if (!(await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK))) return;
+    await Location.stopLocationUpdatesAsync(LOCATION_TASK);
+    await Location.startLocationUpdatesAsync(LOCATION_TASK, MODES[mode].options);
+    await AsyncStorage.setItem(OPTIONS_KEY, OPTIONS_VERSION);
+  } catch {
+    // Not available in Expo Go.
+  }
 }
 
 export async function stopTracking() {

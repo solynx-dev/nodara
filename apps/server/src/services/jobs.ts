@@ -1,5 +1,5 @@
 import type { Ctx } from '../context.js';
-import { processDeviceTrips } from './trips.js';
+import { labelUnnamedTrips, processDeviceTrips } from './trips.js';
 
 /**
  * Retention: deletes location history older than the effective retention
@@ -165,6 +165,7 @@ export function startJobs(ctx: Ctx) {
   every(5 * 60_000, 'offline-devices', () => checkOfflineDevices(ctx));
   every(6 * 3600_000, 'retention', () => runRetention(ctx));
   every(3600_000, 'cleanup', () => cleanupExpired(ctx));
+  every(10 * 60_000, 'label-trips', () => labelUnnamedTrips(ctx).then(() => undefined));
   every(7 * 86_400_000, 'telemetry', () => sendTelemetry(ctx));
   for (const t of timers) t.unref();
   return () => timers.forEach(clearInterval);

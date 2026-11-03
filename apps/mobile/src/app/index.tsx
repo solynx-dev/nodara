@@ -14,6 +14,7 @@ import { api } from '@/lib/api';
 import { useMe } from '@/lib/session';
 import { useCircles, useLive, usePlaceEvents, usePlaces } from '@/lib/queries';
 import { circleSummary, nameOrYou } from '@/lib/status';
+import { liveSpeed } from '@/lib/driving';
 import { haversine } from '@/lib/format';
 import { C, T } from '@/lib/theme';
 import type { MemberLocation, PlaceWithMeta } from '@/lib/types';
@@ -116,11 +117,11 @@ export default function Home() {
   };
 
   const centerOn = useCallback(
-    (lat: number, lon: number, idx: SheetIndex, latitudeDelta?: number) => {
+    (lat: number, lon: number, idx: SheetIndex, latitudeDelta?: number, duration = 650) => {
       const d = latitudeDelta ?? regionRef.current?.latitudeDelta ?? 0.01;
       const sheetTop = positions[idx === 0 ? 0 : 1] - 60; // minus the floating buttons
       const dy = height / 2 - (visibleTop + sheetTop) / 2;
-      map.current?.animateToRegion({ latitude: lat - (dy * d) / height, longitude: lon, latitudeDelta: d, longitudeDelta: (d * width) / height }, 650);
+      map.current?.animateToRegion({ latitude: lat - (dy * d) / height, longitude: lon, latitudeDelta: d, longitudeDelta: (d * width) / height }, duration);
     },
     [positions, height, width, visibleTop],
   );
@@ -157,9 +158,30 @@ export default function Home() {
 
   // Follow the selected person as their location updates.
   const selLoc = selected?.location;
+  // (While they drive, the map follows their smoothed position instead: see onFollow.)
+  const selDriving = Boolean(selected && liveSpeed(selected) != null);
   useEffect(() => {
-    if (selLoc) centerOn(selLoc.lat, selLoc.lon, 1);
-  }, [selLoc?.lat, selLoc?.lon, selLoc, centerOn]);
+    if (selLoc && !selDriving) centerOn(selLoc.lat, selLoc.lon, 1);
+  }, [selLoc?.lat, selLoc?.lon, selLoc, centerOn, selDriving]);
+  // Soft follow while someone you've selected is driving: the map only glides
+  // when their pin drifts out of the calm middle of the visible map, so it
+  // feels like a camera following them, not a pin glued to the centre.
+  // Touching the map pauses following for a while, so you can look around.
+  const followPausedUntil = useRef(0);
+  const follow = useCallback(
+    (lat: number, lon: number) => {
+      const r = regionRef.current;
+      if (!r || Date.now() < followPausedUntil.current) return;
+      const x = ((lon - r.longitude) / r.longitudeDelta + 0.5) * width;
+      const y = (0.5 - (lat - r.latitude) / r.latitudeDelta) * height;
+      const top = visibleTop;
+      const bottom = positions[sheetIndex === 0 ? 0 : 1] - 60;
+      const midY = (top + bottom) / 2;
+      const comfy = Math.abs(x - width / 2) < width * 0.22 && Math.abs(y - midY) < (bottom - top) * 0.22;
+      if (!comfy) centerOn(lat, lon, sheetIndex, undefined, 1500);
+    },
+    [centerOn, sheetIndex, width, height, visibleTop, positions],
+  );
 
   const selectPerson = (id: string) => {
     void Haptics.selectionAsync();
@@ -259,8 +281,10 @@ export default function Home() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
+      <View style={StyleSheet.absoluteFill} onTouchStart={() => (followPausedUntil.current = Date.now() + 20_000)}>
       <NodaraMap
         ref={map}
+        onFollow={follow}
         members={members}
         places={places}
         meId={me.id}
@@ -277,6 +301,7 @@ export default function Home() {
         onPlacePress={openPlace}
         onMapPress={() => selectedId && clearSelection()}
       />
+      </View>
 
       <MapSheet
         y={y}

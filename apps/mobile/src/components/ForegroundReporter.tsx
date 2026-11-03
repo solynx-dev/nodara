@@ -5,6 +5,7 @@ import { enqueueAndFlush, toFixes } from '@/background/upload';
 import { notePhoneUse } from '@/background/phoneUse';
 import { getItem, KEYS } from '@/lib/storage';
 import { LOCATION_TASK } from '@/background/tasks';
+import { refreshTrackingOptions } from '@/background/tracking';
 
 /**
  * While Nodara is on screen, also watch the position directly and flush the
@@ -18,6 +19,7 @@ export function ForegroundReporter() {
 
     const start = async () => {
       if (!(await getItem(KEYS.tracking))) return;
+      await refreshTrackingOptions();
       const perm = await Location.getForegroundPermissionsAsync();
       if (perm.status !== 'granted' || cancelled) return;
       void Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })

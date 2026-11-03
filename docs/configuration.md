@@ -32,7 +32,7 @@ Nodara is configured with environment variables (in Docker, via `.env`). Setting
 | Variable | Default | Description |
 |---|---|---|
 | `MAP_STYLES` | OpenFreeMap styles + OSM raster | JSON array of `{ "id", "name", "url", "dark" }`. `url` is a MapLibre style JSON URL, or `builtin:osm-raster`. Point this at your own tile server (e.g. [OpenFreeMap self-hosted](https://openfreemap.org), [Protomaps](https://protomaps.com), [TileServer GL](https://github.com/maptiler/tileserver-gl)) to remove all third-party map requests. |
-| `GEOCODER_URL` | — (disabled) | Nominatim-compatible base URL for address lookup and place search, e.g. a self-hosted Nominatim or `https://nominatim.openstreetmap.org/` (respect its [usage policy](https://operations.osmfoundation.org/policies/nominatim/)). Requests are proxied, throttled to 1/s and cached in the database. **admin UI** can switch lookups off. |
+| `GEOCODER_URL` | — (disabled) | Nominatim-compatible base URL for address lookup and place search, e.g. a self-hosted Nominatim or `https://nominatim.openstreetmap.org/` (respect its [usage policy](https://operations.osmfoundation.org/policies/nominatim/)). Requests are proxied, throttled to 1/s and cached in the database. Labels prefer the business or venue at a spot ("Walmart Supercentre, Moncton") over its street address, and trips recorded before a geocoder was set up are named in the background. **admin UI** can switch lookups off. After editing `.env`, run `docker compose up -d` (a plain `restart` doesn't reload `.env`). |
 | `GEOCODER_USER_AGENT` | `Nodara self-hosted (https://nodara.ca)` | Identify your instance to the geocoder. |
 
 Example `MAP_STYLES`:

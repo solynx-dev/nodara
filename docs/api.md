@@ -130,7 +130,7 @@ Authenticated by the session cookie (or bearer) during the upgrade. Server → c
 
 ```ts
 { type: 'hello', userId }
-{ type: 'location', userId, location: LocationFix }
+{ type: 'location', userId, location: LocationFix, trail?: TrailPoint[] }   // trail: the fixes from that upload, for smooth live movement
 { type: 'sharing', userId, circleId | null, sharing }
 { type: 'notification', notification }
 { type: 'trip', userId, tripId, status }

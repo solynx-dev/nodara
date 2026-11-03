@@ -12,6 +12,7 @@ export type {
   Place,
   PublicConfig,
   ServerEvent,
+  TrailPoint,
   TripSummary,
   UserPreferences,
 } from '@shared/types';
@@ -26,7 +27,7 @@ export interface TripDetail extends Trip {
   pointCount: number;
   route: [number, number][];
   stops: { lat: number; lon: number; arrivedAt: string; departedAt: string; durationSec: number }[];
-  samples: { t: string; speed: number | null; source: string }[];
+  samples: { t: string; speed: number | null; source: string; lat?: number; lon?: number }[];
   /** Missing on servers older than driving reports. */
   events?: DrivingEvent[];
 }

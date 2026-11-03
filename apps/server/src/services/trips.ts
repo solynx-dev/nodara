@@ -103,7 +103,7 @@ export async function rebuildTrips(ctx: Ctx, userId: string) {
   return completed;
 }
 
-async function placeAt(ctx: Ctx, userId: string, lat: number, lon: number) {
+export async function placeAt(ctx: Ctx, userId: string, lat: number, lon: number) {
   const rows = await ctx.sql<{ id: string; name: string }[]>`
     SELECT p.id, p.name FROM places p
     WHERE (p.owner_id = ${userId} AND p.circle_id IS NULL
@@ -159,14 +159,44 @@ async function saveTrip(ctx: Ctx, userId: string, deviceId: string, trip: Detect
   ctx.hub.publish([userId, ...viewers.map((v) => v.user_id)], { type: 'trip', userId, tripId: row!.id, status });
 
   // Fill in human-readable labels in the background when a geocoder is configured.
-  if (status === 'completed' && (!startPlace || !endPlace)) {
+  if (status === 'completed' && (!startPlace || !endPlace) && (await ctx.geocoder.enabled())) {
     void (async () => {
       const s = startPlace ? null : await ctx.geocoder.reverse(first.lat, first.lon);
       const e = endPlace ? null : await ctx.geocoder.reverse(last.lat, last.lon);
-      if (s || e) {
-        await sql`UPDATE trips SET start_label = COALESCE(start_label, ${s}), end_label = COALESCE(end_label, ${e})
-                  WHERE id = ${row!.id}`;
-      }
+      await sql`UPDATE trips SET start_label = COALESCE(start_label, ${s}), end_label = COALESCE(end_label, ${e}), labelled_at = now()
+                WHERE id = ${row!.id}`;
     })().catch((err) => ctx.log.warn({ err }, 'trip labelling failed'));
   }
+}
+
+/**
+ * Name trips that ended up without a start or end label: saved places first,
+ * then the geocoder (a business you stopped at, or the street). Runs in the
+ * background so trips recorded before a geocoder was configured get names too.
+ * Each trip is tried once; Nominatim's 1 request/second limit is respected.
+ */
+export async function labelUnnamedTrips(ctx: Ctx, limit = 25): Promise<number> {
+  const { sql } = ctx;
+  if (!(await ctx.geocoder.enabled())) return 0;
+  const trips = await sql<{ id: string; user_id: string; start_lat: number; start_lon: number; end_lat: number; end_lon: number; start_label: string | null; end_label: string | null }[]>`
+    SELECT id, user_id, start_lat, start_lon, end_lat, end_lon, start_label, end_label FROM trips
+    WHERE status = 'completed' AND labelled_at IS NULL AND (start_label IS NULL OR end_label IS NULL)
+    ORDER BY started_at DESC LIMIT ${limit}`;
+  for (const t of trips) {
+    const label = async (lat: number, lon: number) => {
+      const place = await placeAt(ctx, t.user_id, lat, lon);
+      return { name: place?.name ?? (await ctx.geocoder.reverse(lat, lon)), placeId: place?.id ?? null };
+    };
+    const s = t.start_label ? null : await label(t.start_lat, t.start_lon);
+    const e = t.end_label ? null : await label(t.end_lat, t.end_lon);
+    await sql`
+      UPDATE trips SET
+        start_label = COALESCE(start_label, ${s?.name ?? null}),
+        end_label = COALESCE(end_label, ${e?.name ?? null}),
+        start_place_id = COALESCE(start_place_id, ${s?.placeId ?? null}),
+        end_place_id = COALESCE(end_place_id, ${e?.placeId ?? null}),
+        labelled_at = now()
+      WHERE id = ${t.id}`;
+  }
+  return trips.length;
 }

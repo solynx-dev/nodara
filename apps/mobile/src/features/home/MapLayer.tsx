@@ -6,6 +6,7 @@ import { ago, firstName, formatSpeed, freshness, type Units } from '@/lib/format
 import { stayDuration } from '@/lib/status';
 import { C } from '@/lib/theme';
 import { Avatar } from '@/components/ui';
+import { useLiveDrive } from './useLiveDrive';
 import { liveSpeed, redSpeedMps, speedUnit, speedValue } from '@/lib/driving';
 import { PlaceSymbol } from './placeIcons';
 
@@ -89,14 +90,27 @@ export const NodaraMap = forwardRef<
     onSelect: (id: string) => void;
     onGroupPress: (members: MemberLocation[]) => void;
     onPlacePress: (p: PlaceWithMeta) => void;
+    /** Called about once a second with the selected person's smoothed position while they drive. */
+    onFollow?: (lat: number, lon: number) => void;
     onLongPress: (lat: number, lon: number) => void;
     onMapPress: () => void;
   }
->(function NodaraMap({ members, places, meId, units, selectedId, mapType, region, bottomInset, attributionInsets, onRegion, onSelect, onGroupPress, onPlacePress, onLongPress, onMapPress }, ref) {
+>(function NodaraMap({ members, places, meId, units, selectedId, mapType, region, bottomInset, attributionInsets, onRegion, onSelect, onGroupPress, onPlacePress, onLongPress, onMapPress, onFollow }, ref) {
   const screen = useWindowDimensions();
   const view = region ?? { latitude: 0, longitude: 0, latitudeDelta: 0.2, longitudeDelta: 0.2 };
   const tier = tierFor(view.latitudeDelta);
-  const located = useMemo(() => members.filter((m) => m.location), [members]);
+  // Drivers glide along their real path instead of jumping between uploads.
+  const smooth = useLiveDrive(members, selectedId, onFollow);
+  const located = useMemo(
+    () =>
+      members
+        .filter((m) => m.location)
+        .map((m) => {
+          const s = smooth.get(m.id);
+          return s ? { ...m, location: { ...m.location!, lat: s.lat, lon: s.lon, speed: s.speed ?? m.location!.speed } } : m;
+        }),
+    [members, smooth],
+  );
   // Cheap for family-sized circles; region only changes when a pan or zoom finishes.
   const groups = groupMembers(located, view, tier, screen);
   const occupied = new Set(located.filter((m) => m.currentPlace).map((m) => m.currentPlace!.id));

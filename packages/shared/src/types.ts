@@ -155,10 +155,22 @@ export interface PublicConfig {
   driving?: { speedingKmh: number };
 }
 
+/**
+ * Fixes from one upload, oldest first, sent along with a live location so
+ * viewers can animate along the real path (phones upload in small batches).
+ */
+export interface TrailPoint {
+  t: string;
+  lat: number;
+  lon: number;
+  speed: number | null;
+  heading: number | null;
+}
+
 /** Messages the server pushes over the realtime WebSocket. */
 export type ServerEvent =
   | { type: 'hello'; userId: string }
-  | { type: 'location'; userId: string; location: LocationFix }
+  | { type: 'location'; userId: string; location: LocationFix; trail?: TrailPoint[] }
   | { type: 'sharing'; userId: string; circleId: string | null; sharing: boolean }
   | { type: 'notification'; notification: AppNotification }
   | { type: 'trip'; userId: string; tripId: string; status: 'in_progress' | 'completed' }

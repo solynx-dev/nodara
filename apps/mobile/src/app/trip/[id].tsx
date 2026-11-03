@@ -16,6 +16,9 @@ import { Avatar, Skeleton, StatusPill } from '@/components/ui';
 import { modeIcon, tripTitle } from '@/features/trips/Drives';
 import { EventList } from '@/features/driving/components';
 import { KIND_INFO } from '@/lib/driving';
+import { ReplayBar, useReplay } from '@/features/trips/Replay';
+
+const NO_SAMPLES: TripDetail['samples'] = [];
 
 export default function TripScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,9 +33,11 @@ export default function TripScreen() {
   });
   const coords = useMemo(() => (trip?.route ?? []).map(([lon, lat]) => ({ latitude: lat, longitude: lon })), [trip?.route]);
   const person = members.find((m) => m.id === trip?.userId);
+  // Finished drives replay on the map by themselves, like the web app's history playback.
+  const replay = useReplay(trip?.samples ?? NO_SAMPLES, Boolean(trip) && trip?.status !== 'in_progress');
 
   useEffect(() => {
-    if (coords.length > 1) setTimeout(() => map.current?.fitToCoordinates(coords, { edgePadding: { top: 50, right: 50, bottom: 50, left: 50 }, animated: true }), 250);
+    if (coords.length > 1) setTimeout(() => map.current?.fitToCoordinates(coords, { edgePadding: { top: 50, right: 50, bottom: 90, left: 50 }, animated: true }), 250);
   }, [coords]);
 
   if (isLoading || !trip) {
@@ -70,9 +75,20 @@ export default function TripScreen() {
       </Stack.Toolbar>
 
       <Animated.View entering={appear} style={{ height: 320, marginHorizontal: 16, marginTop: 8, borderRadius: 28, borderCurve: 'continuous', overflow: 'hidden' }}>
-        <MapView ref={map} style={{ flex: 1 }} mapType="mutedStandard" pitchEnabled={false} showsPointsOfInterests={false}>
+        <MapView
+          ref={map}
+          style={{ flex: 1 }}
+          mapType="mutedStandard"
+          pitchEnabled={false}
+          showsPointsOfInterests={false}
+          legalLabelInsets={{ top: 0, right: 0, left: 62, bottom: replay.usable ? 72 : 8 }}
+          appleLogoInsets={{ top: 0, right: 0, left: 14, bottom: replay.usable ? 72 : 8 }}
+        >
           {coords.length > 1 && <Polyline coordinates={coords} strokeColor="rgba(0,0,0,0.25)" strokeWidth={9} lineCap="round" lineJoin="round" />}
-          {coords.length > 1 && <Polyline coordinates={coords} strokeColor="#FF6B3D" strokeWidth={5} lineCap="round" lineJoin="round" />}
+          {coords.length > 1 && (
+            <Polyline coordinates={coords} strokeColor={replay.active ? 'rgba(255,107,61,0.35)' : '#FF6B3D'} strokeWidth={5} lineCap="round" lineJoin="round" />
+          )}
+          {replay.travelled && replay.travelled.length > 1 && <Polyline coordinates={replay.travelled} strokeColor="#FF6B3D" strokeWidth={5} lineCap="round" lineJoin="round" />}
           {first && (
             <Marker coordinate={first} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false} title="Start">
               <Pin color={HEX.green} icon="flag.fill" />
@@ -93,7 +109,21 @@ export default function TripScreen() {
               <Pin color={KIND_INFO[e.kind].color} icon={KIND_INFO[e.kind].icon} small />
             </Marker>
           ))}
+          {replay.active && replay.position && (
+            <Marker coordinate={{ latitude: replay.position.lat, longitude: replay.position.lon }} zIndex={10}>
+              <View collapsable={false} style={{ padding: 3, borderRadius: 20, backgroundColor: 'white', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }}>
+                {person ? (
+                  <Avatar name={person.displayName} color={person.avatarColor} url={person.avatarUrl} size={32} />
+                ) : (
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' }}>
+                    <SymbolView name="car.fill" size={15} tintColor="white" />
+                  </View>
+                )}
+              </View>
+            </Marker>
+          )}
         </MapView>
+        <ReplayBar replay={replay} units={units} color="#FF6B3D" />
       </Animated.View>
 
       <Animated.View entering={appear} style={{ paddingHorizontal: 20, gap: 6 }}>
