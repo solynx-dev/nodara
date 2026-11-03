@@ -3,7 +3,7 @@
     "name": "Nodara",
     "slug": "nodara",
     "scheme": "nodara",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -20,7 +20,11 @@
           "owntracks"
         ],
         "NSLocationUsageDescription": "Nodara shares your location with the circles you choose, on the server you connect to."
-      }
+      },
+      "associatedDomains": [
+        "webcredentials:nodara.ca",
+        "webcredentials:demo.nodara.ca"
+      ]
     },
     "android": {
       "package": "ca.nodara.app",
@@ -75,7 +79,8 @@
             "backgroundColor": "#0C0E12"
           }
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": false

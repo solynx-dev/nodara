@@ -158,6 +158,13 @@ export default function CirclePage() {
             />
             <Switch disabled={!isAdmin} checked={circle.settings.tripsVisible} onChange={(v) => update.mutate({ settings: { tripsVisible: v } })} label="Members can view trips" />
             <Switch disabled={!isAdmin} checked={circle.settings.membersCanInvite} onChange={(v) => update.mutate({ settings: { membersCanInvite: v } })} label="Members can invite" />
+            <Switch
+              disabled={!isAdmin}
+              checked={circle.settings.bubblesAllowed !== false}
+              onChange={(v) => update.mutate({ settings: { bubblesAllowed: v } })}
+              label="Allow bubbles"
+              description="Members can show just a general area for a few hours. Turn off to always see exact locations in this circle."
+            />
             {!isAdmin && <p className="text-[12.5px] text-muted">Only circle admins can change these.</p>}
           </Card>
 

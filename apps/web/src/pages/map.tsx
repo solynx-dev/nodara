@@ -330,7 +330,14 @@ function MemberDetail({ member, onBack, onFocus }: { member: MemberLocation; onB
           </div>
         </button>
 
-        {!loc ? (
+        {!loc && member.bubble ? (
+          <div className="mt-4 rounded-2xl border border-[#AF52DE]/40 bg-[#AF52DE]/10 p-4 text-[14px] text-ink-2">
+            <b>{firstName(member.displayName)} is in a bubble</b> until {clock(member.bubble.endsAt)}: you see a general area
+            {member.bubble.label ? ` around ${member.bubble.label}` : ''} (about {formatDistance(member.bubble.radiusM, units)}) instead of their exact location.
+            Places, trips and drives from that time stay private.
+            {member.bubble.battery != null && <div className="mt-2 text-[13px] text-muted">Battery {member.bubble.battery}%{member.bubble.seenAt ? ` · phone checked in ${ago(member.bubble.seenAt)}` : ''}</div>}
+          </div>
+        ) : !loc ? (
           <div className="mt-4 rounded-2xl bg-surface-2 p-4 text-[14px] text-muted">
             {member.sharing ? `${firstName(member.displayName)} hasn't shared a location yet.` : `${firstName(member.displayName)} isn't sharing their location with you right now.`}
           </div>

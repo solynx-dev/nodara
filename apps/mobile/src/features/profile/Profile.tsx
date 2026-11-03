@@ -7,7 +7,7 @@ import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useMe } from '@/lib/session';
 import { useAddress, useDayTimeline, useTripPages, useWeekTrips, type TimelineItem } from '@/lib/queries';
 import { ago, clock, firstName, formatDistance, formatDuration, formatStay, freshness, weekdayShort } from '@/lib/format';
-import { describeMember } from '@/lib/status';
+import { BUBBLE_COLOR, bubbleArea, describeMember } from '@/lib/status';
 import { C, HEX, T } from '@/lib/theme';
 import type { MemberLocation, PlaceEvent } from '@/lib/types';
 import { ApiError } from '@/lib/api';
@@ -83,6 +83,43 @@ function NowCard({ m, ev }: { m: MemberLocation; ev?: PlaceEvent }) {
   const moving = Boolean(loc && (loc.speed ?? 0) > 1.5 && f === 'live');
   const name = isMe ? 'You' : firstName(m.displayName);
 
+  // In a bubble: a general area only, plus battery and when their phone last checked in.
+  if (!loc && m.bubble) {
+    const b = m.bubble;
+    return (
+      <Animated.View entering={appear} style={styles.card}>
+        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+          <View style={[styles.placeIcon, { backgroundColor: BUBBLE_COLOR }]}>
+            <SymbolView name="circle.dashed" size={20} weight="bold" tintColor="white" />
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[T.title3, { color: C.label }]} numberOfLines={2}>
+              {s.where}
+            </Text>
+            <Text style={[T.footnote, { color: C.secondaryLabel }]}>
+              {name} is sharing only a general area until {clock(b.endsAt)}.
+            </Text>
+          </View>
+        </View>
+        <View style={styles.facts}>
+          <Fact
+            icon={b.charging ? 'battery.100percent.bolt' : (b.battery ?? 100) <= 20 ? 'battery.25percent' : 'battery.75percent'}
+            value={b.battery != null ? `${b.battery}%` : '—'}
+            label={b.charging ? 'Charging' : 'Battery'}
+            tone={b.battery != null && b.battery <= 15 && !b.charging ? HEX.red : undefined}
+          />
+          <View style={styles.factSep} />
+          <Fact icon="clock" value={b.seenAt ? ago(b.seenAt).replace(' ago', '') : '—'} label="Last check-in" />
+          <View style={styles.factSep} />
+          <Fact icon="circle.dashed" value={formatDistance(b.radiusM, units)} label="Area" />
+        </View>
+        <Text style={[T.footnote, { color: C.secondaryLabel, lineHeight: 18 }]}>
+          Places, trips and drives from while the bubble is on stay private. It ends early if {name} leaves the area.
+        </Text>
+      </Animated.View>
+    );
+  }
+
   if (!loc) {
     return (
       <Animated.View entering={appear} style={styles.card}>
@@ -103,6 +140,15 @@ function NowCard({ m, ev }: { m: MemberLocation; ev?: PlaceEvent }) {
 
   return (
     <Animated.View entering={appear} style={styles.card}>
+      {isMe && m.bubble && (
+        <Tap onPress={() => router.push('/bubble')} style={styles.bubbleBanner} accessibilityRole="button" accessibilityLabel="Manage your bubble">
+          <SymbolView name="circle.dashed.inset.filled" size={18} tintColor={BUBBLE_COLOR} />
+          <Text style={[T.footnote, { color: C.label, flex: 1, lineHeight: 18 }]}>
+            <Text style={{ fontWeight: '700' }}>Bubble on until {clock(m.bubble.endsAt)}.</Text> Your circles see “{bubbleArea(m.bubble, units)}”.
+          </Text>
+          <SymbolView name="chevron.right" size={12} weight="semibold" tintColor={C.tertiaryLabel} />
+        </Tap>
+      )}
       <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
         <View style={[styles.placeIcon, { backgroundColor: m.currentPlace?.color ?? (moving ? HEX.blue : C.accent) }]}>
           {m.currentPlace ? <PlaceSymbol icon={m.currentPlace.icon} size={20} color="white" /> : <SymbolView name={moving ? 'car.fill' : 'mappin'} size={20} tintColor="white" />}
@@ -344,6 +390,7 @@ const styles = StyleSheet.create({
   facts: { flexDirection: 'row', alignItems: 'center' },
   factSep: { width: StyleSheet.hairlineWidth, height: 30, backgroundColor: C.separator },
   warn: { padding: 12, borderRadius: 16, backgroundColor: 'rgba(255,149,0,0.14)', flexDirection: 'row', gap: 10 },
+  bubbleBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 16, backgroundColor: `${BUBBLE_COLOR}1F` },
   action: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 46, borderRadius: 23, backgroundColor: C.fill },
   dayChip: { paddingHorizontal: 16, height: 36, borderRadius: 18, backgroundColor: C.cell, alignItems: 'center', justifyContent: 'center' },
   dayChipText: { fontSize: 15, fontWeight: '600', color: C.label },

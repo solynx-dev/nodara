@@ -24,11 +24,55 @@ function useAfterLogin() {
   };
 }
 
+/** Enter the code emailed to a new account; then the caller signs in again. */
+function VerifyEmailStep({ email, onVerified, onBack }: { email: string; onVerified: () => Promise<void>; onBack: () => void }) {
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [resent, setResent] = useState(false);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post('/api/auth/verify-email', { email, code });
+      await onVerified();
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <AuthLayout title="Confirm your email" subtitle={`We sent a 6-digit code to ${email}. Enter it to finish signing in.`}>
+      <form onSubmit={submit} className="space-y-4">
+        <Input label="Code" value={code} onChange={(e) => setCode(e.target.value)} autoComplete="one-time-code" inputMode="numeric" autoFocus required />
+        <ErrorNote error={error} />
+        <Button type="submit" variant="primary" size="lg" className="w-full" loading={busy} disabled={code.replace(/\D/g, '').length < 6}>
+          Confirm & sign in
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          className="w-full"
+          disabled={resent}
+          onClick={() => void api.post('/api/auth/resend-verification', { email }).then(() => setResent(true), setError)}
+        >
+          {resent ? 'New code sent' : 'Send a new code'}
+        </Button>
+        <Button type="button" variant="ghost" className="w-full" onClick={onBack}>
+          Back
+        </Button>
+      </form>
+    </AuthLayout>
+  );
+}
+
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
-  const [step, setStep] = useState<'password' | 'totp'>('password');
+  const [step, setStep] = useState<'password' | 'totp' | 'verify'>('password');
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const done = useAfterLogin();
@@ -38,15 +82,25 @@ export function LoginPage() {
   if (config?.needsSetup) return <Navigate to="/setup" replace />;
   if (me) return <Navigate to={safeNext(params.get('next'))} replace />;
 
+  const login = async () => {
+    const r = await api.post<{ user?: Me; twoFactorRequired?: boolean }>('/api/auth/login', { email, password });
+    if (r.twoFactorRequired) setStep('totp');
+    else await done(r.user!);
+  };
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
       if (step === 'password') {
-        const r = await api.post<{ user?: Me; twoFactorRequired?: boolean }>('/api/auth/login', { email, password });
-        if (r.twoFactorRequired) setStep('totp');
-        else await done(r.user!);
+        try {
+          await login();
+        } catch (err) {
+          // Accounts that still need to confirm their email get a code instead.
+          if (err instanceof ApiError && err.code === 'email_unverified') setStep('verify');
+          else throw err;
+        }
       } else {
         const r = await api.post<{ user: Me }>('/api/auth/2fa', { code });
         await done(r.user);
@@ -74,6 +128,8 @@ export function LoginPage() {
       setBusy(false);
     }
   };
+
+  if (step === 'verify') return <VerifyEmailStep email={email} onVerified={login} onBack={() => setStep('password')} />;
 
   if (step === 'totp') {
     return (
@@ -184,22 +240,29 @@ export function RegisterPage({ inviteToken, circleName }: { inviteToken?: string
   const [form, setForm] = useState({ displayName: '', email: '', password: '' });
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const [verify, setVerify] = useState(false);
   const done = useAfterLogin();
   const { data: config } = useConfig();
   const closed = !inviteToken && config && config.registrationPolicy !== 'open';
+  const signInAfterVerify = async () => {
+    const r = await api.post<{ user?: Me; twoFactorRequired?: boolean }>('/api/auth/login', { email: form.email, password: form.password });
+    await done(r.user!);
+  };
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      const r = await api.post<{ user: Me }>('/api/auth/register', { ...form, inviteToken });
-      await done(r.user);
+      const r = await api.post<{ user?: Me; verificationRequired?: boolean }>('/api/auth/register', { ...form, inviteToken });
+      if (r.verificationRequired) setVerify(true);
+      else await done(r.user!);
     } catch (err) {
       setError(err);
     } finally {
       setBusy(false);
     }
   };
+  if (verify) return <VerifyEmailStep email={form.email.trim().toLowerCase()} onVerified={signInAfterVerify} onBack={() => setVerify(false)} />;
   return (
     <AuthLayout
       title={circleName ? `Join ${circleName}` : 'Create your account'}
@@ -247,7 +310,7 @@ export function ForgotPasswordPage() {
     }
   };
   return (
-    <AuthLayout title="Reset your password" subtitle="We'll email you a link to choose a new one." footer={<Link to="/login" className="font-bold text-accent-text">Back to sign in</Link>}>
+    <AuthLayout title="Reset your password" subtitle="We'll email you a link (and a code for the iPhone app) to choose a new one." footer={<Link to="/login" className="font-bold text-accent-text">Back to sign in</Link>}>
       {sent ? (
         <div className="rounded-2xl border border-line bg-surface p-5 text-[14px] leading-relaxed">
           <MailCheck className="mb-3 size-6 text-success" />
@@ -350,6 +413,49 @@ export function VerifyEmailPage() {
           <ErrorNote error={error} />
           <Button variant="primary" size="lg" className="w-full" onClick={verify}>
             Confirm email address
+          </Button>
+        </div>
+      )}
+    </AuthLayout>
+  );
+}
+
+/** Opened from the "confirm your new email" link. Works signed in or out. */
+export function ConfirmEmailPage() {
+  const [params] = useSearchParams();
+  const [state, setState] = useState<'idle' | 'ok' | 'error'>('idle');
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState<unknown>(null);
+  const qc = useQueryClient();
+  const confirm = async () => {
+    try {
+      const r = await api.post<{ email: string }>('/api/auth/confirm-email', { token: params.get('token') ?? '' });
+      setEmail(r.email);
+      setState('ok');
+      qc.invalidateQueries({ queryKey: ['me'] });
+    } catch (e) {
+      setError(e instanceof ApiError ? e : new Error('Confirmation failed'));
+      setState('error');
+    }
+  };
+  return (
+    <AuthLayout title="Confirm your new email">
+      {state === 'ok' ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-[14px]">
+            <CheckCircle2 className="size-6 shrink-0 text-success" /> Done. Sign in with {email} from now on.
+          </div>
+          <Link to="/">
+            <Button variant="primary" size="lg" className="w-full">
+              Continue
+            </Button>
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <ErrorNote error={error} />
+          <Button variant="primary" size="lg" className="w-full" onClick={confirm} icon={<MailCheck className="size-4" />}>
+            Use this email for my account
           </Button>
         </div>
       )}

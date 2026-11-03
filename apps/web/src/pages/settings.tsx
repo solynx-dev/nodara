@@ -144,7 +144,67 @@ function AccountSection() {
           )}
         </div>
       </Panel>
+      <EmailPanel />
     </>
+  );
+}
+
+/** Move the account to a new address: the new one confirms with a code (or link); the old one is told. */
+function EmailPanel() {
+  const me = useUser();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [code, setCode] = useState('');
+  const setMe = (user: Me) => qc.setQueryData(['me'], user);
+  const request = useMutation({
+    mutationFn: () => api.post<{ changed: boolean; user: Me }>('/api/me/email', form),
+    onSuccess: (r) => {
+      setMe(r.user);
+      setForm({ email: '', password: '' });
+      if (r.changed) toast({ tone: 'success', title: 'Email changed' });
+    },
+  });
+  const confirm = useMutation({
+    mutationFn: () => api.post<{ user: Me }>('/api/me/email/confirm', { code }),
+    onSuccess: (r) => {
+      setMe(r.user);
+      setCode('');
+      toast({ tone: 'success', title: 'Email changed', body: `Sign in with ${r.user.email} from now on.` });
+    },
+  });
+  const cancel = useMutation({ mutationFn: () => api.del<{ user: Me }>('/api/me/email/pending'), onSuccess: (r) => setMe(r.user) });
+  return (
+    <Panel title="Email address" description="Used to sign in, reset your password and receive security notices.">
+      {me.pendingEmail ? (
+        <div className="space-y-3">
+          <p className="text-[14px]">
+            Enter the 6-digit code we sent to <b>{me.pendingEmail}</b>, or open the link in that email. Until then you keep signing in with {me.email}.
+          </p>
+          <div className="flex gap-2">
+            <Input className="flex-1" label="Code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />
+            <Button className="self-end" variant="primary" disabled={code.replace(/\D/g, '').length < 6} loading={confirm.isPending} onClick={() => confirm.mutate()}>
+              Confirm
+            </Button>
+          </div>
+          <ErrorNote error={confirm.error ?? cancel.error} />
+          <Button size="sm" variant="ghost" onClick={() => cancel.mutate()} loading={cancel.isPending}>
+            Cancel the change
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input type="email" label="New email" autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <Input type="password" label="Current password" autoComplete="current-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          </div>
+          <ErrorNote error={request.error} />
+          <Button variant="primary" disabled={!form.email.includes('@') || !form.password} loading={request.isPending} onClick={() => request.mutate()}>
+            Change email
+          </Button>
+        </div>
+      )}
+    </Panel>
   );
 }
 

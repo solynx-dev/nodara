@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { Activity, Copy, Database, FileClock, Plus, Settings2, ShieldCheck, Users } from 'lucide-react';
 import { api } from '@/lib/api';
 import { ago } from '@/lib/format';
-import { useUser } from '@/lib/queries';
+import { useConfig, useUser } from '@/lib/queries';
 import { Avatar, Badge, Button, Card, cx, Dialog, ErrorNote, Input, Select, Skeleton, Stat, Switch } from '@/components/ui';
 import { BarChart } from '@/components/charts';
 import { useToast } from '@/components/toast';
@@ -323,6 +323,7 @@ interface SysSettings {
   geocodingEnabled: boolean;
   offlineAfterMinutes: number;
   geofenceCooldownSec: number;
+  requireEmailVerification: boolean;
   trip: { departRadiusM: number; endAfterSec: number; minDistanceM: number };
 }
 
@@ -347,6 +348,11 @@ function SettingsSection() {
     onError: (e) => toast({ tone: 'error', title: (e as Error).message }),
   });
   const runRetention = useMutation({ mutationFn: () => api.post<{ results: unknown[] }>('/api/admin/retention/run'), onSuccess: (r) => toast({ tone: 'success', title: `Retention applied to ${r.results.length} users` }) });
+  const { data: config } = useConfig();
+  const testEmail = useMutation({
+    mutationFn: () => api.post<{ ok: boolean; to?: string; error?: string }>('/api/admin/email/test'),
+    onSuccess: (r) => toast(r.ok ? { tone: 'success', title: `Test email sent to ${r.to}` } : { tone: 'error', title: 'Email failed', body: r.error }),
+  });
   if (!s) return <Skeleton className="h-96" />;
   return (
     <div className="grid gap-5 lg:grid-cols-2">
@@ -357,6 +363,24 @@ function SettingsSection() {
           <option value="open">Open — anyone who can reach this server</option>
           <option value="closed">Closed — administrators create accounts</option>
         </Select>
+        <Switch
+          checked={s.requireEmailVerification}
+          disabled={!config?.emailEnabled}
+          onChange={(v) => setS({ ...s, requireEmailVerification: v })}
+          label="New accounts must confirm their email"
+          description="New users get a 6-digit code by email and can't sign in until they enter it. Needs email (SMTP) to be set up."
+        />
+      </Card>
+      <Card className="space-y-4 p-5">
+        <h2 className="text-[15px] font-bold">Email</h2>
+        <p className="text-[13.5px] text-ink-2">
+          {config?.emailEnabled
+            ? 'Email is set up. Nodara sends verification codes, password resets, email-change confirmations and security notices.'
+            : 'Email is off. Set SMTP_URL and SMTP_FROM in the server environment and restart to send verification codes, password resets and security notices.'}
+        </p>
+        <Button size="sm" onClick={() => testEmail.mutate()} loading={testEmail.isPending} disabled={!config?.emailEnabled}>
+          Send me a test email
+        </Button>
       </Card>
       <Card className="space-y-4 p-5">
         <h2 className="text-[15px] font-bold">Data retention</h2>

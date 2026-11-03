@@ -31,6 +31,10 @@ function apply(qc: QueryClient, e: ServerEvent) {
       qc.invalidateQueries({ queryKey: ['circle'] });
       qc.invalidateQueries({ queryKey: ['place-events'] });
     // falls through
+    case 'bubble':
+      qc.invalidateQueries({ queryKey: ['bubble'] });
+      qc.invalidateQueries({ queryKey: ['place-events'] });
+    // falls through
     case 'sharing':
     case 'circle':
       qc.invalidateQueries({ queryKey: ['live'] });

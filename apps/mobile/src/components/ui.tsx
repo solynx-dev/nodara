@@ -72,10 +72,10 @@ export function GlassButton({ icon, label, onPress, badge, size = 48, tintIcon }
   );
 }
 
-export function GlassPill({ icon, label, onPress, accent, sub }: { icon: SFSymbol; label: string; onPress: () => void; accent?: boolean; sub?: string }) {
+export function GlassPill({ icon, label, onPress, accent, sub, tint }: { icon: SFSymbol; label: string; onPress: () => void; accent?: boolean; sub?: string; tint?: string }) {
   return (
-    <Tap accessibilityRole="button" accessibilityLabel={label} onPress={onPress} haptic="light">
-      <Glass tint={accent ? 'rgba(255,107,61,0.85)' : undefined} style={styles.pill}>
+    <Tap accessibilityRole="button" accessibilityLabel={sub ? `${label}, ${sub}` : label} onPress={onPress} haptic="light">
+      <Glass tint={accent ? (tint ?? 'rgba(255,107,61,0.85)') : undefined} style={styles.pill}>
         <SymbolView name={icon} size={18} weight="semibold" tintColor={accent ? 'white' : C.label} />
         <View>
           <Text style={[styles.pillText, accent && { color: 'white' }]}>{label}</Text>

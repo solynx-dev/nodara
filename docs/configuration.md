@@ -23,9 +23,21 @@ Nodara is configured with environment variables (in Docker, via `.env`). Setting
 |---|---|---|
 | `REGISTRATION_POLICY` | `invite` | **admin UI.** `open` (anyone), `invite` (needs a circle invitation link), `closed` (administrators create accounts). |
 | `SETUP_TOKEN` | — | If set, the first-run setup screen requires it. Recommended when the server is publicly reachable before setup. |
-| `REQUIRE_EMAIL_VERIFICATION` | `false` | Block sign-in until the email is verified. Only enforced when SMTP is configured. |
-| `SMTP_URL` | — | e.g. `smtp://user:pass@smtp.example.com:587` or `smtps://…:465`. Without it, emails (verification, reset) are written to the server log. |
-| `SMTP_FROM` | `Nodara <nodara@localhost>` | Sender address. |
+| `REQUIRE_EMAIL_VERIFICATION` | `false` | **admin UI.** New accounts must enter the 6-digit code emailed to them before they can sign in. Only enforced when SMTP is configured. |
+| `SMTP_URL` | — | e.g. `smtp://user:pass@smtp.example.com:587` or `smtps://…:465`. Without it, emails are written to the server log instead, and email changes happen immediately (after a password check). |
+| `SMTP_FROM` | `Nodara <nodara@localhost>` | Sender address, e.g. `Nodara <no-reply@example.com>`. Use an address your SMTP provider is allowed to send from. |
+| `APPLE_APP_IDS` | `2S4C3A5ZF2.ca.nodara.app` | iOS apps allowed to use passkeys for this domain, published at `/.well-known/apple-app-site-association`. The App Store app is only entitled to `nodara.ca` and `demo.nodara.ca`; on other domains passkeys are added from the web app. Empty turns the file off. |
+
+### Email
+
+With SMTP configured, Nodara sends:
+
+- **Verification** when someone registers (a link and a 6-digit code), and again on request.
+- **Password resets**: a link and a 6-digit code, valid for 2 hours. The iOS app uses the code, so nobody has to leave the app.
+- **Email changes**: a code and link to the *new* address (valid 24 hours), a heads-up to the old address, and a notice once it changes.
+- **Security notices**: password changed or reset, two-step verification turned on or off, a passkey added.
+
+After setting `SMTP_URL`/`SMTP_FROM`, recreate the container (`docker compose up -d`, not `restart`, so the new `.env` is read), then use **Administration → Settings → Send me a test email**. If it fails, the error from your SMTP server is shown there.
 
 ## Maps & geocoding
 
@@ -64,6 +76,7 @@ MAP_STYLES=[{"id":"streets","name":"Streets","url":"https://tiles.example.com/st
 - Device-offline alert threshold (default 120 min)
 - Geofence cooldown (default 180 s)
 - Trip detection: departure distance (200 m), stop duration that ends a trip (5 min), minimum trip distance (400 m)
+- Whether new accounts must confirm their email (defaults to `REQUIRE_EMAIL_VERIFICATION`)
 
 ## Development / tests
 

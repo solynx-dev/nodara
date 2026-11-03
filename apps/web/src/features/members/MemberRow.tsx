@@ -27,6 +27,7 @@ export function FreshDot({ iso }: { iso: string | null | undefined }) {
 export function useWhereLabel(m: MemberLocation) {
   const loc = m.location;
   const { data: address } = useAddress(loc?.lat, loc?.lon);
+  if (!loc && m.bubble) return m.bubble.label ? `In a bubble around ${m.bubble.label}` : 'In a bubble';
   if (!m.sharing && !loc) return 'Not sharing location';
   if (!loc) return 'No location yet';
   if (m.currentPlace) return `At ${m.currentPlace.name}`;
@@ -59,13 +60,22 @@ export function MemberRow({ member, onClick, selected }: { member: MemberLocatio
           {member.inTrip && <Car className="size-3.5 shrink-0 text-accent" />}
         </div>
         <div className="flex items-center gap-1.5 text-[13px] text-muted">
-          {!member.sharing && !loc ? <EyeOff className="size-3.5" /> : <FreshDot iso={loc?.recordedAt} />}
+          {!loc && member.bubble ? (
+            <span className="inline-block size-2 shrink-0 rounded-full border border-[#AF52DE]" />
+          ) : !member.sharing && !loc ? (
+            <EyeOff className="size-3.5" />
+          ) : (
+            <FreshDot iso={loc?.recordedAt} />
+          )}
           <span className="truncate">{where}</span>
         </div>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-0.5">
         {loc && <span className={cx('text-[12px] font-semibold', f === 'stale' || f === 'old' ? 'text-warning' : 'text-muted')}>{f === 'live' ? (moving ? formatSpeed(loc.speed, me.preferences.units) : 'Now') : ago(loc.recordedAt)}</span>}
-        <BatteryIndicator level={loc?.battery ?? null} charging={loc?.charging ?? null} />
+        {!loc && member.bubble && (
+          <span className="text-[12px] font-semibold text-[#AF52DE]">until {new Date(member.bubble.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+        )}
+        <BatteryIndicator level={loc?.battery ?? member.bubble?.battery ?? null} charging={loc?.charging ?? member.bubble?.charging ?? null} />
       </div>
     </button>
   );

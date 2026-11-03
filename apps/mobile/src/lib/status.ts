@@ -1,5 +1,5 @@
 import type { SFSymbol } from 'expo-symbols';
-import { ago, firstName, formatSpeed, formatStay, freshness, sinceLabel, type Units } from './format';
+import { ago, clock, firstName, formatDistance, formatSpeed, formatStay, freshness, sinceLabel, type Units } from './format';
 import { HEX } from './theme';
 import { redSpeedMps } from './driving';
 import type { MemberLocation, PlaceEvent } from './types';
@@ -19,8 +19,25 @@ export interface MemberStatus {
 
 const MOVING = 1.5; // m/s
 
+/** Bubbles are drawn in purple everywhere. */
+export const BUBBLE_COLOR = '#AF52DE';
+
+/** "Around Dieppe (5 km)" / "In a bubble (5 km)". */
+export const bubbleArea = (b: { label: string | null; radiusM: number }, units: Units) =>
+  `${b.label ? `Around ${b.label}` : 'Somewhere nearby'} (${formatDistance(b.radiusM, units)})`;
+
 export function describeMember(m: MemberLocation, ev: PlaceEvent | undefined, address: string | null | undefined, units: Units): MemberStatus {
   const loc = m.location;
+  if (!loc && m.bubble) {
+    return {
+      where: m.bubble.label ? `Somewhere around ${m.bubble.label}` : 'In a bubble',
+      pill: { text: `Bubble until ${clock(m.bubble.endsAt)}`, color: BUBBLE_COLOR, icon: 'circle.dashed' },
+      since: null,
+      stayFor: null,
+      live: false,
+      stale: false,
+    };
+  }
   if (!loc) {
     return m.sharing
       ? { where: 'Waiting for a first location', pill: { text: 'No location yet', color: HEX.gray, icon: 'location.slash' }, since: null, stayFor: null, live: false, stale: false }
@@ -75,8 +92,13 @@ export function circleSummary(members: MemberLocation[]): string {
   let moving = 0;
   let outdated = 0;
   let off = 0;
+  let bubbles = 0;
   for (const m of members) {
     const l = m.location;
+    if (!l && m.bubble) {
+      bubbles++;
+      continue;
+    }
     if (!l) {
       off++;
       continue;
@@ -89,6 +111,7 @@ export function circleSummary(members: MemberLocation[]): string {
   const parts = [
     atPlaces && `${atPlaces} at a saved place`,
     moving && `${moving} on the move`,
+    bubbles && `${bubbles} in a bubble`,
     outdated && `${outdated} not updated recently`,
     off && `${off} not sharing`,
   ].filter(Boolean);

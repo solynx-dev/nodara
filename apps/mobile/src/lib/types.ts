@@ -5,9 +5,11 @@ import type { DrivingKind } from './driving';
 
 export type {
   AppNotification,
+  Bubble,
   Circle,
   LocationFix,
   Me,
+  MemberBubble,
   MemberLocation,
   Place,
   PublicConfig,
@@ -48,7 +50,7 @@ export interface CircleDetail {
   role: 'owner' | 'admin' | 'member';
   sharing: boolean;
   memberCount: number;
-  settings: { historyVisible: boolean; tripsVisible: boolean; membersCanInvite: boolean };
+  settings: { historyVisible: boolean; tripsVisible: boolean; membersCanInvite: boolean; bubblesAllowed?: boolean };
   notify: { muted: boolean };
   members: CircleMember[];
 }
@@ -135,4 +137,10 @@ export interface DrivingReport {
     previous: DrivingCounts;
   };
   people: DrivingPerson[];
+}
+
+/** Your bubble, and which circles it hides you from. */
+export interface BubbleState {
+  bubble: import('@shared/types').Bubble | null;
+  circles: { id: string; name: string; color: string; allowed: boolean; sharing: boolean }[];
 }

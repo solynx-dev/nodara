@@ -47,7 +47,11 @@ function PersonCard({ m, ev, onPress, index }: { m: MemberLocation; ev?: PlaceEv
     <Card onPress={onPress} index={index} label={`${m.displayName}, ${s.where}${detail ? `, ${detail}` : ''}, ${s.pill.text}. Opens profile.`}>
       <View>
         <Avatar name={m.displayName} color={m.avatarColor} url={m.avatarUrl} size={58} dim={!loc || s.stale} />
-        {loc?.battery != null && <BatteryBadge level={loc.battery} charging={loc.charging} />}
+        {loc?.battery != null ? (
+          <BatteryBadge level={loc.battery} charging={loc.charging} />
+        ) : m.bubble?.battery != null ? (
+          <BatteryBadge level={m.bubble.battery} charging={m.bubble.charging ?? null} />
+        ) : null}
         {m.currentPlace && (
           <View style={[styles.placeBadge, { backgroundColor: m.currentPlace.color }]}>
             <PlaceSymbol icon={m.currentPlace.icon} size={10} color="white" />

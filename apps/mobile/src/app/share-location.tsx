@@ -5,7 +5,7 @@ import { Linking, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useQueryClient } from '@tanstack/react-query';
-import { startTracking } from '@/background/tracking';
+import { DEFAULT_MODE, startTracking } from '@/background/tracking';
 import { C } from '@/lib/theme';
 import { PrimaryButton } from '@/components/ui';
 
@@ -18,7 +18,7 @@ export default function ShareLocation() {
   const start = async () => {
     setBusy(true);
     try {
-      const r = await startTracking('balanced');
+      const r = await startTracking(DEFAULT_MODE);
       setResult(r);
       qc.invalidateQueries({ queryKey: ['tracking'] });
       if (r === 'always') setTimeout(() => router.back(), 1400);

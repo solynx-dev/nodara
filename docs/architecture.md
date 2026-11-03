@@ -24,7 +24,7 @@ Nodara is a **modular monolith**: one Node.js process serving the REST API, WebS
 | `apps/server/src/app.ts` | Builds the Fastify app and wires services (also used by tests and CLIs). |
 | `apps/server/src/auth.ts` | Session/bearer/device-token resolution, CSRF, `requireUser`/`requireAdmin`, audit. |
 | `apps/server/src/modules/*` | HTTP routes per domain. |
-| `apps/server/src/services/*` | Domain logic: `ingest`, `speed`, `trip-detect` (pure), `trips` (DB), `geofence-eval` (pure), `geofence`, `access` (authorization queries), `notify`, `push`, `geocoder`, `jobs`, `realtime`. |
+| `apps/server/src/services/*` | Domain logic: `ingest`, `speed`, `trip-detect` (pure), `trips` (DB), `geofence-eval` (pure), `geofence`, `access` (authorization queries), `bubbles` (privacy bubbles), `notify`, `push`, `mailer` + `emails` (SMTP and templates), `geocoder`, `jobs`, `realtime`. |
 | `apps/server/src/db/migrations` | Plain SQL migrations, applied in order at startup. |
 | `apps/server/src/cli` | `migrate`, `create-admin`, `seed-demo`. |
 | `apps/web/src/pages` | One file per screen. |
@@ -63,6 +63,7 @@ All rules live in `services/access.ts` and are enforced on every endpoint; anyth
 - **Live:** you see someone's current location only if you share a circle where they have `sharing = true`, they haven't paused globally, and the fix was recorded after they started sharing with that circle.
 - **History/trips:** only from `min(sharing_since)` across circles you share with them (minus a 2-minute clock-skew grace), only if the circle allows it (`historyVisible` / `tripsVisible`), and only fixes recorded while they weren't paused (`locations.shared`).
 - Re-enabling sharing resets `sharing_since`, so the gap stays private.
+- **Bubbles:** while someone's bubble is on, viewers who share only bubble-allowing circles with them get the bubble (a randomised area) instead of their location, and no live updates, trip events, place presence or arrival alerts. The bubble's time window is excluded from those viewers' history, trips, timeline, driving reports and place events (`inBubbleSql` / `tripsVisibleSql`), even after it ends. A circle with `bubblesAllowed: false` always sees exact locations.
 - Device tokens can only call ingestion endpoints.
 
 Circle isolation is covered by integration tests (`apps/server/test/circles.test.ts`).

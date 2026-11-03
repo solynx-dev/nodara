@@ -7,9 +7,23 @@ import { haversine } from '@/lib/format';
 import type { PlaceWithMeta } from '@/lib/types';
 import { GEOFENCE_TASK, LOCATION_TASK } from './tasks';
 
-export type TrackingMode = 'balanced' | 'precise';
+export type TrackingMode = 'precise' | 'balanced';
+/** What new installs share with (and what's assumed when nothing was chosen yet). */
+export const DEFAULT_MODE: TrackingMode = 'precise';
 
 export const MODES: Record<TrackingMode, { label: string; detail: string; options: Location.LocationTaskOptions }> = {
+  precise: {
+    label: 'Precise',
+    detail: 'Recommended. Near-live driving (every 5 seconds), detailed trips and quicker arrival alerts. Uses a bit more battery.',
+    options: {
+      accuracy: Location.Accuracy.High,
+      distanceInterval: 15,
+      deferredUpdatesInterval: 5_000,
+      pausesUpdatesAutomatically: false,
+      activityType: Location.ActivityType.Other,
+      showsBackgroundLocationIndicator: false,
+    },
+  },
   balanced: {
     label: 'Battery saver',
     detail: 'Updates when you move about 100 m, about every 10 seconds while driving. iOS pauses updates when you stay put.',
@@ -18,18 +32,6 @@ export const MODES: Record<TrackingMode, { label: string; detail: string; option
       distanceInterval: 100,
       deferredUpdatesInterval: 10_000,
       pausesUpdatesAutomatically: true,
-      activityType: Location.ActivityType.Other,
-      showsBackgroundLocationIndicator: false,
-    },
-  },
-  precise: {
-    label: 'Precise',
-    detail: 'Near-live driving (every 5 seconds), detailed trips and quicker arrival alerts. Uses more battery.',
-    options: {
-      accuracy: Location.Accuracy.High,
-      distanceInterval: 15,
-      deferredUpdatesInterval: 5_000,
-      pausesUpdatesAutomatically: false,
       activityType: Location.ActivityType.Other,
       showsBackgroundLocationIndicator: false,
     },
@@ -65,7 +67,7 @@ export async function trackingStatus(): Promise<TrackingStatus> {
     Location.getBackgroundPermissionsAsync().catch(() => ({ status: Location.PermissionStatus.UNDETERMINED })),
     getItem(KEYS.tracking),
   ]);
-  return { running, foreground: fg.status, background: bg.status, mode: (mode as TrackingMode) || 'balanced' };
+  return { running, foreground: fg.status, background: bg.status, mode: (mode as TrackingMode) || DEFAULT_MODE };
 }
 
 /**
