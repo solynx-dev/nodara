@@ -10,3 +10,4 @@ apps/web/dev-dist/
 playwright-report/
 test-results/
 backups/
+*.tsbuildinfo
