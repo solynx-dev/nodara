@@ -119,6 +119,23 @@ describe('ingestion, trips and geofences', () => {
     expect(tl.items.map((i: { type: string }) => i.type)).toEqual(['stay', 'trip', 'stay']);
   });
 
+  it('tells viewers when someone on a drive is stopped at a light', async () => {
+    const u = await newUser(env, 'Light');
+    const now = Date.now();
+    const fixes = [];
+    let t = now - 9 * 60_000;
+    for (let i = 0; i < 12; i++, t += 15_000) fixes.push({ recordedAt: new Date(t).toISOString(), lat: 44.6, lon: -63.6, accuracy: 8, speed: 0 });
+    for (let i = 1; i <= 60; i++, t += 5_000) fixes.push({ recordedAt: new Date(t).toISOString(), lat: 44.6 + 0.0004 * i, lon: -63.6, accuracy: 8, speed: 14 });
+    const stopAt = t;
+    for (; t < now; t += 5_000) fixes.push({ recordedAt: new Date(t).toISOString(), lat: 44.624, lon: -63.6, accuracy: 8, speed: 0 });
+    await u.client.post('/api/locations', { deviceId: u.deviceId, locations: fixes });
+    await processDeviceTrips(env.ctx, u.deviceId);
+    const me = ((await u.client.get('/api/live')).json() as { id: string; inTrip: boolean; currentTrip: { maxSpeed: number; stoppedSince: string | null } | null }[]).find((m) => m.id === u.id)!;
+    expect(me.inTrip).toBe(true);
+    expect(me.currentTrip!.maxSpeed).toBeGreaterThan(10);
+    expect(Date.parse(me.currentTrip!.stoppedSince!)).toBe(stopAt);
+  });
+
   it('decimates large history ranges', async () => {
     const u = await newUser(env, 'Decimate');
     const fixes = journey([44.6, -63.6], [44.62, -63.62], Date.now() - 1000);

@@ -18,8 +18,23 @@ export interface TripConfig {
   departRadiusM: number;
   /** Staying within this radius ... */
   stopRadiusM: number;
-  /** ... for this long ends a trip. */
+  /** ... for this long at a saved place ends a trip. */
   endAfterSec: number;
+  /**
+   * Anywhere else, a stop has to last this long to end the trip. Shorter
+   * stops where you stay with the car (a drive-thru, a gas station, waiting
+   * to pick someone up) stay part of the same drive.
+   */
+  parkedEndSec: number;
+  /** A trip that reaches this speed is a drive (m/s, ≈ 25 km/h). */
+  vehicleSpeedMps: number;
+  /**
+   * After a stop of at least `stopMinSec` in a drive, moving on at walking
+   * pace for this far means you got out and walked: the drive ends at the stop.
+   */
+  walkAwayM: number;
+  /** Saved places: stopping at one ends a trip after `endAfterSec`. */
+  places?: { lat: number; lon: number; radiusM: number }[];
   /** Shorter pauses (≥ this) are recorded as stops within a trip. */
   stopMinSec: number;
   /** A data gap longer than this ends a trip at the last fix before the gap. */
@@ -34,6 +49,9 @@ export const DEFAULT_TRIP_CONFIG: TripConfig = {
   departRadiusM: 200,
   stopRadiusM: 100,
   endAfterSec: 5 * 60,
+  parkedEndSec: 10 * 60,
+  vehicleSpeedMps: 7,
+  walkAwayM: 120,
   stopMinSec: 90,
   maxGapSec: 20 * 60,
   minDistanceM: 400,
@@ -60,6 +78,8 @@ export interface DetectedTrip {
   avgSpeed: number | null;
   stops: TripStop[];
   lowConfidence: boolean;
+  /** Open trips: since when they've been standing still (null while moving). */
+  stoppedSince?: number | null;
 }
 
 /**
@@ -114,6 +134,20 @@ export function segmentTrips(
   let trip: TPoint[] | null = null;
   let dwellIdx = 0; // index into trip of the current dwell anchor
   let tripAnchor: TPoint | null = null; // resting anchor the current trip departed from
+  let vehicle = false; // the current trip has reached driving speed
+  // A stop in a drive that the person may have walked away from: [dwell anchor, last fix of the stop].
+  let walkCheck: { dwellIdx: number; lastIdx: number } | null = null;
+
+  const atPlace = (p: TPoint) => (cfg.places ?? []).some((pl) => haversine(pl.lat, pl.lon, p.lat, p.lon) <= pl.radiusM + 75);
+  /** How long a stop here must last to end the trip. */
+  const stopLimitSec = (p: TPoint) => (atPlace(p) ? cfg.endAfterSec : Math.max(cfg.endAfterSec, cfg.parkedEndSec));
+  /** Recorded speed, or the speed from the previous fix when the device didn't report one. */
+  const speedOf = (p: TPoint, prev: TPoint | undefined) => {
+    if (p.speed != null) return p.speed;
+    if (!prev) return 0;
+    const dt = (p.t - prev.t) / 1000;
+    return dt >= 3 ? haversine(prev.lat, prev.lon, p.lat, p.lon) / dt : 0;
+  };
 
   const finish = (endIdx: number) => {
     const t = trip!.slice(0, endIdx + 1);
@@ -123,6 +157,8 @@ export function segmentTrips(
     // Points after the end are the beginning of the next stationary period.
     const rest = trip!.slice(endIdx + 1);
     trip = null;
+    vehicle = false;
+    walkCheck = null;
     anchor = end;
     lastStationary = end;
     drift = [];
@@ -141,11 +177,25 @@ export function segmentTrips(
         return;
       }
       trip.push(p);
+      const speed = speedOf(p, prev);
+      if (speed >= cfg.vehicleSpeedMps) vehicle = true;
       const dwell = trip[dwellIdx]!;
       if (haversine(dwell.lat, dwell.lon, p.lat, p.lon) > cfg.stopRadiusM) {
+        // Leaving a stop. If a drive stopped for a while, watch whether they drive on or walk off.
+        if (vehicle && dwellIdx < trip.length - 2 && (prev.t - dwell.t) / 1000 >= cfg.stopMinSec) {
+          walkCheck = { dwellIdx, lastIdx: trip.length - 2 };
+        }
         dwellIdx = trip.length - 1;
-      } else if ((p.t - dwell.t) / 1000 >= cfg.endAfterSec) {
+      } else if ((p.t - dwell.t) / 1000 >= stopLimitSec(dwell)) {
         finish(dwellIdx);
+        return;
+      }
+      if (walkCheck) {
+        if (speed >= 4) walkCheck = null; // driving again: it was just a stop
+        else {
+          const from = trip[walkCheck.lastIdx]!;
+          if (haversine(from.lat, from.lon, p.lat, p.lon) >= cfg.walkAwayM) finish(walkCheck.dwellIdx);
+        }
       }
       return;
     }
@@ -163,6 +213,8 @@ export function segmentTrips(
       trip = [start, ...drift, p];
       drift = [];
       dwellIdx = trip.length - 1;
+      vehicle = trip.some((q, i) => speedOf(q, trip![i - 1]) >= cfg.vehicleSpeedMps);
+      walkCheck = null;
     } else if (d <= cfg.stopRadiusM) {
       lastStationary = p;
       drift = [];
@@ -179,7 +231,8 @@ export function segmentTrips(
     const last = pending[pending.length - 1]!;
     const dwell = pending[dwellIdx]!;
     if ((now - last.t) / 1000 > cfg.maxGapSec) finish(pending.length - 1);
-    else if ((now - dwell.t) / 1000 >= cfg.endAfterSec * 2) finish(dwellIdx);
+    // A quiet phone has usually stopped (iOS sends nothing while still).
+    else if ((now - dwell.t) / 1000 >= Math.max(stopLimitSec(dwell), cfg.endAfterSec * 2)) finish(dwellIdx);
   }
 
   const still = trip as TPoint[] | null;
@@ -187,12 +240,26 @@ export function segmentTrips(
   let state: DetectorState | null = null;
   if (still) {
     open = buildTrip(still, cfg, true);
+    if (open) open.stoppedSince = stoppedSince(still);
     state = { mode: 'moving', anchor: tripAnchor!, last: still[0]! };
   } else if (anchor && lastStationary) {
     state = { mode: 'stationary', anchor, last: lastStationary };
   }
 
   return { completed, open, state };
+}
+
+/** When the person came to a stop: the start of the run of still fixes at the end of the track. */
+export function stoppedSince(points: TPoint[]): number | null {
+  const last = points[points.length - 1];
+  if (!last || (last.speed ?? 0) >= 1) return null;
+  let since = last.t;
+  for (let i = points.length - 2; i >= 0; i--) {
+    const p = points[i]!;
+    if ((p.speed ?? 0) >= 1 || haversine(p.lat, p.lon, last.lat, last.lon) > 40) break;
+    since = p.t;
+  }
+  return since;
 }
 
 function buildTrip(points: TPoint[], cfg: TripConfig, allowShort = false): DetectedTrip | null {

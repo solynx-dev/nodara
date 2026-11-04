@@ -401,7 +401,15 @@ function SettingsSection() {
       <Card className="space-y-4 p-5">
         <h2 className="text-[15px] font-bold">Trip detection</h2>
         <Input label="Start a trip after moving (m)" type="number" min={50} max={2000} value={s.trip.departRadiusM} onChange={(e) => setS({ ...s, trip: { ...s.trip, departRadiusM: Number(e.target.value) } })} />
-        <Input label="End a trip after stopping (seconds)" type="number" min={60} max={3600} value={s.trip.endAfterSec} onChange={(e) => setS({ ...s, trip: { ...s.trip, endAfterSec: Number(e.target.value) } })} />
+        <Input
+          label="End a trip after stopping at a saved place (seconds)"
+          type="number"
+          min={60}
+          max={3600}
+          value={s.trip.endAfterSec}
+          onChange={(e) => setS({ ...s, trip: { ...s.trip, endAfterSec: Number(e.target.value) } })}
+          hint="Elsewhere a stop has to last 10 minutes (or this long, if longer) to end a drive, so drive-thrus and pick-ups stay part of it. Getting out and walking away ends it right away."
+        />
         <Input label="Ignore trips shorter than (m)" type="number" min={50} max={10000} value={s.trip.minDistanceM} onChange={(e) => setS({ ...s, trip: { ...s.trip, minDistanceM: Number(e.target.value) } })} />
       </Card>
       <Card className="space-y-4 p-5">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { segmentTrips, type TPoint } from '../src/services/trip-detect.js';
+import { DEFAULT_TRIP_CONFIG, segmentTrips, type TPoint } from '../src/services/trip-detect.js';
 import { computeSpeed, smoothedMax } from '../src/services/speed.js';
 import { evaluateFence } from '../src/services/geofence-eval.js';
 
@@ -134,6 +134,81 @@ describe('segmentTrips', () => {
     const r = segmentTrips(pts, undefined, pts[pts.length - 1]!.t + 60 * 60_000);
     expect(r.completed).toHaveLength(1);
     expect(r.open).toBeNull();
+  });
+});
+
+/** Build a track from legs: drive or walk to a point, or stay put, every `iv` seconds. */
+function legs(start: [number, number], steps: ({ to: [number, number]; min: number; speed: number } | { stayMin: number })[], iv = 5, t0 = T0): TPoint[] {
+  const pts: TPoint[] = [];
+  let t = t0;
+  let at = start;
+  for (const s of steps) {
+    if ('stayMin' in s) {
+      for (let i = 0; i < (s.stayMin * 60) / iv; i++, t += iv * 1000) pts.push({ id: nextId++, t, lat: at[0], lon: at[1], accuracy: 8, speed: 0 });
+      continue;
+    }
+    const n = Math.round((s.min * 60) / iv);
+    for (let i = 1; i <= n; i++, t += iv * 1000) {
+      const f = i / n;
+      pts.push({ id: nextId++, t, lat: at[0] + (s.to[0] - at[0]) * f, lon: at[1] + (s.to[1] - at[1]) * f, accuracy: 8, speed: s.speed });
+    }
+    at = s.to;
+  }
+  return pts;
+}
+const MID: [number, number] = [43.675, -79.4]; // ~3 km from HOME
+const NEAR_MID: [number, number] = [43.6772, -79.4]; // ~250 m north of MID (a walk)
+
+describe('stops during a drive', () => {
+  it('keeps a red light, and a short stop where you stay with the car, in the same drive', () => {
+    const pts = legs(HOME, [{ stayMin: 6 }, { to: MID, min: 4, speed: 13 }, { stayMin: 1 }, { to: WORK, min: 4, speed: 13 }, { stayMin: 12 }]);
+    const r = segmentTrips(pts, undefined, pts[pts.length - 1]!.t);
+    expect(r.completed).toHaveLength(1);
+
+    const longer = legs(HOME, [{ stayMin: 6 }, { to: MID, min: 4, speed: 13 }, { stayMin: 7 }, { to: WORK, min: 4, speed: 13 }, { stayMin: 12 }]);
+    const r2 = segmentTrips(longer, undefined, longer[longer.length - 1]!.t);
+    expect(r2.completed).toHaveLength(1);
+    expect(r2.completed[0]!.stops).toHaveLength(1);
+    expect(r2.completed[0]!.stops[0]!.durationSec).toBeGreaterThanOrEqual(6 * 60);
+  });
+
+  it('ends the drive after a long stop, or a shorter one at a saved place', () => {
+    const parked = legs(HOME, [{ stayMin: 6 }, { to: MID, min: 4, speed: 13 }, { stayMin: 12 }, { to: WORK, min: 4, speed: 13 }, { stayMin: 12 }]);
+    expect(segmentTrips(parked, undefined, parked[parked.length - 1]!.t).completed).toHaveLength(2);
+
+    const atPlace = legs(HOME, [{ stayMin: 6 }, { to: MID, min: 4, speed: 13 }, { stayMin: 6 }, { to: WORK, min: 4, speed: 13 }, { stayMin: 12 }]);
+    const cfg = { ...DEFAULT_TRIP_CONFIG, places: [{ lat: MID[0], lon: MID[1], radiusM: 100 }] };
+    expect(segmentTrips(atPlace, cfg, atPlace[atPlace.length - 1]!.t).completed).toHaveLength(2);
+  });
+
+  it('ends the drive where you parked when you get out and walk', () => {
+    const pts = legs(HOME, [{ stayMin: 6 }, { to: MID, min: 4, speed: 13 }, { stayMin: 2 }, { to: NEAR_MID, min: 3, speed: 1.4 }, { stayMin: 15 }]);
+    const r = segmentTrips(pts, undefined, pts[pts.length - 1]!.t);
+    const drive = r.completed[0]!;
+    // The drive ends at the parking spot, not after the walk.
+    expect(Math.abs(drive.points[drive.points.length - 1]!.lat - MID[0])).toBeLessThan(0.0005);
+    expect(r.completed.every((t) => t === drive || (t.maxSpeed ?? 0) < 3)).toBe(true);
+  });
+
+  it('reports when an open drive came to a stop', () => {
+    const moving = legs(HOME, [{ stayMin: 6 }, { to: MID, min: 4, speed: 13 }]);
+    const r = segmentTrips(moving, undefined, moving[moving.length - 1]!.t);
+    expect(r.open?.stoppedSince).toBeNull();
+
+    const stopped = legs(HOME, [{ stayMin: 6 }, { to: MID, min: 4, speed: 13 }, { stayMin: 1 }]);
+    const r2 = segmentTrips(stopped, undefined, stopped[stopped.length - 1]!.t);
+    expect(r2.open).not.toBeNull();
+    const firstStill = stopped.find((p) => p.speed === 0 && p.t > stopped[0]!.t + 6 * 60_000)!;
+    expect(r2.open!.stoppedSince).toBe(firstStill.t);
+  });
+
+  it('closes a drive when the phone goes quiet after parking', () => {
+    const pts = legs(HOME, [{ stayMin: 6 }, { to: MID, min: 4, speed: 13 }, { stayMin: 0.5 }]);
+    const last = pts[pts.length - 1]!.t;
+    expect(segmentTrips(pts, undefined, last + 3 * 60_000).open).not.toBeNull();
+    const r = segmentTrips(pts, undefined, last + 11 * 60_000);
+    expect(r.open).toBeNull();
+    expect(r.completed).toHaveLength(1);
   });
 });
 

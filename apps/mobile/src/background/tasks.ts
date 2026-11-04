@@ -1,6 +1,7 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import { enqueueAndFlush, toFixes } from './upload';
+import { adaptToMotion } from './motion';
 
 export const LOCATION_TASK = 'nodara-location-updates';
 export const GEOFENCE_TASK = 'nodara-geofences';
@@ -9,6 +10,8 @@ export const GEOFENCE_TASK = 'nodara-geofences';
 TaskManager.defineTask<{ locations: Location.LocationObject[] }>(LOCATION_TASK, async ({ data, error }) => {
   if (error || !data?.locations?.length) return;
   await enqueueAndFlush(await toFixes(data.locations));
+  // Stay chatty while on the move (so a stop shows as 0 km/h), quiet once parked.
+  await adaptToMotion(data.locations).catch(() => {});
 });
 
 // Region monitoring wakes Nodara even if it was terminated. The server decides

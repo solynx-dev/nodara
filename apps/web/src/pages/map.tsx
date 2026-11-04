@@ -11,6 +11,7 @@ import {
   Car,
   ChevronLeft,
   CircleDashed,
+  CirclePause,
   Clock,
   Crosshair,
   Expand,
@@ -36,6 +37,7 @@ import { api } from '@/lib/api';
 import { ago, clock, coords, firstName, formatDistance, freshness, shortAgo } from '@/lib/format';
 import { useCircles, useConfig, useLive, useUser, useInvalidate } from '@/lib/queries';
 import { circleSummary, describeMember } from '@/lib/status';
+import { driveState, stoppedFor } from '@/lib/driving';
 import { CircleSwitcher } from '@/components/AppShell';
 import { useActiveCircle } from '@/lib/circle-context';
 import type { MemberLocation, PlaceWithMeta, Trip } from '@/lib/types';
@@ -404,7 +406,8 @@ function MemberDetail({ member, onBack, onFocus }: { member: MemberLocation; onB
   const { data: address } = useAddress(loc?.lat, loc?.lon);
   const s = describeMember(member, address, units);
   const f = freshness(loc?.recordedAt);
-  const moving = Boolean(loc && (loc.speed ?? 0) > 1.5 && f === 'live');
+  const drive = driveState(member);
+  const moving = Boolean(drive ? !drive.stopped : loc && (loc.speed ?? 0) > 1.5 && f === 'live');
   const name = isMe ? 'You' : firstName(member.displayName);
   const { data: trips = [] } = useQuery({
     queryKey: ['trips', member.id, 'recent'],
@@ -484,8 +487,8 @@ function MemberDetail({ member, onBack, onFocus }: { member: MemberLocation; onB
         ) : (
           <div className="card space-y-4 p-5">
             <div className="flex items-center gap-3.5">
-              <span className="flex size-[52px] shrink-0 items-center justify-center rounded-full text-white" style={{ background: member.currentPlace?.color ?? (moving ? 'var(--info)' : 'var(--accent)') }}>
-                {PlaceI ? <PlaceI className="size-6" /> : moving ? <Car className="size-6" /> : <MapPin className="size-6" />}
+              <span className="flex size-[52px] shrink-0 items-center justify-center rounded-full text-white" style={{ background: member.currentPlace?.color ?? (moving || drive ? 'var(--info)' : 'var(--accent)') }}>
+                {PlaceI ? <PlaceI className="size-6" /> : moving || drive ? <Car className="size-6" /> : <MapPin className="size-6" />}
               </span>
               <div className="min-w-0">
                 <div className="text-[20px] leading-tight font-semibold">{s.where}</div>
@@ -498,6 +501,8 @@ function MemberDetail({ member, onBack, onFocus }: { member: MemberLocation; onB
                 Here for <b>{s.stayFor}</b>
                 <span className="text-muted"> · since {clock(member.stay.since)}</span>
               </InfoRow>
+            ) : drive?.stopped ? (
+              <InfoRow icon={<CirclePause className="size-4 text-info" />}>Stopped for {stoppedFor(drive.stoppedForMs)}, still on a drive</InfoRow>
             ) : moving ? (
               <InfoRow icon={<Navigation2 className="size-4 text-info" style={{ transform: `rotate(${loc.heading ?? 0}deg)` }} />}>
                 On the move{loc.heading != null ? `, heading ${compassDirection(loc.heading)}` : ''}

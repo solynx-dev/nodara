@@ -2,7 +2,7 @@ import type { ColorValue } from 'react-native';
 import type { SFSymbol } from 'expo-symbols';
 import { ago, clock, firstName, formatDistance, formatSpeed, formatStay, freshness, sinceLabel, type Units } from './format';
 import { BRAND, C, HEX } from './theme';
-import { redSpeedMps } from './driving';
+import { driveState, redSpeedMps } from './driving';
 import type { MemberLocation, PlaceEvent } from './types';
 
 export interface MemberStatus {
@@ -52,7 +52,14 @@ export function describeMember(m: MemberLocation, ev: PlaceEvent | undefined, ad
   const where = m.currentPlace ? `At ${m.currentPlace.name}` : address ? `Near ${address}` : 'Address unavailable';
 
   let pill: MemberStatus['pill'];
-  if (live && speed > MOVING) {
+  const drive = driveState(m);
+  if (drive?.stopped) {
+    // Mid-drive at a light or in traffic: still on the drive, just not moving.
+    pill = { text: `Stopped · ${formatSpeed(0, units)}`, color: HEX.blue, icon: 'car.fill' };
+  } else if (drive) {
+    const tooFast = drive.speed >= redSpeedMps(units);
+    pill = { text: `Driving · ${formatSpeed(drive.speed, units)}`, color: tooFast ? HEX.red : HEX.blue, icon: tooFast ? 'exclamationmark.triangle.fill' : 'car.fill' };
+  } else if (live && speed > MOVING) {
     const mode = speed > 7 ? 'Driving' : speed > 2.5 ? 'Moving' : 'Walking';
     const icon: SFSymbol = speed > 7 ? 'car.fill' : speed > 2.5 ? 'bicycle' : 'figure.walk';
     const tooFast = speed >= redSpeedMps(units);

@@ -72,6 +72,12 @@ export interface MemberLocation extends PublicUser {
    */
   stay: { since: string; atLeast: boolean } | null;
   /**
+   * The trip they're on right now, if any. `stoppedSince` is set while they're
+   * standing still (a red light, a drive-thru), so apps can show 0 km/h and
+   * stop showing a speed once they've clearly parked.
+   */
+  currentTrip?: { startedAt: string; maxSpeed: number | null; stoppedSince: string | null } | null;
+  /**
    * Their privacy bubble. For other people it replaces `location` (which is
    * then null) with a general area; on your own entry it's your active bubble.
    */

@@ -83,7 +83,9 @@ Circle isolation is covered by integration tests (`apps/server/test/circles.test
 A pure, unit-tested two-state machine:
 
 - **Stationary**: remember an *anchor*. Fixes within 100 m keep you "at rest"; fixes between 100 m and 200 m are buffered as drift. Moving beyond 200 m starts a trip at the last at-rest fix (including the drift fixes).
-- **Moving**: track a *dwell anchor*. Staying within 100 m for 5 min ends the trip at the dwell anchor; shorter dwells (≥ 90 s) become *stops*. A data gap > 20 min ends the trip at the last fix.
+- **Moving**: track a *dwell anchor*. Staying within 100 m ends the trip at the dwell anchor after 5 min at one of the person's saved places, or after 10 min anywhere else, so red lights, drive-thrus and pick-ups stay part of the same drive. Shorter dwells (≥ 90 s) become *stops*. A data gap > 20 min ends the trip at the last fix.
+- **Getting out and walking**: once a trip has reached driving speed (≈ 25 km/h), a stop of ≥ 90 s followed by walking-pace movement over 120 m (with nothing faster than 4 m/s) ends the drive at the stop; the walk is treated on its own.
+- **Stopped since**: an open trip records when the person came to a standstill (`trips.stopped_since`). `/live` returns it as `currentTrip`, and the apps show 0 km/h for up to 3 minutes of standing still mid-drive, then hide the speed.
 - Candidate trips under 400 m, 2 min, or with < 30 s of actual movement are discarded as noise.
 - Stats: distance (sum of segments), moving time (segments faster than 0.7 m/s), max speed (median-of-3 smoothed so one spike can't dominate), averages, stops, and a **low-confidence** flag for sparse/imprecise data.
 

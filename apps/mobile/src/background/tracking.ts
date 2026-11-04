@@ -6,18 +6,35 @@ import { getItem, KEYS, setItem } from '@/lib/storage';
 import { haversine } from '@/lib/format';
 import type { PlaceWithMeta } from '@/lib/types';
 import { GEOFENCE_TASK, LOCATION_TASK } from './tasks';
+import { resetMotion } from './motion';
 
 export type TrackingMode = 'precise' | 'balanced';
 /** What new installs share with (and what's assumed when nothing was chosen yet). */
 export const DEFAULT_MODE: TrackingMode = 'precise';
 
-export const MODES: Record<TrackingMode, { label: string; detail: string; options: Location.LocationTaskOptions }> = {
+/**
+ * Each mode has two settings, and the background task switches between them
+ * on its own (see motion.ts):
+ *  - `options` while on the move: Precise reports even when you stop at a red
+ *    light (no distance filter), so your circle sees 0 km/h, not a stale speed;
+ *  - `parkedOptions` once you've been still for a few minutes: iOS then stays
+ *    quiet until you move again, which saves battery.
+ */
+export const MODES: Record<TrackingMode, { label: string; detail: string; options: Location.LocationTaskOptions; parkedOptions: Location.LocationTaskOptions }> = {
   precise: {
     label: 'Precise',
-    detail: 'Recommended. Near-live driving (every 5 seconds), detailed trips and quicker arrival alerts. Uses a bit more battery.',
+    detail: 'Recommended. Near-live driving (every 5 seconds, including at red lights), detailed trips and quicker arrival alerts. Uses a bit more battery while you move.',
     options: {
       accuracy: Location.Accuracy.High,
-      distanceInterval: 15,
+      distanceInterval: 0,
+      deferredUpdatesInterval: 5_000,
+      pausesUpdatesAutomatically: false,
+      activityType: Location.ActivityType.Other,
+      showsBackgroundLocationIndicator: false,
+    },
+    parkedOptions: {
+      accuracy: Location.Accuracy.High,
+      distanceInterval: 40,
       deferredUpdatesInterval: 5_000,
       pausesUpdatesAutomatically: false,
       activityType: Location.ActivityType.Other,
@@ -26,8 +43,16 @@ export const MODES: Record<TrackingMode, { label: string; detail: string; option
   },
   balanced: {
     label: 'Battery saver',
-    detail: 'Updates when you move about 100 m, about every 10 seconds while driving. iOS pauses updates when you stay put.',
+    detail: 'Updates about every 10 seconds while driving and goes quiet when you stay put. Stops may take a little longer to show.',
     options: {
+      accuracy: Location.Accuracy.Balanced,
+      distanceInterval: 10,
+      deferredUpdatesInterval: 10_000,
+      pausesUpdatesAutomatically: true,
+      activityType: Location.ActivityType.Other,
+      showsBackgroundLocationIndicator: false,
+    },
+    parkedOptions: {
       accuracy: Location.Accuracy.Balanced,
       distanceInterval: 100,
       deferredUpdatesInterval: 10_000,
@@ -89,6 +114,7 @@ export async function startTracking(mode: TrackingMode): Promise<'always' | 'for
   try {
     if (await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)) await Location.stopLocationUpdatesAsync(LOCATION_TASK);
     await Location.startLocationUpdatesAsync(LOCATION_TASK, MODES[mode].options);
+    await resetMotion();
     await AsyncStorage.setItem(OPTIONS_KEY, OPTIONS_VERSION);
   } catch {
     // Not available in Expo Go — the foreground watcher in the app still reports while open.
@@ -97,7 +123,7 @@ export async function startTracking(mode: TrackingMode): Promise<'always' | 'for
 }
 
 /** Bump when MODES options change, so phones already sharing pick up the new settings. */
-const OPTIONS_VERSION = '2';
+const OPTIONS_VERSION = '3';
 const OPTIONS_KEY = 'nodara.trackingOptions';
 
 /**
@@ -112,6 +138,7 @@ export async function refreshTrackingOptions() {
     if (!(await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK))) return;
     await Location.stopLocationUpdatesAsync(LOCATION_TASK);
     await Location.startLocationUpdatesAsync(LOCATION_TASK, MODES[mode].options);
+    await resetMotion();
     await AsyncStorage.setItem(OPTIONS_KEY, OPTIONS_VERSION);
   } catch {
     // Not available in Expo Go.

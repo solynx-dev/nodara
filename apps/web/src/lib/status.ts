@@ -3,6 +3,7 @@ import { Bike, Car, CircleDashed, Clock, EyeOff, Footprints, MapPinOff, Moon, Ra
 import type { UnitSystem } from '@nodara/shared';
 import type { MemberLocation } from './types';
 import { ago, clock, formatSpeed, freshness } from './format';
+import { driveState } from './driving';
 import type { Tone } from '@/components/ui';
 
 /**
@@ -60,7 +61,12 @@ export function describeMember(m: MemberLocation, address: string | null | undef
   const where = m.currentPlace ? `At ${m.currentPlace.name}` : (address ?? 'Address unavailable');
 
   let pill: MemberStatus['pill'];
-  if (live && speed > MOVING) {
+  const drive = driveState(m);
+  if (drive?.stopped) pill = { text: `Stopped · ${formatSpeed(0, units)}`, tone: 'info', icon: Car };
+  else if (drive) {
+    const tooFast = drive.speed * 3.6 >= RED_KMH;
+    pill = { text: `Driving · ${formatSpeed(drive.speed, units)}`, tone: tooFast ? 'danger' : 'info', icon: tooFast ? TriangleAlert : Car };
+  } else if (live && speed > MOVING) {
     const tooFast = speed * 3.6 >= RED_KMH;
     const [mode, icon] = speed > 7 ? (['Driving', Car] as const) : speed > 2.5 ? (['Moving', Bike] as const) : (['Walking', Footprints] as const);
     pill = { text: `${mode} · ${formatSpeed(speed, units)}`, tone: tooFast ? 'danger' : 'info', icon: tooFast ? TriangleAlert : icon };

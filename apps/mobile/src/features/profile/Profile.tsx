@@ -8,6 +8,7 @@ import { useMe } from '@/lib/session';
 import { useAddress, useDayTimeline, useTripPages, useWeekTrips, type TimelineItem } from '@/lib/queries';
 import { ago, clock, firstName, formatDistance, formatDuration, formatStay, freshness, weekdayShort } from '@/lib/format';
 import { BUBBLE_COLOR, bubbleArea, describeMember } from '@/lib/status';
+import { driveState } from '@/lib/driving';
 import { C, HEX, T } from '@/lib/theme';
 import type { MemberLocation, PlaceEvent } from '@/lib/types';
 import { ApiError } from '@/lib/api';
@@ -17,6 +18,8 @@ import { DriveList, modeIcon, WeekSummary } from '@/features/trips/Drives';
 import { DrivingWeekCard } from '@/features/driving/components';
 
 export type ProfileTab = 'drives' | 'history';
+
+const stoppedFor = (ms: number) => (ms < 60_000 ? `${Math.max(1, Math.round(ms / 1000))} s` : `${Math.round(ms / 60_000)} min`);
 
 const COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
 
@@ -80,7 +83,9 @@ function NowCard({ m, ev }: { m: MemberLocation; ev?: PlaceEvent }) {
   const { data: address } = useAddress(loc?.lat, loc?.lon);
   const s = describeMember(m, ev, address, units);
   const f = freshness(loc?.recordedAt);
-  const moving = Boolean(loc && (loc.speed ?? 0) > 1.5 && f === 'live');
+  const drive = driveState(m);
+  const moving = Boolean(drive ? !drive.stopped : loc && (loc.speed ?? 0) > 1.5 && f === 'live');
+  const driving = Boolean(drive);
   const name = isMe ? 'You' : firstName(m.displayName);
 
   // In a bubble: a general area only, plus battery and when their phone last checked in.
@@ -150,8 +155,8 @@ function NowCard({ m, ev }: { m: MemberLocation; ev?: PlaceEvent }) {
         </Tap>
       )}
       <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-        <View style={[styles.placeIcon, { backgroundColor: m.currentPlace?.color ?? (moving ? HEX.blue : C.accent) }]}>
-          {m.currentPlace ? <PlaceSymbol icon={m.currentPlace.icon} size={20} color="white" /> : <SymbolView name={moving ? 'car.fill' : 'mappin'} size={20} tintColor="white" />}
+        <View style={[styles.placeIcon, { backgroundColor: m.currentPlace?.color ?? (moving || driving ? HEX.blue : C.accent) }]}>
+          {m.currentPlace ? <PlaceSymbol icon={m.currentPlace.icon} size={20} color="white" /> : <SymbolView name={moving || driving ? 'car.fill' : 'mappin'} size={20} tintColor="white" />}
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={[T.title3, { color: C.label }]} numberOfLines={2}>
@@ -172,6 +177,13 @@ function NowCard({ m, ev }: { m: MemberLocation; ev?: PlaceEvent }) {
           <Text style={[T.subhead, { color: C.label, flex: 1 }]}>
             Here for <Text style={{ fontWeight: '700' }}>{s.stayFor}</Text>
             <Text style={{ color: C.secondaryLabel }}> · since {new Date(m.stay.since).toDateString() === new Date().toDateString() ? clock(m.stay.since) : new Date(m.stay.since).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}</Text>
+          </Text>
+        </View>
+      ) : drive?.stopped ? (
+        <View style={styles.stay}>
+          <SymbolView name="pause.circle.fill" size={15} tintColor={HEX.blue} />
+          <Text style={[T.subhead, { color: C.label, flex: 1 }]}>
+            Stopped for {stoppedFor(drive.stoppedForMs)}, still on a drive
           </Text>
         </View>
       ) : moving ? (

@@ -50,7 +50,12 @@ async function runDevice(ctx: Ctx, deviceId: string, now: number) {
   const [device] = await sql<{ user_id: string; trip_state: StoredState | null }[]>`
     SELECT user_id, trip_state FROM devices WHERE id = ${deviceId}`;
   if (!device) return { completed: 0, open: false };
-  const cfg = await tripConfig(ctx);
+  // Stopping at one of their saved places ends a drive sooner than stopping elsewhere.
+  const places = await sql<{ lat: number; lon: number; radius_m: number }[]>`
+    SELECT p.lat, p.lon, p.radius_m FROM places p
+    WHERE (p.owner_id = ${device.user_id} AND p.circle_id IS NULL)
+       OR p.circle_id IN (SELECT circle_id FROM circle_members WHERE user_id = ${device.user_id})`;
+  const cfg = { ...(await tripConfig(ctx)), places: places.map((p) => ({ lat: p.lat, lon: p.lon, radiusM: p.radius_m })) };
   let state: DetectorState | null = device.trip_state;
   let completedCount = 0;
   let open: DetectedTrip | null = null;
@@ -143,13 +148,14 @@ async function saveTrip(ctx: Ctx, userId: string, deviceId: string, trip: Detect
       INSERT INTO trips (user_id, device_id, status, started_at, ended_at, duration_sec, moving_sec, distance_m,
         max_speed, avg_moving_speed, avg_speed, start_lat, start_lon, end_lat, end_lon, start_label, end_label,
         start_place_id, end_place_id, route, stops, point_count, low_confidence,
-        is_demo)
+        stopped_since, is_demo)
       VALUES (${userId}, ${deviceId}, ${status}, ${new Date(trip.startedAt)},
         ${status === 'completed' ? new Date(trip.endedAt) : null},
         ${trip.durationSec}, ${trip.movingSec}, ${trip.distanceM}, ${trip.maxSpeed}, ${trip.avgMovingSpeed},
         ${trip.avgSpeed}, ${first.lat}, ${first.lon}, ${last.lat}, ${last.lon},
         ${startPlace?.name ?? null}, ${endPlace?.name ?? null}, ${startPlace?.id ?? null}, ${endPlace?.id ?? null},
         ST_GeogFromText(${wkt}), ${sql.json(trip.stops as never)}, ${trip.points.length}, ${trip.lowConfidence},
+        ${status === 'in_progress' && trip.stoppedSince ? new Date(trip.stoppedSince) : null},
         (SELECT is_demo FROM users WHERE id = ${userId}))
       RETURNING id`;
   });

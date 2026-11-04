@@ -66,6 +66,9 @@ export async function memberLocations(ctx: Ctx, viewerId: string, circleId: stri
       sharing_paused: boolean;
       device_name: string | null;
       in_trip: boolean;
+      drive_started: Date | null;
+      drive_max_speed: number | null;
+      drive_stopped_since: Date | null;
       loc_id: number | null;
       since: Date | null;
       last_trip_end: Date | null;
@@ -99,10 +102,15 @@ export async function memberLocations(ctx: Ctx, viewerId: string, circleId: stri
            u.sharing_paused, d.name AS device_name, l.id AS loc_id,
            l.user_id, l.device_id, l.recorded_at, l.lat, l.lon, l.accuracy, l.altitude, l.speed, l.speed_source,
            l.heading, l.battery, l.charging, l.activity,
-           EXISTS (SELECT 1 FROM trips tr WHERE tr.user_id = m.user_id AND tr.status = 'in_progress') AS in_trip,
+           (cur.started_at IS NOT NULL) AS in_trip,
+           cur.started_at AS drive_started, cur.max_speed AS drive_max_speed, cur.stopped_since AS drive_stopped_since,
            lt.ended_at AS last_trip_end, lt.end_lat AS last_trip_lat, lt.end_lon AS last_trip_lon
     FROM members m
     JOIN users u ON u.id = m.user_id
+    LEFT JOIN LATERAL (
+      SELECT tr.started_at, tr.max_speed, tr.stopped_since FROM trips tr
+      WHERE tr.user_id = m.user_id AND tr.status = 'in_progress' ORDER BY tr.started_at DESC LIMIT 1
+    ) cur ON true
     LEFT JOIN LATERAL (
       SELECT tr.ended_at, tr.end_lat, tr.end_lon FROM trips tr
       WHERE tr.user_id = m.user_id AND tr.status = 'completed' ORDER BY tr.started_at DESC LIMIT 1
@@ -182,6 +190,11 @@ export async function memberLocations(ctx: Ctx, viewerId: string, circleId: stri
       deviceName: shown ? r.device_name : null,
       currentPlace: shown ? placeOf.get(r.member_id) ?? null : null,
       inTrip: shown && r.in_trip,
+      // The trip they're on: lets apps tell a red light (0 km/h) from parking.
+      currentTrip:
+        shown && r.drive_started
+          ? { startedAt: r.drive_started.toISOString(), maxSpeed: r.drive_max_speed, stoppedSince: r.drive_stopped_since?.toISOString() ?? null }
+          : null,
       stay: shown && r.loc_id != null ? stayOf(r, self) : null,
       bubble,
     };
