@@ -10,7 +10,7 @@ import { api } from '@/lib/api';
 import { useMe } from '@/lib/session';
 import { useLive } from '@/lib/queries';
 import { clock, formatDistance, formatDuration, formatSpeed } from '@/lib/format';
-import { C, HEX, T } from '@/lib/theme';
+import { BRAND, C, HEX, T } from '@/lib/theme';
 import type { TripDetail } from '@/lib/types';
 import { Avatar, Skeleton, StatusPill } from '@/components/ui';
 import { modeIcon, tripTitle } from '@/features/trips/Drives';
@@ -86,9 +86,9 @@ export default function TripScreen() {
         >
           {coords.length > 1 && <Polyline coordinates={coords} strokeColor="rgba(0,0,0,0.25)" strokeWidth={9} lineCap="round" lineJoin="round" />}
           {coords.length > 1 && (
-            <Polyline coordinates={coords} strokeColor={replay.active ? 'rgba(255,107,61,0.35)' : '#FF6B3D'} strokeWidth={5} lineCap="round" lineJoin="round" />
+            <Polyline coordinates={coords} strokeColor={replay.active ? 'rgba(109,62,245,0.35)' : BRAND.purple} strokeWidth={5} lineCap="round" lineJoin="round" />
           )}
-          {replay.travelled && replay.travelled.length > 1 && <Polyline coordinates={replay.travelled} strokeColor="#FF6B3D" strokeWidth={5} lineCap="round" lineJoin="round" />}
+          {replay.travelled && replay.travelled.length > 1 && <Polyline coordinates={replay.travelled} strokeColor={BRAND.purple} strokeWidth={5} lineCap="round" lineJoin="round" />}
           {first && (
             <Marker coordinate={first} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false} title="Start">
               <Pin color={HEX.green} icon="flag.fill" />
@@ -123,7 +123,7 @@ export default function TripScreen() {
             </Marker>
           )}
         </MapView>
-        <ReplayBar replay={replay} units={units} color="#FF6B3D" />
+        <ReplayBar replay={replay} units={units} color={BRAND.purple} />
       </Animated.View>
 
       <Animated.View entering={appear} style={{ paddingHorizontal: 20, gap: 6 }}>
@@ -158,7 +158,7 @@ export default function TripScreen() {
             <View style={{ position: 'absolute', left: 0, right: 0, bottom: (avg / peak) * 130, borderTopWidth: 1, borderStyle: 'dashed', borderColor: C.secondaryLabel as string }} />
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 1 }}>
               {speeds.map((sp, i) => (
-                <View key={i} style={{ flex: 1, height: `${((sp ?? 0) / peak) * 100}%`, minHeight: 1, backgroundColor: trip.samples[i]?.source === 'derived' ? 'rgba(255,107,61,0.4)' : '#FF6B3D', borderTopLeftRadius: 2, borderTopRightRadius: 2 }} />
+                <View key={i} style={{ flex: 1, height: `${((sp ?? 0) / peak) * 100}%`, minHeight: 1, backgroundColor: trip.samples[i]?.source === 'derived' ? 'rgba(109,62,245,0.4)' : BRAND.purple, borderTopLeftRadius: 2, borderTopRightRadius: 2 }} />
               ))}
             </View>
           </View>

@@ -327,7 +327,7 @@ export default function Home() {
                 label={myBubble ? 'Bubble on' : 'Bubble'}
                 sub={myBubble ? `Until ${clock(myBubble.endsAt)}` : 'Hide exact spot'}
                 accent={Boolean(myBubble)}
-                tint="rgba(175,82,222,0.88)"
+                tint="rgba(169,50,196,0.92)"
                 onPress={() => router.push('/bubble')}
               />
               <GlassPill icon="mappin.and.ellipse" label="Check in" sub="Tell your circle" onPress={checkIn} />

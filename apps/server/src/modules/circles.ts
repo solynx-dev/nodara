@@ -9,7 +9,7 @@ import { parse } from '../lib/validate.js';
 import { bubblesAllowedSql, CLOCK_SKEW_GRACE_MS, isCircleMember } from '../services/access.js';
 import { serializeLocation, type LocationRow } from '../services/serialize.js';
 import { currentBubble } from '../services/bubbles.js';
-import { haversine } from '@nodara/shared';
+import { BRAND, haversine } from '@nodara/shared';
 
 const DEFAULT_SETTINGS: CircleSettings = { historyVisible: true, tripsVisible: true, membersCanInvite: false, bubblesAllowed: true };
 const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
@@ -239,7 +239,7 @@ export default async function circleRoutes(app: FastifyInstance, ctx: Ctx) {
 
   app.post('/api/circles', async (req) => {
     const a = requireUser(req);
-    const body = parse(z.object({ name: z.string().trim().min(1).max(60), color: colorSchema.default('#FF7A45') }), req.body);
+    const body = parse(z.object({ name: z.string().trim().min(1).max(60), color: colorSchema.default(BRAND.purple) }), req.body);
     const { n } = (await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM circle_members WHERE user_id = ${a.userId}`)[0]!;
     if (n >= 50) throw badRequest('You can belong to at most 50 circles');
     const id = await sql.begin(async (tx) => {

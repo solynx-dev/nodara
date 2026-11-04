@@ -57,11 +57,11 @@ export function MemberRow({ member, onClick, selected }: { member: MemberLocatio
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="truncate text-[15px] font-bold">{member.id === me.id ? `${member.displayName} (you)` : member.displayName}</span>
-          {member.inTrip && <Car className="size-3.5 shrink-0 text-accent" />}
+          {member.inTrip && <Car className="size-3.5 shrink-0 text-accent-text" />}
         </div>
         <div className="flex items-center gap-1.5 text-[13px] text-muted">
           {!loc && member.bubble ? (
-            <span className="inline-block size-2 shrink-0 rounded-full border border-[#AF52DE]" />
+            <span className="inline-block size-2 shrink-0 rounded-full border border-bubble" />
           ) : !member.sharing && !loc ? (
             <EyeOff className="size-3.5" />
           ) : (
@@ -73,7 +73,7 @@ export function MemberRow({ member, onClick, selected }: { member: MemberLocatio
       <div className="flex shrink-0 flex-col items-end gap-0.5">
         {loc && <span className={cx('text-[12px] font-semibold', f === 'stale' || f === 'old' ? 'text-warning' : 'text-muted')}>{f === 'live' ? (moving ? formatSpeed(loc.speed, me.preferences.units) : 'Now') : ago(loc.recordedAt)}</span>}
         {!loc && member.bubble && (
-          <span className="text-[12px] font-semibold text-[#AF52DE]">until {new Date(member.bubble.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+          <span className="text-[12px] font-semibold text-bubble-text">until {new Date(member.bubble.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
         )}
         <BatteryIndicator level={loc?.battery ?? member.bubble?.battery ?? null} charging={loc?.charging ?? member.bubble?.charging ?? null} />
       </div>

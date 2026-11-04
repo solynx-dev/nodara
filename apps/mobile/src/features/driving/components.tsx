@@ -56,7 +56,7 @@ export function DrivingWeekCard({ userId, onOpenReport }: { userId: string; onOp
     <View style={styles.card}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={[styles.bigIcon, { backgroundColor: C.accentSoft }]}>
-          <SymbolView name="steeringwheel" size={24} tintColor={C.accent} />
+          <SymbolView name="steeringwheel" size={24} tintColor={C.accentText} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[T.headline, { color: C.label }]}>{userId === me.id ? 'Your driving this week' : `${firstName(p.user.displayName)}'s driving this week`}</Text>
@@ -71,7 +71,7 @@ export function DrivingWeekCard({ userId, onOpenReport }: { userId: string; onOp
         ))}
       </View>
       <Tap onPress={onOpenReport} style={styles.reportLink} accessibilityRole="button">
-        <SymbolView name="chart.bar.doc.horizontal" size={17} tintColor={C.accent} />
+        <SymbolView name="chart.bar.doc.horizontal" size={17} tintColor={C.accentText} />
         <Text style={[T.headline, { color: C.label, flex: 1 }]}>Weekly driving report</Text>
         <SymbolView name="chevron.right" size={13} weight="semibold" tintColor={C.tertiaryLabel} />
       </Tap>

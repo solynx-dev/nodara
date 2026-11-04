@@ -260,7 +260,7 @@ function Legend({ onClose }: { onClose: () => void }) {
           <span className="size-3.5 rounded-full bg-muted grayscale" /> Out of date — greyed with “!”
         </li>
         <li className="flex items-center gap-2.5">
-          <Navigation2 className="size-4 text-accent" /> Arrow shows direction while moving
+          <Navigation2 className="size-4 text-accent-text" /> Arrow shows direction while moving
         </li>
         <li className="flex items-center gap-2.5">
           <span className="size-3.5 rounded-full border border-accent bg-accent/15" /> Shaded circle: GPS accuracy
@@ -331,7 +331,7 @@ function MemberDetail({ member, onBack, onFocus }: { member: MemberLocation; onB
         </button>
 
         {!loc && member.bubble ? (
-          <div className="mt-4 rounded-2xl border border-[#AF52DE]/40 bg-[#AF52DE]/10 p-4 text-[14px] text-ink-2">
+          <div className="mt-4 rounded-2xl border border-bubble/40 bg-bubble/10 p-4 text-[14px] text-ink-2">
             <b>{firstName(member.displayName)} is in a bubble</b> until {clock(member.bubble.endsAt)}: you see a general area
             {member.bubble.label ? ` around ${member.bubble.label}` : ''} (about {formatDistance(member.bubble.radiusM, units)}) instead of their exact location.
             Places, trips and drives from that time stay private.

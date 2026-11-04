@@ -80,7 +80,7 @@ export default function Privacy() {
             key={String(d)}
             title={d == null ? `${serverDefault ? `Server default (${retentionLabel(serverDefault)})` : 'Forever'}` : retentionLabel(d)}
             onPress={() => void setRetention(d)}
-            accessory={(retention ?? null) === d ? <SymbolView name="checkmark" size={17} weight="semibold" tintColor={C.accent} /> : <View />}
+            accessory={(retention ?? null) === d ? <SymbolView name="checkmark" size={17} weight="semibold" tintColor={C.accentText} /> : <View />}
             last={i === RETENTION.length - 1}
           />
         ))}

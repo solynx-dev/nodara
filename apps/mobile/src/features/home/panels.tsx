@@ -73,7 +73,7 @@ function PersonCard({ m, ev, onPress, index }: { m: MemberLocation; ev?: PlaceEv
             {detail}
           </Text>
         )}
-        <StatusPill icon={s.pill.icon} text={s.pill.text} color={s.pill.color} />
+        <StatusPill icon={s.pill.icon} text={s.pill.text} color={s.pill.color} textColor={s.pill.textColor} />
       </View>
       <SymbolView name="chevron.right" size={13} weight="semibold" tintColor={C.tertiaryLabel} />
     </Card>
@@ -111,7 +111,7 @@ export function PeoplePanel({
       <DrivingSummaryCard circleId={circleId} />
       <Card onPress={onInvite} index={members.length} label="Invite someone">
         <View style={[styles.roundIcon, { backgroundColor: C.accentSoft }]}>
-          <SymbolView name="person.badge.plus" size={24} tintColor={C.accent} />
+          <SymbolView name="person.badge.plus" size={24} tintColor={C.accentText} />
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={[T.headline, { color: C.label }]}>Invite someone</Text>
@@ -176,7 +176,7 @@ export function PlacesPanel({
             </View>
             <View style={{ alignItems: 'flex-end', gap: 8 }}>
               <Tap onPress={() => onFocus(p)} hitSlop={8} style={styles.mapButton} accessibilityRole="button" accessibilityLabel={`Show ${p.name} on the map`}>
-                <SymbolView name="map.fill" size={15} tintColor={C.accent} />
+                <SymbolView name="map.fill" size={15} tintColor={C.accentText} />
               </Tap>
               <AvatarStack people={inside} size={26} max={3} />
             </View>

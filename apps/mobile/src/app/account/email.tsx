@@ -114,7 +114,7 @@ export default function EmailScreen() {
                     <View style={{ marginHorizontal: 16, gap: 12, marginBottom: 30 }}>
                       <PrimaryButton title="Confirm" onPress={() => void verify()} loading={busy} disabled={code.length < 6} />
                       <Pressable onPress={() => void sendVerification()} disabled={busy} style={{ alignSelf: 'center', padding: 6 }}>
-                        <Text style={{ color: C.accent, fontSize: 16, fontWeight: '600' }}>Send a new code</Text>
+                        <Text style={{ color: C.accentText, fontSize: 16, fontWeight: '600' }}>Send a new code</Text>
                       </Pressable>
                     </View>
                   </>

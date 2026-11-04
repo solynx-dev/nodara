@@ -99,14 +99,14 @@ export default function TripPage() {
           {map && <RouteLayer map={map} id="trip" coords={trip.route} />}
           {map && first && (
             <HtmlMarker map={map} lon={first[0]} lat={first[1]}>
-              <div className="flex size-7 items-center justify-center rounded-full border-[3px] border-white bg-[#FFB547] shadow-lg">
+              <div className="flex size-7 items-center justify-center rounded-full border-[3px] border-white bg-brand-blue shadow-lg">
                 <CircleDot className="size-3.5 text-white" />
               </div>
             </HtmlMarker>
           )}
           {map && last && trip.status === 'completed' && (
             <HtmlMarker map={map} lon={last[0]} lat={last[1]}>
-              <div className="flex size-7 items-center justify-center rounded-full border-[3px] border-white bg-[#E5384A] shadow-lg">
+              <div className="flex size-7 items-center justify-center rounded-full border-[3px] border-white bg-brand-pink shadow-lg">
                 <Flag className="size-3.5 text-white" />
               </div>
             </HtmlMarker>
@@ -155,7 +155,7 @@ export default function TripPage() {
             <h2 className="mb-3 text-[15px] font-bold">Route</h2>
             <ol className="space-y-3 text-[13.5px]">
               <li className="flex gap-3">
-                <span className="mt-1 size-2.5 shrink-0 rounded-full bg-[#FFB547]" />
+                <span className="mt-1 size-2.5 shrink-0 rounded-full bg-brand-blue" />
                 <div>
                   <div className="font-bold">{trip.startLabel ?? coords(trip.startLat, trip.startLon)}</div>
                   <div className="text-muted">Departed {clock(trip.startedAt)}</div>
@@ -173,7 +173,7 @@ export default function TripPage() {
                 </li>
               ))}
               <li className="flex gap-3">
-                <span className="mt-1 size-2.5 shrink-0 rounded-full bg-[#E5384A]" />
+                <span className="mt-1 size-2.5 shrink-0 rounded-full bg-brand-pink" />
                 <div>
                   <div className="font-bold">{trip.status === 'in_progress' ? 'Still travelling' : (trip.endLabel ?? coords(trip.endLat, trip.endLon))}</div>
                   {trip.endedAt && <div className="text-muted">Arrived {clock(trip.endedAt)}</div>}

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="apps/web/public/icon.svg" width="88" alt="Nodara logo" />
+<img src="docs/brand/nodara-icon-rounded.png" width="96" alt="Nodara logo" />
 
 # Nodara
 

@@ -29,7 +29,7 @@
     "android": {
       "package": "ca.nodara.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0C0E12",
+        "backgroundColor": "#0B0D1C",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -55,7 +55,7 @@
       [
         "expo-notifications",
         {
-          "color": "#FF6B3D"
+          "color": "#6D3EF5"
         }
       ],
       "expo-image",
@@ -73,10 +73,10 @@
         {
           "image": "./assets/splash-icon.png",
           "imageWidth": 160,
-          "backgroundColor": "#F6F5F2",
+          "backgroundColor": "#F7F7FB",
           "dark": {
             "image": "./assets/splash-icon.png",
-            "backgroundColor": "#0C0E12"
+            "backgroundColor": "#0B0D1C"
           }
         }
       ],

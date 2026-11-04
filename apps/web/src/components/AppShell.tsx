@@ -104,7 +104,7 @@ function ShellInner({ children }: { children: ReactNode }) {
             >
               {({ isActive }) => (
                 <>
-                  <n.icon className={cx('size-[18px]', isActive ? 'text-accent' : 'text-muted group-hover:text-ink-2')} />
+                  <n.icon className={cx('size-[18px]', isActive ? 'text-accent-text' : 'text-muted group-hover:text-ink-2')} />
                   <span className="flex-1">{n.label}</span>
                   {n.to === '/notifications' && unread > 0 && (
                     <span className="tnum rounded-md bg-accent px-1.5 text-[11px] font-bold leading-5 text-white">{unread > 99 ? '99+' : unread}</span>
@@ -153,13 +153,13 @@ function ShellInner({ children }: { children: ReactNode }) {
           {MOBILE_TABS.map((to) => {
             const n = NAV.find((x) => x.to === to)!;
             return (
-              <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => cx('flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-bold', isActive ? 'text-accent' : 'text-muted')}>
+              <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => cx('flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-bold', isActive ? 'text-accent-text' : 'text-muted')}>
                 <n.icon className="size-[22px]" />
                 {n.label}
               </NavLink>
             );
           })}
-          <button onClick={() => setMore(true)} className={cx('relative flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-bold', more ? 'text-accent' : 'text-muted')}>
+          <button onClick={() => setMore(true)} className={cx('relative flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-bold', more ? 'text-accent-text' : 'text-muted')}>
             <MoreHorizontal className="size-[22px]" />
             More
             {unread > 0 && <span className="absolute top-2.5 right-[calc(50%-16px)] size-2 rounded-full bg-accent" />}
@@ -173,7 +173,7 @@ function ShellInner({ children }: { children: ReactNode }) {
         <div className="grid grid-cols-3 gap-2 pb-2">
           {[...NAV.filter((n) => !(MOBILE_TABS as readonly string[]).includes(n.to)), ...(me.isAdmin ? [{ to: '/admin', label: 'Admin', icon: Shield }] : [])].map((n) => (
             <NavLink key={n.to} to={n.to} className="relative flex flex-col items-center gap-2 rounded-2xl bg-surface-2 py-4 text-[13px] font-semibold">
-              <n.icon className="size-5 text-accent" />
+              <n.icon className="size-5 text-accent-text" />
               {n.label}
               {n.to === '/notifications' && unread > 0 && <span className="tnum absolute top-2 right-2 rounded-md bg-accent px-1.5 text-[10.5px] font-bold leading-[18px] text-white">{unread}</span>}
             </NavLink>

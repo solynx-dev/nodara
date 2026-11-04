@@ -137,7 +137,7 @@ export default function SignIn() {
         {step === 'password' && (
           <>
             <Pressable onPress={() => router.push({ pathname: '/reset-password', params: { email: email.trim() } })} style={{ alignSelf: 'center', padding: 4 }}>
-              <Text style={{ color: C.accent, fontSize: 16, fontWeight: '600' }}>Forgot password?</Text>
+              <Text style={{ color: C.accentText, fontSize: 16, fontWeight: '600' }}>Forgot password?</Text>
             </Pressable>
             {canPasskey && (
               <>
@@ -153,7 +153,7 @@ export default function SignIn() {
         )}
         {step === 'verify' && (
           <Pressable onPress={() => void resend()} disabled={busy} style={{ alignSelf: 'center', padding: 4 }}>
-            <Text style={{ color: C.accent, fontSize: 16, fontWeight: '600' }}>Send a new code</Text>
+            <Text style={{ color: C.accentText, fontSize: 16, fontWeight: '600' }}>Send a new code</Text>
           </Pressable>
         )}
         {step !== 'password' && (
@@ -174,8 +174,8 @@ export default function SignIn() {
               New to this server? Open your invitation link in Safari to create an account, then sign in here.
             </Text>
             <Pressable onPress={disconnect} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <SymbolView name="server.rack" size={14} tintColor={C.accent} />
-              <Text style={{ color: C.accent, fontSize: 15 }}>Use a different server</Text>
+              <SymbolView name="server.rack" size={14} tintColor={C.accentText} />
+              <Text style={{ color: C.accentText, fontSize: 15 }}>Use a different server</Text>
             </Pressable>
           </>
         )}

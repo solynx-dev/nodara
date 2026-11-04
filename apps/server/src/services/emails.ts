@@ -1,3 +1,4 @@
+import { BRAND, BRAND_GRADIENT_CSS } from '@nodara/shared';
 import type { Ctx } from '../context.js';
 
 /**
@@ -34,30 +35,31 @@ export function render(instance: string, p: Parts): EmailContent {
     `— ${instance}`,
   ].join('\n\n');
 
-  const para = (s: string) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.5;color:#3a3a3c">${esc(s).replace(/\n/g, '<br>')}</p>`;
+  const para = (s: string) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.5;color:#474b66">${esc(s).replace(/\n/g, '<br>')}</p>`;
   const html = `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(p.subject)}</title></head>
-<body style="margin:0;padding:0;background:#f2f2f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2f2f7;padding:28px 12px">
+<body style="margin:0;padding:0;background:#f7f7fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f7fb;padding:28px 12px">
 <tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:18px;padding:28px 26px">
 <tr><td>
-<div style="font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#ff7a45;margin-bottom:10px">${esc(instance)}</div>
-<h1 style="margin:0 0 16px;font-size:22px;line-height:1.25;color:#1c1c1e">${esc(p.heading)}</h1>
+<div style="height:4px;border-radius:4px;margin:0 0 20px;background:${BRAND.purple};background-image:${BRAND_GRADIENT_CSS}"></div>
+<div style="font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:${BRAND.purple};margin-bottom:10px">${esc(instance)}</div>
+<h1 style="margin:0 0 16px;font-size:22px;line-height:1.25;color:#12132a">${esc(p.heading)}</h1>
 ${p.lines.map(para).join('\n')}
 ${
   p.code
-    ? `<div style="margin:6px 0 18px;padding:14px 0;border-radius:14px;background:#f2f2f7;text-align:center;font-size:32px;font-weight:700;letter-spacing:.3em;color:#1c1c1e;font-family:ui-monospace,Menlo,Consolas,monospace">${esc(p.code)}</div>`
+    ? `<div style="margin:6px 0 18px;padding:14px 0;border-radius:14px;background:#f1f0f8;text-align:center;font-size:32px;font-weight:700;letter-spacing:.3em;color:#12132a;font-family:ui-monospace,Menlo,Consolas,monospace">${esc(p.code)}</div>`
     : ''
 }
 ${
   p.link
-    ? `<p style="margin:0 0 18px"><a href="${esc(p.link.url)}" style="display:inline-block;padding:12px 20px;border-radius:12px;background:#ff7a45;color:#ffffff;font-weight:600;font-size:15px;text-decoration:none">${esc(p.link.label)}</a></p>`
+    ? `<p style="margin:0 0 18px"><a href="${esc(p.link.url)}" style="display:inline-block;padding:12px 20px;border-radius:12px;background:${BRAND.purple};color:#ffffff;font-weight:600;font-size:15px;text-decoration:none">${esc(p.link.label)}</a></p>`
     : ''
 }
 ${(p.after ?? []).map(para).join('\n')}
 </td></tr></table>
-<p style="margin:14px 0 0;font-size:12px;color:#8e8e93">Sent by ${esc(instance)}. You're getting this because of activity on your account.</p>
+<p style="margin:14px 0 0;font-size:12px;color:#666b88">Sent by ${esc(instance)}. You're getting this because of activity on your account.</p>
 </td></tr></table>
 </body></html>`;
   return { subject: p.subject, text, html };

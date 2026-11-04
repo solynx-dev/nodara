@@ -113,6 +113,26 @@ describe('bubbles', () => {
     expect((await a.client.get(`/api/place-events?userId=${a.id}`)).json()).toHaveLength(1);
   });
 
+  it("still serves a circle-mate's trips, insights, timeline and reports with the bubble filters", async () => {
+    const { a, b } = await family();
+    await post(a, 45.2, -64.2, 1);
+    await a.client.post('/api/bubble', { radiusM: 2000, hours: 1 });
+    const range = `from=${encodeURIComponent(at(60))}&to=${encodeURIComponent(at(-1))}`;
+    for (const url of [
+      `/api/trips?userId=${a.id}`,
+      `/api/insights?userId=${a.id}&period=week`,
+      `/api/insights?userId=${a.id}&period=month&mode=driving`,
+      `/api/history/${a.id}/timeline?${range}`,
+      `/api/history/${a.id}/days?${range}`,
+      `/api/driving/events?userId=${a.id}&${range}`,
+      '/api/driving/report',
+      `/api/place-events?userId=${a.id}`,
+    ]) {
+      const r = await b.client.get(url);
+      expect(r.statusCode, `${url}: ${r.body}`).toBe(200);
+    }
+  });
+
   it('picks centres within 40% of the radius', () => {
     for (let i = 0; i < 200; i++) {
       const c = randomCentre(45, -64, 10_000);

@@ -135,7 +135,7 @@ export default async function tripRoutes(app: FastifyInstance, ctx: Ctx) {
     const { start, end, prev_start } = range!;
     const filter = sql`
       user_id = ${target} AND status = 'completed'
-      ${tripsVisibleSql(sql, access)}
+      ${tripsVisibleSql(sql, access, 't')}
       ${q.mode === 'driving' ? sql`AND ${sql.unsafe(MODE_SQL)} = 'driving'` : sql``}`;
 
     const totals = async (from: Date, to: Date) => {
@@ -143,7 +143,7 @@ export default async function tripRoutes(app: FastifyInstance, ctx: Ctx) {
         SELECT count(*)::int AS trips, COALESCE(sum(distance_m), 0)::float AS distance,
                COALESCE(sum(duration_sec), 0)::int AS duration, COALESCE(sum(moving_sec), 0)::int AS moving,
                max(max_speed) AS max_speed
-        FROM trips WHERE ${filter} AND started_at >= ${from} AND started_at < ${to}`;
+        FROM trips t WHERE ${filter} AND started_at >= ${from} AND started_at < ${to}`;
       return {
         trips: r!.trips,
         distanceM: r!.distance,

@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/session';
 import { ago } from '@/lib/format';
-import { C, T } from '@/lib/theme';
+import { BRAND, C, T } from '@/lib/theme';
 import type { CircleDetail, CircleMember, Invitation } from '@/lib/types';
 import { Avatar, AvatarStack, Empty, PrimaryButton, Row, Section, Skeleton, useToast } from '@/components/ui';
 
@@ -194,7 +194,7 @@ export default function CircleScreen() {
           <Row icon="person.badge.plus" iconColor="#34C759" title="Members can invite" accessory={<Switch value={c.settings.membersCanInvite} onValueChange={(v) => setSetting('membersCanInvite', v)} trackColor={{ true: C.accent }} />} />
           <Row
             icon="circle.dashed"
-            iconColor="#AF52DE"
+            iconColor={BRAND.pink}
             title="Allow bubbles"
             subtitle="Members can show just a general area for a few hours"
             accessory={<Switch value={c.settings.bubblesAllowed !== false} onValueChange={(v) => setSetting('bubblesAllowed', v)} trackColor={{ true: C.accent }} />}

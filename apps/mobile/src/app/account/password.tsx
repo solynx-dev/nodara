@@ -79,7 +79,7 @@ export default function PasswordScreen() {
         <View style={{ marginHorizontal: 16, gap: 18 }}>
           <PrimaryButton title="Change password" onPress={() => void save()} loading={busy} disabled={!current || next.length < 10 || !confirm} />
           <Pressable onPress={() => router.push({ pathname: '/reset-password', params: { email: me.email } })} style={{ alignSelf: 'center', padding: 6 }}>
-            <Text style={{ color: C.accent, fontSize: 16, fontWeight: '600' }}>Forgot your password?</Text>
+            <Text style={{ color: C.accentText, fontSize: 16, fontWeight: '600' }}>Forgot your password?</Text>
           </Pressable>
           <Text style={{ fontSize: 13, color: C.secondaryLabel, textAlign: 'center', lineHeight: 18 }}>
             We&apos;ll email a code to {me.email} so you can choose a new one.

@@ -15,7 +15,7 @@ import { ago, clock, formatDistance } from '@/lib/format';
 import { disablePush, enablePush, pushPermission } from '@/lib/push';
 import { getMapType, MAP_TYPES, setMapTypePref } from '@/lib/prefs';
 import { getItem, KEYS } from '@/lib/storage';
-import { C, HEX, T } from '@/lib/theme';
+import { BRAND, C, HEX, T } from '@/lib/theme';
 import type { Device, Me, NotifyKey, NotifyPrefs } from '@/lib/types';
 import { MODES, startTracking, stopTracking, trackingStatus, type TrackingMode } from '@/background/tracking';
 import { lastUpload, pendingCount } from '@/background/upload';
@@ -279,7 +279,7 @@ export default function Settings() {
         />
         <Row
           icon="circle.dashed.inset.filled"
-          iconColor="#AF52DE"
+          iconColor={BRAND.pink}
           title="Bubble"
           subtitle={bubble.data?.bubble ? `On until ${clock(bubble.data.bubble.endsAt)} · ${bubble.data.bubble.label ?? 'general area only'}` : 'Show just a general area for a while'}
           value={bubble.data?.bubble ? 'On' : undefined}
@@ -297,7 +297,7 @@ export default function Settings() {
             title={MODES[mode].label}
             subtitle={MODES[mode].detail}
             onPress={t?.running ? () => void setMode(mode) : undefined}
-            accessory={t?.mode === mode ? <SymbolView name="checkmark" size={17} weight="semibold" tintColor={C.accent} /> : <View />}
+            accessory={t?.mode === mode ? <SymbolView name="checkmark" size={17} weight="semibold" tintColor={C.accentText} /> : <View />}
             last={i === all.length - 1}
           />
         ))}

@@ -1,3 +1,4 @@
+import { BRAND } from '@nodara/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Ctx } from '../context.js';
@@ -16,7 +17,7 @@ const placeBody = z.object({
   lon: z.number().min(-180).max(180),
   radiusM: z.number().min(25).max(50_000).default(150),
   icon: z.enum(PLACE_ICONS).default('pin'),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default('#FF7A45'),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default(BRAND.purple),
   circleId: uuid.nullable().default(null),
   address: z.string().trim().max(200).nullish(),
 });

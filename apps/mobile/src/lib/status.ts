@@ -1,6 +1,7 @@
+import type { ColorValue } from 'react-native';
 import type { SFSymbol } from 'expo-symbols';
 import { ago, clock, firstName, formatDistance, formatSpeed, formatStay, freshness, sinceLabel, type Units } from './format';
-import { HEX } from './theme';
+import { BRAND, C, HEX } from './theme';
 import { redSpeedMps } from './driving';
 import type { MemberLocation, PlaceEvent } from './types';
 
@@ -8,7 +9,7 @@ export interface MemberStatus {
   /** Where they are, in words: "At Home", "Near 12 King St", "Location sharing off". */
   where: string;
   /** Short state pill: "Live", "Driving · 54 km/h", "Updated 2 h ago". */
-  pill: { text: string; color: string; icon: SFSymbol };
+  pill: { text: string; color: string; icon: SFSymbol; textColor?: ColorValue };
   /** Extra line: "Here for 3 h 12 min · since 7:32 PM". */
   since: string | null;
   /** Just the duration: "3 h 12 min" (or "at least 2 days"). */
@@ -20,7 +21,7 @@ export interface MemberStatus {
 const MOVING = 1.5; // m/s
 
 /** Bubbles are drawn in purple everywhere. */
-export const BUBBLE_COLOR = '#AF52DE';
+export const BUBBLE_COLOR = BRAND.pink;
 
 /** "Around Dieppe (5 km)" / "In a bubble (5 km)". */
 export const bubbleArea = (b: { label: string | null; radiusM: number }, units: Units) =>
@@ -31,7 +32,7 @@ export function describeMember(m: MemberLocation, ev: PlaceEvent | undefined, ad
   if (!loc && m.bubble) {
     return {
       where: m.bubble.label ? `Somewhere around ${m.bubble.label}` : 'In a bubble',
-      pill: { text: `Bubble until ${clock(m.bubble.endsAt)}`, color: BUBBLE_COLOR, icon: 'circle.dashed' },
+      pill: { text: `Bubble until ${clock(m.bubble.endsAt)}`, color: BUBBLE_COLOR, icon: 'circle.dashed', textColor: C.bubbleText },
       since: null,
       stayFor: null,
       live: false,

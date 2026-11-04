@@ -313,7 +313,7 @@ function Timeline({
               {item.type === 'stay' ? (
                 <button onClick={() => onStay(item)} className="relative flex w-full items-start gap-3 rounded-xl py-2 pr-2 text-left hover:bg-surface-2">
                   <span className="relative z-10 mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface">
-                    {item.placeId ? <Home className="size-4 text-accent" /> : <MapPin className="size-4 text-ink-2" />}
+                    {item.placeId ? <Home className="size-4 text-accent-text" /> : <MapPin className="size-4 text-ink-2" />}
                   </span>
                   <div className="min-w-0 flex-1 pt-0.5">
                     <div className="truncate text-[14.5px] font-bold">{item.label ?? coords(item.lat, item.lon)}</div>

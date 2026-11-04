@@ -83,7 +83,7 @@ export default function ResetPassword() {
         options={{
           headerLeft: () => (
             <Pressable onPress={() => router.back()} hitSlop={10}>
-              <Text style={{ color: C.accent, fontSize: 17 }}>Cancel</Text>
+              <Text style={{ color: C.accentText, fontSize: 17 }}>Cancel</Text>
             </Pressable>
           ),
         }}
@@ -148,7 +148,7 @@ export default function ResetPassword() {
               <>
                 <PrimaryButton title="Continue" onPress={() => void check()} loading={busy} disabled={code.length < 6} />
                 <Pressable onPress={() => void send()} disabled={busy} style={{ alignSelf: 'center', padding: 6 }}>
-                  <Text style={{ color: C.accent, fontSize: 16, fontWeight: '600' }}>Send a new code</Text>
+                  <Text style={{ color: C.accentText, fontSize: 16, fontWeight: '600' }}>Send a new code</Text>
                 </Pressable>
               </>
             )}

@@ -44,4 +44,4 @@ export async function pickAndUploadAvatar(source: PhotoSource): Promise<Me | nul
 export const removeAvatar = () => api.del<Me>('/api/me/avatar');
 
 /** Colours offered for initials and map markers when there's no photo (same palette as the server). */
-export const AVATAR_COLORS = ['#FF7A45', '#4C9AFF', '#36B37E', '#B37FEB', '#F5A524', '#13C2C2', '#F56A9A', '#7A8CFF'];
+export const AVATAR_COLORS = ['#6D3EF5', '#4C9AFF', '#36B37E', '#B37FEB', '#F5A524', '#13C2C2', '#F56A9A', '#7A8CFF'];

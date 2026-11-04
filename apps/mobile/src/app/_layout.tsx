@@ -11,7 +11,7 @@ import { ApiError } from '@/lib/api';
 import { routeForUrl, syncPushToken } from '@/lib/push';
 import { useRealtime } from '@/lib/realtime';
 import { ForegroundReporter } from '@/components/ForegroundReporter';
-import { C } from '@/lib/theme';
+import { C, NAV } from '@/lib/theme';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -96,7 +96,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider value={{ ...theme, colors: { ...theme.colors, primary: C.accent } }}>
+        <ThemeProvider value={{ ...theme, colors: { ...theme.colors, ...NAV[scheme === 'dark' ? 'dark' : 'light'], primary: C.accent } }}>
           <SessionProvider>
             <ToastProvider>
               <StatusBar style="auto" />

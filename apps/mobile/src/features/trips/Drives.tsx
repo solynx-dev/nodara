@@ -53,7 +53,7 @@ export function DriveCard({ t, onOpen, index = 0 }: { t: Trip; onOpen: (id: stri
             )}
           </View>
           <View style={styles.endRow}>
-            <Text style={[T.headline, { color: live ? C.accent : C.label, flex: 1 }]} numberOfLines={1}>
+            <Text style={[T.headline, { color: live ? C.accentText : C.label, flex: 1 }]} numberOfLines={1}>
               {live ? 'On the way now' : (t.endLabel ?? 'Somewhere')}
             </Text>
             {t.endedAt && <Text style={styles.time}>{clock(t.endedAt)}</Text>}

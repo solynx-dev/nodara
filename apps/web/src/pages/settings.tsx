@@ -803,7 +803,7 @@ function DataSection() {
             ['csv', 'Spreadsheet (CSV)', 'For Excel, Numbers, pandas…'],
           ] as const).map(([f, label, desc]) => (
             <a key={f} href={`/api/me/export?format=${f}`} download className="flex items-start gap-3 rounded-2xl border border-line p-4 transition hover:bg-surface-2">
-              <Download className="mt-0.5 size-5 text-accent" />
+              <Download className="mt-0.5 size-5 text-accent-text" />
               <div>
                 <div className="text-[14px] font-bold">{label}</div>
                 <div className="text-[12.5px] text-muted">{desc}</div>

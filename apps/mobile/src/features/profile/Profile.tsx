@@ -38,11 +38,11 @@ export function ProfileHeader({ m, ev, onBack, onEdit }: { m: MemberLocation; ev
           </Text>
           {s.live && <LiveDot live size={9} />}
         </View>
-        <StatusPill icon={s.pill.icon} text={s.pill.text} color={s.pill.color} />
+        <StatusPill icon={s.pill.icon} text={s.pill.text} color={s.pill.color} textColor={s.pill.textColor} />
       </View>
       {isMe && onEdit && (
         <Tap onPress={onEdit} style={styles.edit} accessibilityRole="button" accessibilityLabel="Edit your profile">
-          <Text style={{ fontSize: 15, fontWeight: '600', color: C.accent }}>Edit</Text>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: C.accentText }}>Edit</Text>
         </Tap>
       )}
     </Animated.View>
@@ -168,7 +168,7 @@ function NowCard({ m, ev }: { m: MemberLocation; ev?: PlaceEvent }) {
       {/* How long they've been here: the thing people actually want to know. */}
       {s.stayFor && m.stay ? (
         <View style={styles.stay}>
-          <SymbolView name="hourglass" size={15} tintColor={C.accent} />
+          <SymbolView name="hourglass" size={15} tintColor={C.accentText} />
           <Text style={[T.subhead, { color: C.label, flex: 1 }]}>
             Here for <Text style={{ fontWeight: '700' }}>{s.stayFor}</Text>
             <Text style={{ color: C.secondaryLabel }}> · since {new Date(m.stay.since).toDateString() === new Date().toDateString() ? clock(m.stay.since) : new Date(m.stay.since).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}</Text>

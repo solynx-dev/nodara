@@ -14,7 +14,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 };
 
 /** A small, pleasant palette used for member avatars and map markers. */
-export const AVATAR_COLORS = ['#FF7A45', '#4C9AFF', '#36B37E', '#B37FEB', '#F5A524', '#13C2C2', '#F56A9A', '#7A8CFF'];
+export const AVATAR_COLORS = ['#6D3EF5', '#4C9AFF', '#36B37E', '#B37FEB', '#F5A524', '#13C2C2', '#F56A9A', '#7A8CFF'];
 
 export function pickAvatarColor(seed: string) {
   let h = 0;

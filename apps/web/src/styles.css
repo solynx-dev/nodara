@@ -5,55 +5,76 @@
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 /* ---------------------------------------------------------------------------
-   Nodara design tokens. "Ink" neutrals with a single warm "ember" accent.
+   Nodara design tokens. Midnight navy and off-white neutrals with one vibrant
+   purple accent; the blue-to-pink brand gradient is reserved for a few
+   prominent brand moments (logo, onboarding hero, headline accents).
+   Every brand colour lives here; components use these tokens, never hex values.
+
+   Contrast (WCAG AA): white on --accent 5.7:1 and on --accent-hover 7.3:1;
+   --accent-text 7.3:1 (light) / 6.7:1 (dark) on surfaces; --muted ≥ 4.5:1.
    --------------------------------------------------------------------------- */
 :root {
-  --bg: #f6f5f2;
+  /* Brand palette (same in both themes). */
+  --brand-purple: #6d3ef5;
+  --brand-purple-hover: #5930da;
+  --brand-indigo: #3967ff;
+  --brand-blue: #1fb6ff;
+  --brand-violet: #9342fa;
+  --brand-pink: #d94ff5;
+  --brand-midnight: #0b0d1c;
+  --brand-gradient: linear-gradient(120deg, #1fb6ff 0%, #3967ff 32%, #9342fa 70%, #d94ff5 100%);
+
+  --bg: #f7f7fb;
   --bg-elevated: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f1efeb;
-  --surface-3: #e8e5df;
-  --border: rgb(24 22 20 / 0.08);
-  --border-strong: rgb(24 22 20 / 0.14);
-  --text: #16171b;
-  --text-2: #4a4f59;
-  --muted: #7a808c;
-  --accent: #ff5f2e;
-  --accent-hover: #f0521f;
-  --accent-soft: rgb(255 95 46 / 0.1);
-  --accent-text: #d9461a;
+  --surface-2: #f1f0f8;
+  --surface-3: #e6e4f2;
+  --border: rgb(22 20 64 / 0.09);
+  --border-strong: rgb(22 20 64 / 0.16);
+  --text: #12132a;
+  --text-2: #474b66;
+  --muted: #666b88;
+  --accent: var(--brand-purple);
+  --accent-hover: var(--brand-purple-hover);
+  --accent-soft: rgb(109 62 245 / 0.1);
+  --accent-text: #5930da;
+  --on-accent: #ffffff;
+  /* Bubbles (privacy areas) use the brand pink so they never read as a button. */
+  --bubble: var(--brand-pink);
+  --bubble-text: #a932c4;
   --success: #1f9d5c;
   --warning: #d48806;
   --danger: #e5384a;
-  --info: #3b82f6;
-  --shadow: 0 1px 2px rgb(16 18 24 / 0.05), 0 8px 24px -12px rgb(16 18 24 / 0.12);
-  --shadow-lg: 0 24px 64px -24px rgb(16 18 24 / 0.35);
-  --map-bg: #e9e6df;
+  --info: var(--brand-indigo);
+  --shadow: 0 1px 2px rgb(18 19 42 / 0.05), 0 8px 24px -12px rgb(18 19 42 / 0.14);
+  --shadow-lg: 0 24px 64px -24px rgb(18 19 42 / 0.38);
+  --map-bg: #ecebf3;
   color-scheme: light;
 }
 
 [data-theme='dark'] {
-  --bg: #0c0e12;
-  --bg-elevated: #14171c;
-  --surface: #14171c;
-  --surface-2: #1b1f26;
-  --surface-3: #252a33;
-  --border: rgb(255 255 255 / 0.07);
-  --border-strong: rgb(255 255 255 / 0.13);
-  --text: #eceef2;
-  --text-2: #b3b9c4;
-  --muted: #828a99;
-  --accent: #ff6b3d;
-  --accent-hover: #ff8259;
-  --accent-soft: rgb(255 107 61 / 0.14);
-  --accent-text: #ff8a63;
+  --bg: #0b0d1c;
+  --bg-elevated: #16182d;
+  --surface: #16182d;
+  --surface-2: #1d1f38;
+  --surface-3: #2a2b46;
+  --border: #2a2b46;
+  --border-strong: #3a3c5e;
+  --text: #f8f9ff;
+  --text-2: #c9cce0;
+  --muted: #a6abc5;
+  --accent: var(--brand-purple);
+  --accent-hover: var(--brand-purple-hover);
+  --accent-soft: rgb(109 62 245 / 0.22);
+  --accent-text: #a98eff;
+  --bubble-text: #e07bf7;
   --success: #34c77b;
   --warning: #f5a524;
   --danger: #f45d6c;
-  --info: #5b9dff;
+  --info: #6e8bff;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.6);
   --shadow-lg: 0 24px 64px -24px rgb(0 0 0 / 0.8);
-  --map-bg: #111418;
+  --map-bg: #0e1022;
   color-scheme: dark;
 }
 
@@ -73,6 +94,18 @@
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
   --color-accent-text: var(--accent-text);
+  --color-on-accent: var(--on-accent);
+  --color-bubble: var(--bubble);
+  --color-bubble-text: var(--bubble-text);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-indigo: var(--brand-indigo);
+  --color-brand-violet: var(--brand-violet);
+  --color-brand-pink: var(--brand-pink);
+  --color-midnight: var(--brand-midnight);
+  /* Text on always-midnight brand surfaces (the sign-in hero). */
+  --color-on-midnight: #f8f9ff;
+  --color-on-midnight-muted: #a6abc5;
+  --color-lavender: #a98eff;
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
@@ -117,6 +150,9 @@
 
 @layer components {
   .tnum { font-variant-numeric: tabular-nums; }
+  /* The signature gradient: use sparingly (logo, hero, one headline word). */
+  .bg-brand-gradient { background-image: var(--brand-gradient); }
+  .text-brand-gradient { background-image: var(--brand-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .card { @apply rounded-2xl border border-line bg-surface shadow-card; }
   .label { @apply text-[13px] font-semibold text-ink-2; }
   .eyebrow { @apply text-[11px] font-bold uppercase tracking-[0.08em] text-muted; }

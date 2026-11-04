@@ -7,14 +7,14 @@ import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { api } from '@/lib/api';
 import { ago, clock, dayLabel } from '@/lib/format';
 import { routeForUrl } from '@/lib/push';
-import { C, HEX, T } from '@/lib/theme';
+import { BRAND, C, HEX, T } from '@/lib/theme';
 import type { AppNotification } from '@/lib/types';
 import { Empty, Skeleton, Tap } from '@/components/ui';
 
 const ICONS: Record<string, { icon: SFSymbol; color: string; label: string }> = {
   arrival: { icon: 'arrow.down.right.circle.fill', color: HEX.green, label: 'Arrival' },
   departure: { icon: 'arrow.up.right.circle.fill', color: HEX.orange, label: 'Departure' },
-  check_in: { icon: 'mappin.circle.fill', color: '#FF6B3D', label: 'Check-in' },
+  check_in: { icon: 'mappin.circle.fill', color: BRAND.purple, label: 'Check-in' },
   member_joined: { icon: 'person.crop.circle.badge.plus', color: HEX.blue, label: 'Circle' },
   sharing_changed: { icon: 'eye.circle.fill', color: HEX.gray, label: 'Sharing' },
   low_battery: { icon: 'battery.25percent', color: HEX.red, label: 'Battery' },
@@ -68,7 +68,7 @@ export default function Alerts() {
         renderSectionHeader={({ section }) => <Text style={{ fontSize: 13, fontWeight: '700', color: C.secondaryLabel, textTransform: 'uppercase', marginTop: 18, marginBottom: 8, marginLeft: 4 }}>{section.title}</Text>}
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
         renderItem={({ item: n, index }) => {
-          const meta = ICONS[n.type] ?? { icon: 'bell.circle.fill' as SFSymbol, color: '#FF6B3D', label: 'Alert' };
+          const meta = ICONS[n.type] ?? { icon: 'bell.circle.fill' as SFSymbol, color: BRAND.purple, label: 'Alert' };
           const route = routeForUrl(n.data.url as string | undefined);
           return (
             <Animated.View>
@@ -92,7 +92,7 @@ export default function Alerts() {
                   </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                  {!n.readAt ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#FF6B3D', marginTop: 4 }} /> : <View />}
+                  {!n.readAt ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.accent, marginTop: 4 }} /> : <View />}
                   {route && route !== '/alerts' && <SymbolView name="chevron.right" size={12} tintColor={C.tertiaryLabel} />}
                 </View>
               </Tap>

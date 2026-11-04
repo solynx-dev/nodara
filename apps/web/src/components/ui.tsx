@@ -373,7 +373,7 @@ export function Stat({ label, value, sub, className }: { label: ReactNode; value
 export function Logo({ className, withText = true }: { className?: string; withText?: boolean }) {
   return (
     <div className={cx('flex items-center gap-2.5', className)}>
-      <img src="/logo-mark.svg" alt="" className="size-7" />
+      <img src="/logo-mark.png" alt="" className="size-8" />
       {withText && <span className="text-[19px] font-extrabold tracking-[-0.03em]">nodara</span>}
     </div>
   );

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import maplibregl, { type Map as MLMap } from 'maplibre-gl';
 import { circlePolygon } from '@nodara/shared';
+import { BRAND } from '@/lib/brand';
 import type { MemberLocation, Place } from '@/lib/types';
 import { freshness, initials } from '@/lib/format';
 import { cx } from '@/components/ui';
@@ -58,7 +59,7 @@ interface Group {
 }
 
 const CLUSTER_PX = 46;
-const BUBBLE = '#AF52DE';
+const BUBBLE = BRAND.pink;
 
 export function MembersLayer({
   map,
@@ -308,7 +309,7 @@ export function RouteLayer({
   map,
   id = 'route',
   coords,
-  color = '#FF6B3D',
+  color = BRAND.purple,
   gradient = true,
   width = 4.5,
 }: {
@@ -334,7 +335,7 @@ export function RouteLayer({
           source: src,
           layout: { 'line-cap': 'round', 'line-join': 'round' },
           paint: gradient
-            ? { 'line-width': width, 'line-gradient': ['interpolate', ['linear'], ['line-progress'], 0, '#FFB547', 0.5, color, 1, '#E5384A'] }
+            ? { 'line-width': width, 'line-gradient': ['interpolate', ['linear'], ['line-progress'], 0, BRAND.blue, 0.5, color, 1, BRAND.pink] }
             : { 'line-width': width, 'line-color': color },
         });
       }
@@ -369,7 +370,7 @@ export function PointsLayer({ map, points, onClick }: { map: MLMap; points: { id
           type: 'circle',
           source: 'nd-points',
           minzoom: 12,
-          paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2, 17, 5], 'circle-color': '#fff', 'circle-stroke-color': '#FF6B3D', 'circle-stroke-width': 1.5 },
+          paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2, 17, 5], 'circle-color': '#fff', 'circle-stroke-color': BRAND.purple, 'circle-stroke-width': 1.5 },
         });
       }
     },

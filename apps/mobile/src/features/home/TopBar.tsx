@@ -107,7 +107,7 @@ function MenuItem({ icon, color, label, sub, checked, onPress }: { icon: SFSymbo
         </Text>
         {sub && <Text style={[T.footnote, { color: C.secondaryLabel }]}>{sub}</Text>}
       </View>
-      {checked && <SymbolView name="checkmark" size={16} weight="bold" tintColor={C.accent} />}
+      {checked && <SymbolView name="checkmark" size={16} weight="bold" tintColor={C.accentText} />}
     </Tap>
   );
 }

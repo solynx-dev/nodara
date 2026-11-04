@@ -36,7 +36,7 @@ export default function AdminPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
       <div className="mb-5 flex items-center gap-3">
-        <ShieldCheck className="size-7 text-accent" />
+        <ShieldCheck className="size-7 text-accent-text" />
         <h1 className="text-[28px] font-extrabold tracking-[-0.03em]">Administration</h1>
       </div>
       <nav className="scrollbar-none mb-6 flex gap-1 overflow-x-auto border-b border-line">

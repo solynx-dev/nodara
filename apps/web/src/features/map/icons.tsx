@@ -34,4 +34,4 @@ export function PlaceIcon({ name, className }: { name: string; className?: strin
   return <Icon className={className} />;
 }
 
-export const PLACE_COLORS = ['#FF6B3D', '#4C9AFF', '#2FBF71', '#B37FEB', '#F5A524', '#13C2C2', '#F56A9A', '#8A93A3'];
+export const PLACE_COLORS = ['#6D3EF5', '#4C9AFF', '#2FBF71', '#B37FEB', '#F5A524', '#13C2C2', '#F56A9A', '#8A93A3'];
