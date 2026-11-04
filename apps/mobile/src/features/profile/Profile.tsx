@@ -354,7 +354,7 @@ function TimelineRow({ item, last, current, units, onOpenTrip }: { item: Timelin
         <Rail icon={modeIcon(t)} color={C.accent} last={last} />
         <View style={{ flex: 1, paddingBottom: last ? 0 : 16 }}>
           <Text style={[T.subhead, { color: C.label, fontWeight: '600' }]}>
-            {t.mode === 'walking' ? 'Walked' : t.mode === 'cycling' ? 'Rode' : 'Drove'} {formatDistance(t.distanceM, units)}
+            {t.mode === 'walking' ? 'Walked' : t.role === 'passenger' ? 'Rode along' : 'Drove'} {formatDistance(t.distanceM, units)}
           </Text>
           <Text style={[T.footnote, { color: C.secondaryLabel }]}>
             {clock(t.startedAt)}

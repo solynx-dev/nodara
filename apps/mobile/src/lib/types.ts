@@ -20,7 +20,8 @@ export type {
 } from '@shared/types';
 
 
-export type TravelMode = 'walking' | 'cycling' | 'driving' | 'unknown';
+/** Servers detect drives and walks; 'cycling' and 'unknown' only come from older servers. */
+export type TravelMode = 'walking' | 'driving' | 'cycling' | 'unknown';
 export interface Trip extends TripSummary {
   mode: TravelMode;
 }

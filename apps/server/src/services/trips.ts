@@ -100,11 +100,24 @@ export async function rebuildTrips(ctx: Ctx, userId: string) {
   const devices = await ctx.sql<{ id: string }[]>`SELECT id FROM devices WHERE user_id = ${userId}`;
   let completed = 0;
   for (const d of devices) {
+    // The person's own corrections, to put back on the recomputed trips.
+    const fixes = await ctx.sql<{ started_at: Date; ended_at: Date; mode_override: string | null; role: string | null }[]>`
+      SELECT started_at, ended_at, mode_override, role FROM trips
+      WHERE device_id = ${d.id} AND status = 'completed' AND (mode_override IS NOT NULL OR role IS NOT NULL)`;
     await serial(d.id, async () => {
       await ctx.sql`DELETE FROM trips WHERE device_id = ${d.id}`;
       await ctx.sql`UPDATE devices SET trip_state = NULL WHERE id = ${d.id}`;
     });
     completed += (await processDeviceTrips(ctx, d.id)).completed;
+    for (const f of fixes) {
+      // Onto the new trip that overlaps the corrected one the most.
+      await ctx.sql`
+        UPDATE trips SET mode_override = ${f.mode_override}, role = ${f.role}
+        WHERE id = (
+          SELECT id FROM trips WHERE device_id = ${d.id} AND status = 'completed'
+            AND started_at < ${f.ended_at} AND ended_at > ${f.started_at}
+          ORDER BY LEAST(ended_at, ${f.ended_at}) - GREATEST(started_at, ${f.started_at}) DESC LIMIT 1)`;
+    }
   }
   return completed;
 }
@@ -139,6 +152,10 @@ async function saveTrip(ctx: Ctx, userId: string, deviceId: string, trip: Detect
   ]);
 
   const [row] = await sql.begin(async (tx) => {
+    // Keep a person's own corrections (drive/walk, driver/passenger) when a trip is saved again.
+    const [prev] = await tx<{ mode_override: string | null; role: string | null }[]>`
+      SELECT mode_override, role FROM trips WHERE device_id = ${deviceId} AND started_at = ${new Date(trip.startedAt)}
+        AND (mode_override IS NOT NULL OR role IS NOT NULL) LIMIT 1`;
     await tx`DELETE FROM trips WHERE device_id = ${deviceId} AND status = 'in_progress'`;
     if (status === 'completed') {
       // Idempotency: never store the same trip twice.
@@ -148,7 +165,7 @@ async function saveTrip(ctx: Ctx, userId: string, deviceId: string, trip: Detect
       INSERT INTO trips (user_id, device_id, status, started_at, ended_at, duration_sec, moving_sec, distance_m,
         max_speed, avg_moving_speed, avg_speed, start_lat, start_lon, end_lat, end_lon, start_label, end_label,
         start_place_id, end_place_id, route, stops, point_count, low_confidence,
-        stopped_since, is_demo)
+        stopped_since, mode_override, role, is_demo)
       VALUES (${userId}, ${deviceId}, ${status}, ${new Date(trip.startedAt)},
         ${status === 'completed' ? new Date(trip.endedAt) : null},
         ${trip.durationSec}, ${trip.movingSec}, ${trip.distanceM}, ${trip.maxSpeed}, ${trip.avgMovingSpeed},
@@ -156,6 +173,7 @@ async function saveTrip(ctx: Ctx, userId: string, deviceId: string, trip: Detect
         ${startPlace?.name ?? null}, ${endPlace?.name ?? null}, ${startPlace?.id ?? null}, ${endPlace?.id ?? null},
         ST_GeogFromText(${wkt}), ${sql.json(trip.stops as never)}, ${trip.points.length}, ${trip.lowConfidence},
         ${status === 'in_progress' && trip.stoppedSince ? new Date(trip.stoppedSince) : null},
+        ${prev?.mode_override ?? null}, ${prev?.role ?? null},
         (SELECT is_demo FROM users WHERE id = ${userId}))
       RETURNING id`;
   });

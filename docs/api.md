@@ -86,8 +86,9 @@ Emailed codes are 6 digits, stored hashed, and only the newest code of each kind
 |---|---|
 | `GET /trips?userId&from&to&before&limit` | Trips, newest first (cursor: `before` = last `startedAt`). Includes estimated `mode`. |
 | `GET /trips/:id` | Trip with simplified `route` coordinates, `stops`, decimated speed `samples`. |
+| `PATCH /trips/:id` | Your own completed trips only: `{mode?: "driving"\|"walking", role?: "driver"\|"passenger"}`. Passenger rides and walks (and their driving events) don't count in driving reports or driving insights. Trips are only ever `driving` or `walking`. |
 | `DELETE /trips/:id` | Delete one of your trips (history is kept). |
-| `POST /trips/rebuild` | Recompute your trips from history. |
+| `POST /trips/rebuild` | Recompute your trips from history. Drive/walk and driver/passenger corrections are carried over to the recomputed trip that overlaps them most. |
 | `GET /insights?userId&period=week\|month\|year&offset&tz&mode=driving\|all` | Totals, previous-period comparison and buckets. |
 
 ## Driving reports

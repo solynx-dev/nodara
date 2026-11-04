@@ -13,7 +13,7 @@ import { MapView } from '@/features/map/MapView';
 import { HtmlMarker, PointsLayer, RouteLayer } from '@/features/map/layers';
 import { HistoryCalendar } from '@/features/history/Calendar';
 import { PlaybackBar, usePlaybackClock } from '@/features/history/Playback';
-import { MODE_META, tripTitle } from '@/features/trips/TripRow';
+import { tripKind, tripTitle } from '@/features/trips/TripRow';
 import { BatteryIndicator } from '@/features/members/MemberRow';
 
 type Range = 'day' | 'week' | 'month';
@@ -335,7 +335,7 @@ function Timeline({
 
 function TimelineTrip({ item, selected, onClick, units }: { item: Extract<TimelineItem, { type: 'trip' }>; selected: boolean; onClick: () => void; units: 'metric' | 'imperial' }) {
   const t = item.trip;
-  const Mode = MODE_META[t.mode].icon;
+  const Mode = tripKind(t).icon;
   const { to } = tripTitle(t);
   return (
     <div className={cx('relative my-1 flex items-start gap-3 rounded-2xl py-2.5 pr-2 transition', selected && 'bg-accent-soft')}>
@@ -344,7 +344,7 @@ function TimelineTrip({ item, selected, onClick, units }: { item: Extract<Timeli
       </span>
       <button onClick={onClick} className="min-w-0 flex-1 text-left">
         <div className="text-[14px] font-bold">
-          {MODE_META[t.mode].label} to <span className="text-ink">{to}</span>
+          {tripKind(t).label} to <span className="text-ink">{to}</span>
         </div>
         <div className="tnum text-[12.5px] text-muted">
           {clock(t.startedAt)} · {formatDistance(t.distanceM, units)} · {formatDuration(t.durationSec)}

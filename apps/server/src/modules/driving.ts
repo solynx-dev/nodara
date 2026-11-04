@@ -6,8 +6,8 @@ import { requireUser } from '../auth.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import { circleMatesOf, historyAccess, inBubbleSql, isCircleMember, tripsVisibleSql, type HistoryAccess } from '../services/access.js';
-import { COUNTED, DRIVING_KINDS, recordPhoneUse, type DrivingKind } from '../services/driving.js';
-import { MODE_SQL } from '../services/serialize.js';
+import { AS_DRIVER, COUNTED, DRIVING_KINDS, recordPhoneUse, type DrivingKind } from '../services/driving.js';
+import { DRIVER_SQL } from '../services/serialize.js';
 import { ingestIdentity } from './locations.js';
 
 const uuid = z.string().uuid();
@@ -41,7 +41,7 @@ export async function drivingEvents(ctx: Ctx, userId: string, access: Exclude<Hi
       SELECT id FROM trips WHERE user_id = e.user_id AND started_at <= e.started_at AND COALESCE(ended_at, now()) >= e.started_at
       ORDER BY started_at DESC LIMIT 1
     ) t ON true
-    WHERE e.user_id = ${userId} AND e.started_at >= ${from} AND e.started_at < ${to} AND ${ctx.sql.unsafe(COUNTED)}
+    WHERE e.user_id = ${userId} AND e.started_at >= ${from} AND e.started_at < ${to} AND ${ctx.sql.unsafe(COUNTED)} AND ${ctx.sql.unsafe(AS_DRIVER)}
       ${visible(ctx, access)}
     ORDER BY e.started_at DESC LIMIT ${limit}`;
   return rows.map((r) => ({
@@ -143,7 +143,7 @@ export default async function drivingRoutes(app: FastifyInstance, ctx: Ctx) {
         SELECT count(*)::int AS drives, COALESCE(sum(distance_m), 0)::float AS distance,
                COALESCE(sum(duration_sec), 0)::int AS duration, max(max_speed) AS top
         FROM trips
-        WHERE user_id = ${u.id} AND status = 'completed' AND ${sql.unsafe(MODE_SQL)} = 'driving'
+        WHERE user_id = ${u.id} AND status = 'completed' AND ${sql.unsafe(DRIVER_SQL)}
           AND started_at >= ${start} AND started_at < ${end}
           ${tripsVisibleSql(sql, access)}`;
       const counts = await sql<{ kind: DrivingKind; current: number; previous: number }[]>`
@@ -151,7 +151,7 @@ export default async function drivingRoutes(app: FastifyInstance, ctx: Ctx) {
                count(*) FILTER (WHERE started_at >= ${start})::int AS current,
                count(*) FILTER (WHERE started_at < ${start})::int AS previous
         FROM driving_events e
-        WHERE user_id = ${u.id} AND started_at >= ${prev_start} AND started_at < ${end} AND ${sql.unsafe(COUNTED)}
+        WHERE user_id = ${u.id} AND started_at >= ${prev_start} AND started_at < ${end} AND ${sql.unsafe(COUNTED)} AND ${sql.unsafe(AS_DRIVER)}
           ${visible(ctx, access)}
         GROUP BY kind`;
       const events = zero();

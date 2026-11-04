@@ -3,15 +3,15 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import maplibregl, { type Map as MLMap } from 'maplibre-gl';
-import { Activity, ChevronLeft, Clock, Flag, FlagTriangleRight, Gauge, Info, Milestone, OctagonAlert, PauseCircle, Smartphone, Trash2, TriangleAlert, Zap } from 'lucide-react';
+import { Activity, Car, ChevronLeft, Footprints, Users, Clock, Flag, FlagTriangleRight, Gauge, Info, Milestone, OctagonAlert, PauseCircle, Smartphone, Trash2, TriangleAlert, Zap } from 'lucide-react';
 import { api } from '@/lib/api';
 import { clock, coords, formatDistance, formatDuration, formatSpeed } from '@/lib/format';
 import { useLive, useUser } from '@/lib/queries';
 import type { TripDetail } from '@/lib/types';
-import { Avatar, cx, ErrorNote, Skeleton, StatCard, StatusPill } from '@/components/ui';
+import { Avatar, cx, ErrorNote, Segmented, Skeleton, StatCard, StatusPill } from '@/components/ui';
 import { MapView } from '@/features/map/MapView';
 import { HtmlMarker, RouteLayer } from '@/features/map/layers';
-import { MODE_META, tripTitle } from '@/features/trips/TripRow';
+import { tripKind, tripTitle } from '@/features/trips/TripRow';
 
 export default function TripPage() {
   const { id = '' } = useParams();
@@ -28,6 +28,14 @@ export default function TripPage() {
   const person = members.find((m) => m.id === trip?.userId);
   const [map, setMap] = useState<MLMap | null>(null);
   const [hover, setHover] = useState<number | null>(null);
+  const edit = useMutation({
+    mutationFn: (k: TripKind) => api.patch<Partial<TripDetail>>(`/api/trips/${id}`, k === 'walk' ? { mode: 'walking' } : { mode: 'driving', role: k }),
+    onSuccess: (updated) => {
+      qc.setQueryData<TripDetail>(['trips', 'detail', id], (old) => (old ? { ...old, ...updated } : old));
+      qc.invalidateQueries({ queryKey: ['trips'] });
+      qc.invalidateQueries({ queryKey: ['insights'] });
+    },
+  });
   const del = useMutation({
     mutationFn: () => api.del(`/api/trips/${id}`),
     onSuccess: () => {
@@ -52,6 +60,7 @@ export default function TripPage() {
   const hoverSample = hover != null ? trip.samples[hover] : null;
   const estimatedShare = trip.samples.filter((s) => s.source === 'derived').length / Math.max(1, trip.samples.length);
   const events = trip.events ?? [];
+  const kind: TripKind = trip.mode === 'walking' ? 'walk' : trip.role === 'passenger' ? 'passenger' : 'driver';
   const who = person ? (person.id === me.id ? 'You' : person.displayName) : '';
 
   return (
@@ -129,13 +138,32 @@ export default function TripPage() {
           {from} <span className="text-muted">→</span> {to}
         </h1>
         <div className="mt-3 flex flex-wrap gap-2">
-          <StatusPill tone="info" icon={(() => { const M = MODE_META[trip.mode].icon; return <M />; })()}>
-            {trip.mode === 'unknown' ? 'Trip' : `${trip.mode[0]!.toUpperCase()}${trip.mode.slice(1)} (estimated)`}
+          <StatusPill tone="info" icon={(() => { const M = tripKind(trip).icon; return <M />; })()}>
+            {tripKind(trip).label}
+            {!trip.modeEdited && !trip.role && ' (detected)'}
           </StatusPill>
           {trip.status === 'in_progress' && <StatusPill tone="accent">In progress</StatusPill>}
           {trip.lowConfidence && <StatusPill tone="warning" icon={<TriangleAlert />}>Low GPS quality</StatusPill>}
         </div>
       </div>
+
+      {trip.userId === me.id && trip.status === 'completed' && (
+        <div className="card mb-5 space-y-3 p-5">
+          <h2 className="text-[20px] font-bold tracking-tight">What was this trip?</h2>
+          <Segmented
+            className="w-full"
+            value={kind}
+            onChange={(k) => edit.mutate(k)}
+            options={[
+              { value: 'driver', label: 'I drove', icon: <Car className="size-4" /> },
+              { value: 'passenger', label: 'Passenger', icon: <Users className="size-4" /> },
+              { value: 'walk', label: 'Walk', icon: <Footprints className="size-4" /> },
+            ]}
+          />
+          <p className="text-[14px] text-muted">Only drives where you were driving count in driving reports, so phone use as a passenger doesn’t count against you.</p>
+          <ErrorNote error={edit.error} />
+        </div>
+      )}
 
       <div className="mb-5 grid grid-cols-2 gap-3">
         <StatCard icon={<Milestone />} label="Distance" value={formatDistance(trip.distanceM, units)} />
@@ -162,7 +190,12 @@ export default function TripPage() {
         )}
       </div>
 
-      {events.length > 0 && (
+      {trip.role === 'passenger' && (
+        <div className="card mb-5 flex items-center gap-3 p-5 text-[15px]">
+          <Users className="size-5 shrink-0 text-info" /> You were a passenger, so nothing on this trip counts in your driving report.
+        </div>
+      )}
+      {events.length > 0 && trip.role !== 'passenger' && (
         <div className="card mb-5 p-5">
           <div className="mb-3 flex items-baseline justify-between">
             <h2 className="text-[20px] font-bold tracking-tight">Driving events</h2>
@@ -233,6 +266,8 @@ export default function TripPage() {
     </div>
   );
 }
+
+type TripKind = 'driver' | 'passenger' | 'walk';
 
 const EVENT_META = {
   speeding: { label: 'Speeding', icon: Gauge, color: 'var(--danger)' },

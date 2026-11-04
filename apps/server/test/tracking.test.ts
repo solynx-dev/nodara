@@ -119,6 +119,35 @@ describe('ingestion, trips and geofences', () => {
     expect(tl.items.map((i: { type: string }) => i.type)).toEqual(['stay', 'trip', 'stay']);
   });
 
+  it('lets people mark their own drives as passenger rides or walks', async () => {
+    const u = await newUser(env, 'Rider');
+    const other = await newUser(env, 'Nosy');
+    await u.client.post('/api/locations', { deviceId: u.deviceId, locations: journey([44.6468, -63.5937], [44.7168, -63.6559], Date.now() - 1000) });
+    await processDeviceTrips(env.ctx, u.deviceId);
+    const [t] = (await u.client.get('/api/trips')).json() as { id: string; mode: string; role: string | null }[];
+    expect(t!.mode).toBe('driving');
+    const drives = async () => {
+      let n = 0;
+      for (const offset of [0, 1]) {
+        const rep = (await u.client.get(`/api/driving/report?offset=${offset}`)).json() as { people: { user: { id: string }; drives?: number }[] };
+        n += rep.people.find((p) => p.user.id === u.id)?.drives ?? 0;
+      }
+      return n;
+    };
+    expect(await drives()).toBe(1);
+
+    expect((await other.client.patch(`/api/trips/${t!.id}`, { role: 'passenger' })).statusCode).toBe(404);
+    const ride = await u.client.patch(`/api/trips/${t!.id}`, { role: 'passenger' });
+    expect(ride.json()).toMatchObject({ mode: 'driving', role: 'passenger' });
+    expect(await drives()).toBe(0);
+
+    const walk = await u.client.patch(`/api/trips/${t!.id}`, { mode: 'walking' });
+    expect(walk.json()).toMatchObject({ mode: 'walking', role: null, modeEdited: true });
+    // Corrections survive the trip being recomputed from history.
+    await u.client.post('/api/trips/rebuild');
+    expect(((await u.client.get('/api/trips')).json() as { mode: string }[])[0]!.mode).toBe('walking');
+  });
+
   it('tells viewers when someone on a drive is stopped at a light', async () => {
     const u = await newUser(env, 'Light');
     const now = Date.now();

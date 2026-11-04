@@ -70,6 +70,25 @@ export default function Privacy() {
       },
     ]);
 
+  const recompute = () =>
+    Alert.alert('Recompute your trips?', 'Your trips are rebuilt from your location history. This can take a moment.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Recompute',
+        onPress: async () => {
+          try {
+            const r = await api.post<{ trips: number }>('/api/trips/rebuild');
+            qc.invalidateQueries({ queryKey: ['trips'] });
+            qc.invalidateQueries({ queryKey: ['driving'] });
+            qc.invalidateQueries({ queryKey: ['timeline'] });
+            toast({ tone: 'success', title: `Rebuilt ${r.trips} ${r.trips === 1 ? 'trip' : 'trips'}` });
+          } catch (e) {
+            toast({ tone: 'error', title: 'Could not recompute', body: (e as Error).message });
+          }
+        },
+      },
+    ]);
+
   const exportAs = (f: ExportFormat) => exportData(f).catch((e: Error) => toast({ tone: 'error', title: 'Export failed', body: e.message }));
 
   return (
@@ -105,6 +124,13 @@ export default function Privacy() {
         ) : (
           <Row title="You're not in any circles yet" last />
         )}
+      </Section>
+
+      <Section
+        title="Trips"
+        footer="Rebuilds your trips from your location history with the latest detection, for example to split a trip that ran on overnight. Trips you marked as a passenger ride or a walk keep that."
+      >
+        <Row icon="arrow.triangle.2.circlepath" iconColor="#5856D6" title="Recompute my trips" onPress={recompute} last />
       </Section>
 
       <Section title="Delete history" footer="Removes your locations and trips in that time from the server. It can't be undone.">

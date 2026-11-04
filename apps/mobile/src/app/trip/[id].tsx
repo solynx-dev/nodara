@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { ScrollView, Share, Text, View } from 'react-native';
+import { Alert, ScrollView, Share, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { appear } from '@/lib/motion';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import MapView, { Marker, Polyline } from 'react-native-maps';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/session';
@@ -12,19 +12,22 @@ import { useLive } from '@/lib/queries';
 import { clock, formatDistance, formatDuration, formatSpeed } from '@/lib/format';
 import { BRAND, C, HEX, T } from '@/lib/theme';
 import type { TripDetail } from '@/lib/types';
-import { Avatar, Skeleton, StatusPill } from '@/components/ui';
-import { modeIcon, tripTitle } from '@/features/trips/Drives';
+import { Avatar, Segmented, Skeleton, StatusPill, Tap, useToast } from '@/components/ui';
+import { modeIcon, modeLabel, tripTitle } from '@/features/trips/Drives';
 import { EventList } from '@/features/driving/components';
 import { KIND_INFO } from '@/lib/driving';
 import { ReplayBar, useReplay } from '@/features/trips/Replay';
 
 const NO_SAMPLES: TripDetail['samples'] = [];
+type TripKind = 'driver' | 'passenger' | 'walk';
 
 export default function TripScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const me = useMe();
   const units = me.preferences.units;
   const map = useRef<MapView>(null);
+  const qc = useQueryClient();
+  const toast = useToast();
   const { data: members = [] } = useLive();
   const { data: trip, isLoading } = useQuery({
     queryKey: ['trips', 'detail', id],
@@ -51,6 +54,38 @@ export default function TripScreen() {
   }
 
   const liveTrip = trip.status === 'in_progress';
+  const mine = trip.userId === me.id;
+  const kind: TripKind = trip.mode === 'walking' ? 'walk' : trip.role === 'passenger' ? 'passenger' : 'driver';
+  const setKind = async (k: TripKind) => {
+    if (k === kind) return;
+    try {
+      const updated = await api.patch<Partial<TripDetail>>(`/api/trips/${trip.id}`, k === 'walk' ? { mode: 'walking' } : { mode: 'driving', role: k });
+      qc.setQueryData<TripDetail>(['trips', 'detail', id], (old) => (old ? { ...old, ...updated } : old));
+      qc.invalidateQueries({ queryKey: ['trips'] });
+      qc.invalidateQueries({ queryKey: ['driving'] });
+      toast({ tone: 'success', title: k === 'walk' ? 'Marked as a walk' : k === 'passenger' ? 'Marked as a passenger ride' : 'Marked as your drive' });
+    } catch (e) {
+      toast({ tone: 'error', title: 'Could not update trip', body: (e as Error).message });
+    }
+  };
+  const confirmDelete = () =>
+    Alert.alert('Delete this trip?', 'It disappears from your trips and driving reports. Your location history is kept.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.del(`/api/trips/${trip.id}`);
+            qc.invalidateQueries({ queryKey: ['trips'] });
+            qc.invalidateQueries({ queryKey: ['driving'] });
+            router.back();
+          } catch (e) {
+            toast({ tone: 'error', title: 'Could not delete trip', body: (e as Error).message });
+          }
+        },
+      },
+    ]);
   const speeds = trip.samples.map((s) => s.speed);
   const valid = speeds.filter((s): s is number => s != null);
   const peak = Math.max(1, ...valid);
@@ -135,11 +170,32 @@ export default function TripScreen() {
         </View>
         <Text style={[T.title2, { color: C.label }]}>{tripTitle(trip)}</Text>
         <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-          <StatusPill icon={modeIcon(trip)} text={`${trip.mode === 'unknown' ? 'Trip' : trip.mode[0]!.toUpperCase() + trip.mode.slice(1)} (estimated)`} color={HEX.blue} />
+          <StatusPill icon={modeIcon(trip)} text={trip.modeEdited || trip.role ? modeLabel(trip) : `${modeLabel(trip)} (detected)`} color={HEX.blue} />
           {liveTrip && <StatusPill icon="dot.radiowaves.left.and.right" text="Happening now" color={HEX.green} />}
           {trip.lowConfidence && <StatusPill icon="exclamationmark.triangle.fill" text="Low GPS quality" color={HEX.orange} />}
         </View>
       </Animated.View>
+
+      {mine && !liveTrip && (
+        <Animated.View entering={appear} style={[card, { gap: 10 }]}>
+          <Text style={[T.headline, { color: C.label }]}>What was this trip?</Text>
+          <Segmented
+            value={kind}
+            onChange={(k) => void setKind(k)}
+            items={[
+              { key: 'driver', label: 'I drove', icon: 'steeringwheel' },
+              { key: 'passenger', label: 'Passenger', icon: 'person.2.fill' },
+              { key: 'walk', label: 'Walk', icon: 'figure.walk' },
+            ]}
+          />
+          <Text style={[T.footnote, { color: C.secondaryLabel, lineHeight: 18 }]}>
+            Only drives where you were driving count in driving reports, so phone use as a passenger doesn&apos;t count against you.
+          </Text>
+          <Tap onPress={confirmDelete} style={{ alignSelf: 'flex-start', paddingVertical: 4 }} accessibilityRole="button">
+            <Text style={{ color: C.red, fontSize: 15, fontWeight: '600' }}>Delete this trip</Text>
+          </Tap>
+        </Animated.View>
+      )}
 
       <Animated.View entering={appear} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 16 }}>
         <Stat icon="road.lanes" label="Distance" value={formatDistance(trip.distanceM, units)} />
@@ -170,13 +226,18 @@ export default function TripScreen() {
         </Animated.View>
       )}
 
-      {trip.events && (
+      {trip.events && trip.mode !== 'walking' && (
         <Animated.View entering={appear} style={card}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <Text style={[T.headline, { color: C.label }]}>Driving events</Text>
             {trip.events.length > 0 && <Text style={[T.footnote, { color: C.secondaryLabel }]}>{trip.events.length} on this trip</Text>}
           </View>
-          {trip.events.length ? (
+          {trip.role === 'passenger' ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <SymbolView name="person.2.fill" size={18} tintColor={HEX.blue} />
+              <Text style={[T.subhead, { color: C.label, flex: 1 }]}>You were a passenger, so nothing on this trip counts in your driving report.</Text>
+            </View>
+          ) : trip.events.length ? (
             <EventList events={trip.events} />
           ) : (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

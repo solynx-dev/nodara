@@ -212,6 +212,45 @@ describe('stops during a drive', () => {
   });
 });
 
+describe('GPS jumps while staying put', () => {
+  it("doesn't turn a night of jumpy indoor fixes into a trip glued to the morning drive", () => {
+    const rand = mulberry(7);
+    const night: TPoint[] = [];
+    const evening = T0 - 10 * 3600_000; // 10 PM
+    // Indoor Wi-Fi positions every ~6 minutes, hopping up to ~260 m around home, no GPS speed.
+    for (let t = evening; t < T0; t += 6 * 60_000) {
+      const r = 260 * Math.sqrt(rand());
+      const a = rand() * 2 * Math.PI;
+      night.push({ id: nextId++, t, lat: HOME[0] + (r * Math.cos(a)) / 111_000, lon: HOME[1] + (r * Math.sin(a)) / 80_000, accuracy: 40 + rand() * 50, speed: null });
+    }
+    const drive = legs(HOME, [{ stayMin: 3 }, { to: WORK, min: 9, speed: 11 }, { stayMin: 15 }], 5, T0);
+    const all = [...night, ...drive];
+    const r = segmentTrips(all, undefined, all[all.length - 1]!.t);
+    expect(r.completed).toHaveLength(1);
+    const trip = r.completed[0]!;
+    expect(trip.startedAt).toBeGreaterThanOrEqual(T0);
+    expect(trip.durationSec).toBeLessThan(15 * 60);
+    expect(trip.movingSec).toBeLessThan(11 * 60);
+  });
+
+  it('ends a trip that turns into wandering around one spot, even with jumpy fixes', () => {
+    const rand = mulberry(3);
+    const pts = legs(HOME, [{ stayMin: 3 }, { to: MID, min: 4, speed: 13 }], 5, T0);
+    let t = pts[pts.length - 1]!.t;
+    // Then 40 minutes of fixes hopping 125–200 m around MID (just outside the stop radius).
+    for (let i = 0; i < 80; i++) {
+      t += 30_000;
+      const r = 125 + 75 * rand();
+      const a = rand() * 2 * Math.PI;
+      pts.push({ id: nextId++, t, lat: MID[0] + (r * Math.cos(a)) / 111_000, lon: MID[1] + (r * Math.sin(a)) / 80_000, accuracy: 20, speed: 0.3 });
+    }
+    const r = segmentTrips(pts, undefined, t);
+    expect(r.completed).toHaveLength(1);
+    expect(r.completed[0]!.durationSec).toBeLessThan(10 * 60);
+    expect(r.open).toBeNull();
+  });
+});
+
 describe('computeSpeed', () => {
   const base = { t: T0, lat: HOME[0], lon: HOME[1], accuracy: 10, speed: null };
   it('prefers GNSS-reported speed', () => {

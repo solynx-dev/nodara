@@ -142,6 +142,10 @@ export interface TripSummary {
   endLabel: string | null;
   stopCount: number;
   lowConfidence: boolean;
+  /** For drives: whether the person was driving or a passenger (null = driver, as detected). */
+  role?: 'driver' | 'passenger' | null;
+  /** The person changed whether this was a drive or a walk. */
+  modeEdited?: boolean;
 }
 
 export interface Place {

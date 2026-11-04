@@ -1,11 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Ctx } from '../context.js';
-import { requireUser } from '../auth.js';
+import { audit, requireUser } from '../auth.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
-import { historyAccess, tripsVisibleSql } from '../services/access.js';
-import { MODE_SQL, serializeTrip, TRIP_COLUMNS, type TripRow } from '../services/serialize.js';
+import { circleMatesOf, historyAccess, tripsVisibleSql } from '../services/access.js';
+import { DRIVER_SQL, MODE_SQL, serializeTrip, TRIP_COLUMNS, type TripRow } from '../services/serialize.js';
 import { rebuildTrips } from '../services/trips.js';
 import { requireHistory } from './locations.js';
 import { drivingEvents } from './driving.js';
@@ -93,6 +93,28 @@ export default async function tripRoutes(app: FastifyInstance, ctx: Ctx) {
     };
   });
 
+  /**
+   * Correct your own trip: a drive or a walk, and whether you drove or rode
+   * along. Passenger rides and walks don't count in driving reports.
+   */
+  app.patch<{ Params: { id: string } }>('/api/trips/:id', async (req) => {
+    const a = requireUser(req);
+    const id = parse(uuid, req.params.id);
+    const body = parse(z.object({ mode: z.enum(['driving', 'walking']).optional(), role: z.enum(['driver', 'passenger']).optional() }), req.body);
+    const [t] = await sql<{ id: string }[]>`
+      UPDATE trips SET
+        mode_override = COALESCE(${body.mode ?? null}, mode_override),
+        role = CASE WHEN ${body.mode ?? null}::text = 'walking' THEN NULL ELSE COALESCE(${body.role ?? null}, role) END
+      WHERE id = ${id} AND user_id = ${a.userId} AND status = 'completed'
+      RETURNING id`;
+    if (!t) throw notFound('Trip not found');
+    await audit(ctx, req, 'trip.edited', { type: 'trip', id }, body);
+    ctx.hub.publish([a.userId, ...(await circleMatesOf(sql, a.userId))], { type: 'trip', userId: a.userId, tripId: id, status: 'completed' });
+    const [row] = await sql<(TripRow & { mode: string })[]>`
+      SELECT ${sql(TRIP_COLUMNS as unknown as string[])}, ${sql.unsafe(MODE_SQL)} AS mode FROM trips WHERE id = ${id}`;
+    return { ...serializeTrip(row!), mode: row!.mode };
+  });
+
   app.delete<{ Params: { id: string } }>('/api/trips/:id', async (req) => {
     const a = requireUser(req);
     const r = await sql`DELETE FROM trips WHERE id = ${parse(uuid, req.params.id)} AND user_id = ${a.userId} AND status = 'completed' RETURNING id`;
@@ -136,7 +158,7 @@ export default async function tripRoutes(app: FastifyInstance, ctx: Ctx) {
     const filter = sql`
       user_id = ${target} AND status = 'completed'
       ${tripsVisibleSql(sql, access, 't')}
-      ${q.mode === 'driving' ? sql`AND ${sql.unsafe(MODE_SQL)} = 'driving'` : sql``}`;
+      ${q.mode === 'driving' ? sql`AND ${sql.unsafe(DRIVER_SQL)}` : sql``}`;
 
     const totals = async (from: Date, to: Date) => {
       const [r] = await sql<{ trips: number; distance: number; duration: number; moving: number; max_speed: number | null }[]>`

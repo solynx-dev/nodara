@@ -1,16 +1,23 @@
 import { Link } from 'react-router';
-import { Bike, Car, ChevronRight, Footprints, HelpCircle } from 'lucide-react';
+import { Car, ChevronRight, Footprints, Users } from 'lucide-react';
 import type { Trip } from '@/lib/types';
 import { clock, coords, formatDistance, formatDuration, formatSpeed } from '@/lib/format';
 import { useUser } from '@/lib/queries';
 import { Avatar, cx } from '@/components/ui';
 
+/** Trips are drives or walks ('cycling'/'unknown' only come from older servers and read as drives). */
 export const MODE_META = {
   driving: { icon: Car, label: 'Drive' },
-  cycling: { icon: Bike, label: 'Ride' },
+  cycling: { icon: Car, label: 'Drive' },
   walking: { icon: Footprints, label: 'Walk' },
-  unknown: { icon: HelpCircle, label: 'Trip' },
+  unknown: { icon: Car, label: 'Drive' },
 } as const;
+
+export function tripKind(t: Trip) {
+  if (t.mode === 'walking') return { icon: Footprints, label: 'Walk' };
+  if (t.role === 'passenger') return { icon: Users, label: 'Passenger ride' };
+  return { icon: Car, label: 'Drive' };
+}
 
 export function tripTitle(t: Trip) {
   const s = t.startLabel ?? coords(t.startLat, t.startLon);
@@ -36,7 +43,7 @@ export function TripRow({
 }) {
   const me = useUser();
   const units = me.preferences.units;
-  const Mode = MODE_META[trip.mode].icon;
+  const Mode = tripKind(trip).icon;
   const { from, to } = tripTitle(trip);
   const live = trip.status === 'in_progress';
   return (
