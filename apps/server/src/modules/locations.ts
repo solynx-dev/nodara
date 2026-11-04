@@ -5,6 +5,7 @@ import { requireUser, resolveDeviceToken, type AuthInfo } from '../auth.js';
 import { badRequest, forbidden, notFound, unauthorized } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import { fixSchema, fromOverland, fromOwnTracks, ingestFixes, MAX_BATCH } from '../services/ingest.js';
+import { requestRefresh } from '../services/refresh.js';
 import { historyAccess, locationsVisibleSql, tripsVisibleSql, type HistoryAccess } from '../services/access.js';
 import { LOCATION_COLUMNS, MODE_SQL, serializeLocation, serializeTrip, TRIP_COLUMNS, type LocationRow, type TripRow } from '../services/serialize.js';
 
@@ -144,6 +145,16 @@ export default async function locationRoutes(app: FastifyInstance, ctx: Ctx) {
       });
     }
     return { notified: recipients.length, where };
+  });
+
+  // -- Refresh someone's location --------------------------------------------
+  /**
+   * Silently ask a person's phone for a fresh location (yours too). Nobody is
+   * notified; the new fix arrives like any other. One per person every 10 s.
+   */
+  app.post<{ Params: { userId: string } }>('/api/users/:userId/refresh-location', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req) => {
+    const a = requireUser(req);
+    return requestRefresh(ctx, a.userId, parse(uuid, req.params.userId));
   });
 
   // -- History ---------------------------------------------------------------

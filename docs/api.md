@@ -57,7 +57,7 @@ Emailed codes are 6 digits, stored hashed, and only the newest code of each kind
 
 ## Devices — `/devices`
 
-`GET /devices` · `POST /devices {name, kind}` → `{device, token}` (token for non-web kinds, shown once) · `PATCH /devices/:id {name}` · `POST /devices/:id/token` (rotate) · `DELETE /devices/:id` (revoke) · `PUT /devices/:id/push {subscription}` · `DELETE /devices/:id/push` · `PUT /devices/:id/native-push {token}` (Expo push token from the iOS app) · `DELETE /devices/:id/native-push` · `POST /devices/:id/push/test`.
+`GET /devices` · `POST /devices {name, kind}` → `{device, token}` (token for non-web kinds, shown once) · `PATCH /devices/:id {name}` · `POST /devices/:id/token` (rotate) · `DELETE /devices/:id` (revoke) · `PUT /devices/:id/push {subscription}` · `DELETE /devices/:id/push` · `PUT /devices/:id/native-push {token}` (Expo push token from the iOS app) · `DELETE /devices/:id/native-push` · `PUT /devices/:id/wake-token {token}` / `DELETE /devices/:id/wake-token` (Expo token for silent location refreshes; registered by phones that share, independent of notification settings) · `POST /devices/:id/push/test`.
 
 ## Locations
 
@@ -69,6 +69,7 @@ Emailed codes are 6 digits, stored hashed, and only the newest code of each kind
 | `POST /ingest/overland` | Overland GeoJSON batch. |
 | `GET /live` | Everyone visible to you across all circles (`MemberLocation[]`). |
 | `GET /circles/:id/live` | Members of one circle. |
+| `POST /users/:userId/refresh-location` | Silently ask that person's phone for a fresh fix (a content-available push with no alert). Nobody is notified and nothing is logged. One request per person every 10 s, whoever asks. Returns `{requested: true, devices}` or `{requested: false, reason: 'not_visible' \| 'paused' \| 'no_app' \| 'too_soon', retryAfterSec?}`. Live members carry `canRefresh` when this will work. Phones that have sent nothing for an hour are also woken automatically, at most hourly. |
 
 ## History — `/history/:userId`
 

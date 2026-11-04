@@ -55,6 +55,34 @@ export class PushService {
   }
 
   /**
+   * Wake the Nodara app on these phones in the background so it sends one fresh
+   * location. A silent push: iOS shows nothing (no banner, sound or badge) and
+   * the person isn't told. iOS may delay or skip it (Low Power Mode, an app
+   * that was swiped away, or more than a few per hour).
+   */
+  async sendWake(devices: { id: string; wake_token: string }[]): Promise<number> {
+    if (!this.config.EXPO_PUSH_ENABLED || !devices.length) return 0;
+    try {
+      const res = await fetch(this.config.EXPO_PUSH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(devices.map((d) => ({ to: d.wake_token, _contentAvailable: true, priority: 'normal', data: { nodara: 'locate' } }))),
+        signal: AbortSignal.timeout(10_000),
+      });
+      const json = (await res.json().catch(() => null)) as { data?: { status: string; details?: { error?: string } }[] } | null;
+      let sent = 0;
+      for (const [i, ticket] of (json?.data ?? []).entries()) {
+        if (ticket.status === 'ok') sent++;
+        else if (ticket.details?.error === 'DeviceNotRegistered') await this.sql`UPDATE devices SET wake_token = NULL WHERE id = ${devices[i]!.id}`;
+      }
+      return sent;
+    } catch (err) {
+      this.log.warn({ err }, 'wake push failed');
+      return 0;
+    }
+  }
+
+  /**
    * Native apps: an app published on the App Store can only be pushed through
    * the publisher's APNs credentials, so self-hosted servers relay through
    * Expo's push service. The message contains only the notification text.

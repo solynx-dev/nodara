@@ -19,6 +19,7 @@ import { clock, haversine } from '@/lib/format';
 import { C, T } from '@/lib/theme';
 import type { MemberLocation, PlaceWithMeta } from '@/lib/types';
 import { getItem, KEYS } from '@/lib/storage';
+import { refreshFailure, useLocationRefresh } from '@/lib/refresh';
 import { getMapType, MAP_TYPES, setMapTypePref } from '@/lib/prefs';
 import { ensureDevice, syncGeofences } from '@/background/tracking';
 import { toFixes } from '@/background/upload';
@@ -65,6 +66,11 @@ export default function Home() {
   const circle = circles.find((c) => c.id === circleId) ?? null;
   const places = useMemo(() => (circleId ? allPlaces.filter((p) => p.circleId === circleId || p.circleId === null) : allPlaces), [allPlaces, circleId]);
   const selected = members.find((m) => m.id === selectedId) ?? null;
+  const locRefresh = useLocationRefresh(selected);
+  const refreshSelected = async () => {
+    const failed = await locRefresh.refresh();
+    if (failed) toast({ tone: 'info', title: refreshFailure[failed] ?? refreshFailure.not_visible! });
+  };
   /** Where each person appears: their location, or the middle of their bubble. */
   const spots = useMemo(
     () =>
@@ -334,6 +340,9 @@ export default function Home() {
             </View>
             <View style={{ flex: 1 }} pointerEvents="none" />
             <View style={{ gap: 10 }}>
+              {selected && selected.id !== me.id && locRefresh.canRefresh && (
+                <GlassButton icon="arrow.clockwise" label={`Refresh ${selected.displayName}'s location`} busy={locRefresh.refreshing} onPress={() => void refreshSelected()} />
+              )}
               <GlassButton icon="square.3.layers.3d" label="Map style" onPress={chooseMapType} />
               <GlassButton
                 icon={selectedId ? 'person.2.fill' : 'location.fill'}

@@ -57,11 +57,27 @@ export function Glass({ style, children, interactive, tint }: { style?: StylePro
   );
 }
 
-export function GlassButton({ icon, label, onPress, badge, size = 48, tintIcon }: { icon: SFSymbol; label: string; onPress: () => void; badge?: number; size?: number; tintIcon?: string }) {
+export function GlassButton({
+  icon,
+  label,
+  onPress,
+  badge,
+  size = 48,
+  tintIcon,
+  busy,
+}: {
+  icon: SFSymbol;
+  label: string;
+  onPress: () => void;
+  badge?: number;
+  size?: number;
+  tintIcon?: string;
+  busy?: boolean;
+}) {
   return (
-    <Tap accessibilityLabel={label} accessibilityRole="button" onPress={onPress}>
+    <Tap accessibilityLabel={label} accessibilityRole="button" accessibilityState={{ busy: Boolean(busy) }} onPress={busy ? () => {} : onPress}>
       <Glass style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center' }}>
-        <SymbolView name={icon} size={size * 0.42} weight="medium" tintColor={tintIcon ?? C.label} />
+        {busy ? <ActivityIndicator color={tintIcon ?? C.label} /> : <SymbolView name={icon} size={size * 0.42} weight="medium" tintColor={tintIcon ?? C.label} />}
       </Glass>
       {!!badge && (
         <View pointerEvents="none" style={styles.badge}>

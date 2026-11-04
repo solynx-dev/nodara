@@ -77,6 +77,8 @@ export interface MemberLocation extends PublicUser {
    * stop showing a speed once they've clearly parked.
    */
   currentTrip?: { startedAt: string; maxSpeed: number | null; stoppedSince: string | null } | null;
+  /** Their phone can be asked (silently) for a fresh location: POST /users/:id/refresh-location. */
+  canRefresh?: boolean;
   /**
    * Their privacy bubble. For other people it replaces `location` (which is
    * then null) with a general area; on your own entry it's your active bubble.

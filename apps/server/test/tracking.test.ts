@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { expoPushInbox, newUser, useTestEnv } from './helpers.js';
 import { processDeviceTrips } from '../src/services/trips.js';
 import { runRetention } from '../src/services/jobs.js';
+import { wakeQuietPhones } from '../src/services/refresh.js';
 
 const env = useTestEnv();
 
@@ -119,6 +120,52 @@ describe('ingestion, trips and geofences', () => {
     expect(tl.items.map((i: { type: string }) => i.type)).toEqual(['stay', 'trip', 'stay']);
   });
 
+  it('refreshes a circle-mate’s location silently, at most every 10 seconds', async () => {
+    const a = await newUser(env, 'Asker');
+    const b = await newUser(env, 'Wife');
+    const stranger = await newUser(env, 'Stranger');
+    const circle = (await a.client.post('/api/circles', { name: 'Home' })).json();
+    const inv = (await a.client.post(`/api/circles/${circle.id}/invitations`, { maxUses: 1 })).json();
+    await b.client.post(`/api/invitations/${inv.token}/accept`);
+
+    // No app token yet: nothing to wake.
+    expect((await a.client.post(`/api/users/${b.id}/refresh-location`)).json()).toMatchObject({ requested: false, reason: 'no_app' });
+    await b.client.put(`/api/devices/${b.deviceId}/wake-token`, { token: 'ExponentPushToken[wifePhone]' });
+    const live = (await a.client.get('/api/live')).json() as { id: string; canRefresh: boolean }[];
+    expect(live.find((m) => m.id === b.id)!.canRefresh).toBe(true);
+
+    const notesBefore = [(await a.client.get('/api/notifications')).json().items.length, (await b.client.get('/api/notifications')).json().items.length];
+    const pushesBefore = expoPushInbox.length;
+    expect((await a.client.post(`/api/users/${b.id}/refresh-location`)).json()).toMatchObject({ requested: true, devices: 1 });
+    await new Promise((r) => setTimeout(r, 50));
+    const sent = expoPushInbox.slice(pushesBefore) as { to: string; _contentAvailable?: boolean; title?: string; body?: string; sound?: string }[];
+    expect(sent).toEqual([expect.objectContaining({ to: 'ExponentPushToken[wifePhone]', _contentAvailable: true })]);
+    expect(sent[0]!.title).toBeUndefined();
+    expect(sent[0]!.body).toBeUndefined();
+    expect(sent[0]!.sound).toBeUndefined();
+
+    // Ten seconds per person, whoever asks; strangers can't ask at all.
+    const again = (await b.client.post(`/api/users/${b.id}/refresh-location`)).json();
+    expect(again).toMatchObject({ requested: false, reason: 'too_soon' });
+    expect(again.retryAfterSec).toBeGreaterThan(0);
+    expect((await stranger.client.post(`/api/users/${b.id}/refresh-location`)).json()).toMatchObject({ requested: false, reason: 'not_visible' });
+
+    // Nobody hears about it.
+    expect((await a.client.get('/api/notifications')).json().items.length).toBe(notesBefore[0]);
+    expect((await b.client.get('/api/notifications')).json().items.length).toBe(notesBefore[1]);
+
+    // Paused means paused.
+    await env.sql`UPDATE devices SET wake_requested_at = NULL WHERE id = ${b.deviceId}`;
+    await b.client.post('/api/me/sharing', { paused: true });
+    expect((await a.client.post(`/api/users/${b.id}/refresh-location`)).json()).toMatchObject({ requested: false, reason: 'paused' });
+    await b.client.post('/api/me/sharing', { paused: false });
+
+    // Quiet phones get woken about once an hour.
+    await env.sql`UPDATE devices SET wake_requested_at = NULL, last_location_at = now() - interval '3 hours' WHERE id = ${b.deviceId}`;
+    expect(await wakeQuietPhones(env.ctx)).toBeGreaterThanOrEqual(1);
+    expect(await wakeQuietPhones(env.ctx)).toBe(0);
+  });
+
   it('lets people mark their own drives as passenger rides or walks', async () => {
     const u = await newUser(env, 'Rider');
     const other = await newUser(env, 'Nosy');
@@ -230,7 +277,7 @@ describe('ingestion, trips and geofences', () => {
     await send(0, 45.01);
     await send(1, 45.0002);
     await new Promise((r) => setTimeout(r, 300));
-    const msg = expoPushInbox.find((m) => (m as { title: string }).title.includes('arrived at Library')) as { to: string } | undefined;
+    const msg = expoPushInbox.find((m) => (m as { title?: string }).title?.includes('arrived at Library')) as { to: string } | undefined;
     expect(msg?.to).toBe('ExponentPushToken[abc123]');
   });
 

@@ -11,6 +11,7 @@ The native Nodara app, built with [Expo](https://expo.dev) (SDK 58) and React Na
 |---|---|
 | **Background location** | Real iOS background updates (`Always` permission) through a background task, so your circle keeps seeing you when the app is closed. Two modes: *Precise* (the default) and *Battery saver* (≈100 m, iOS auto-pause). |
 | **Geofence wake-ups** | Your family's places (up to 20 nearest) are registered with iOS region monitoring. iOS relaunches Nodara on arrival/departure — even if it was swiped away — and it sends a fresh fix right away. |
+| **Silent refresh** | Select someone on the map and tap ↻ to ask their phone for a fresh location. It's a silent push: their phone shows nothing, nobody is notified, and it's limited to once every 10 seconds per person. Phones that have been quiet for an hour are also nudged automatically, at most hourly. iOS decides when to deliver these (it throttles them, delays them in Low Power Mode, and never wakes an app that was swiped away), and a pause in Nodara is always respected. |
 | **Offline queue** | Fixes are queued on the phone (up to 5 000) and uploaded when you're back online. |
 | **Map-first, one screen** | Everything happens on the map: a draggable sheet (People · Places) snaps between peek, half and full with spring physics. Drag the header *or the list itself*; at full height the list scrolls, and pulling down from its top brings the sheet back down. The floating Check-in and map buttons are part of the sheet, so they ride on top of it and fade out as it expands. |
 | **Liquid Glass** | Top bar, circle switcher, sheet, floating buttons, sharing banner and toasts are drawn with `expo-glass-effect` (real Liquid Glass on iOS 26, system blur on older iOS). The sheet fades to a solid background at full height so long lists stay readable. |
@@ -135,7 +136,7 @@ The first screen is pre-filled with `EXPO_PUBLIC_DEFAULT_SERVER` from the build 
 
 ## Server requirements
 
-- Nodara server with this repository's version or newer (`/api/devices/:id/native-push`, `/api/checkins`, `/api/me/avatar` and the `stay` field on live members). Older servers still work, but photos and "here for" times won't show.
+- Nodara server with this repository's version or newer (`/api/devices/:id/native-push`, `/api/devices/:id/wake-token`, `/api/checkins`, `/api/me/avatar` and the `stay` field on live members). Older servers still work, but photos and "here for" times won't show.
 - HTTPS (iOS App Transport Security blocks plain HTTP).
 - Push: the server relays notifications through Expo's push service (`EXPO_PUSH_ENABLED`, on by default). Apple only accepts pushes signed by the app publisher's key, so a self-hosted server can't talk to APNs directly. The relay sees only the notification title and body. Set `EXPO_PUSH_ENABLED=false` to turn it off; the app then shows alerts only while it's open.
 

@@ -119,6 +119,8 @@ export async function startTracking(mode: TrackingMode): Promise<'always' | 'for
   } catch {
     // Not available in Expo Go — the foreground watcher in the app still reports while open.
   }
+  // Now that it shares, let circles ask it for a fresh location.
+  void import('@/lib/push').then((m) => m.syncWakeToken());
   return level;
 }
 
@@ -147,6 +149,9 @@ export async function refreshTrackingOptions() {
 
 export async function stopTracking() {
   await setItem(KEYS.tracking, null);
+  // Not sharing from this phone any more, so nothing to refresh.
+  const deviceId = await getItem(KEYS.deviceId);
+  if (deviceId) void api.del(`/api/devices/${deviceId}/wake-token`).catch(() => {});
   if (await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK).catch(() => false)) {
     await Location.stopLocationUpdatesAsync(LOCATION_TASK);
   }

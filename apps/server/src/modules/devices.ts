@@ -131,6 +131,23 @@ export default async function deviceRoutes(app: FastifyInstance, ctx: Ctx) {
     return { ok: true };
   });
 
+  /** Token for silent location refreshes (works with notifications off; never shows anything). */
+  app.put<{ Params: { id: string } }>('/api/devices/:id/wake-token', async (req) => {
+    const a = requireUser(req);
+    const { token } = parse(z.object({ token: z.string().regex(/^Expo(nent)?PushToken\[[\w-]+\]$/).max(200) }), req.body);
+    const r = await sql`
+      UPDATE devices SET wake_token = ${token}
+      WHERE id = ${parse(uuid, req.params.id)} AND user_id = ${a.userId} AND revoked_at IS NULL RETURNING id`;
+    if (!r.length) throw notFound('Device not found');
+    return { ok: true };
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/devices/:id/wake-token', async (req) => {
+    const a = requireUser(req);
+    await sql`UPDATE devices SET wake_token = NULL WHERE id = ${parse(uuid, req.params.id)} AND user_id = ${a.userId}`;
+    return { ok: true };
+  });
+
   app.delete<{ Params: { id: string } }>('/api/devices/:id/native-push', async (req) => {
     const a = requireUser(req);
     await sql`UPDATE devices SET expo_push_token = NULL WHERE id = ${parse(uuid, req.params.id)} AND user_id = ${a.userId}`;

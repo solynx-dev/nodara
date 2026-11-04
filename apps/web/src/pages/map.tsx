@@ -25,6 +25,7 @@ import {
   Minimize2,
   Navigation,
   Navigation2,
+  RotateCw,
   Route,
   Satellite,
   Settings,
@@ -48,6 +49,8 @@ import { MemberRow } from '@/features/members/MemberRow';
 import { TripRow } from '@/features/trips/TripRow';
 import { PLACE_ICONS } from '@/features/map/icons';
 import { useAddress } from '@/features/members/hooks';
+import { refreshFailure, useLocationRefresh } from '@/lib/refresh';
+import { useToast } from '@/components/toast';
 import { api as apiClient } from '@/lib/api';
 import type { Me } from '@nodara/shared';
 import { useQueryClient } from '@tanstack/react-query';
@@ -419,6 +422,12 @@ function MemberDetail({ member, onBack, onFocus }: { member: MemberLocation; onB
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [member.inTrip]);
   const PlaceI = member.currentPlace ? (PLACE_ICONS[member.currentPlace.icon]?.icon ?? MapPin) : null;
+  const toast = useToast();
+  const locRefresh = useLocationRefresh(member);
+  const refreshLocation = async () => {
+    const failed = await locRefresh.refresh();
+    if (failed) toast({ tone: 'info', title: refreshFailure[failed] ?? refreshFailure.not_visible! });
+  };
   const share = async () => {
     if (!loc) return;
     const url = `https://maps.apple.com/?ll=${loc.lat},${loc.lon}&q=${encodeURIComponent(s.where)}`;
@@ -450,6 +459,18 @@ function MemberDetail({ member, onBack, onFocus }: { member: MemberLocation; onB
           <Link to="/settings/account" className="shrink-0 rounded-full bg-accent-soft px-4 py-2 text-[15px] font-semibold text-accent-text">
             Edit
           </Link>
+        )}
+        {!isMe && locRefresh.canRefresh && (
+          <button
+            onClick={() => void refreshLocation()}
+            disabled={locRefresh.refreshing}
+            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-2 transition hover:bg-surface-3 disabled:cursor-progress"
+            aria-label={`Refresh ${member.displayName}'s location`}
+            aria-busy={locRefresh.refreshing}
+            title={locRefresh.refreshing ? 'Getting a fresh location…' : 'Refresh location'}
+          >
+            <RotateCw className={cx('size-5', locRefresh.refreshing && 'animate-spin text-accent-text')} />
+          </button>
         )}
       </div>
 

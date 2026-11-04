@@ -69,6 +69,7 @@ export async function memberLocations(ctx: Ctx, viewerId: string, circleId: stri
       drive_started: Date | null;
       drive_max_speed: number | null;
       drive_stopped_since: Date | null;
+      can_wake: boolean;
       loc_id: number | null;
       since: Date | null;
       last_trip_end: Date | null;
@@ -103,6 +104,7 @@ export async function memberLocations(ctx: Ctx, viewerId: string, circleId: stri
            l.user_id, l.device_id, l.recorded_at, l.lat, l.lon, l.accuracy, l.altitude, l.speed, l.speed_source,
            l.heading, l.battery, l.charging, l.activity,
            (cur.started_at IS NOT NULL) AS in_trip,
+           EXISTS (SELECT 1 FROM devices dv WHERE dv.user_id = m.user_id AND dv.wake_token IS NOT NULL AND dv.revoked_at IS NULL) AS can_wake,
            cur.started_at AS drive_started, cur.max_speed AS drive_max_speed, cur.stopped_since AS drive_stopped_since,
            lt.ended_at AS last_trip_end, lt.end_lat AS last_trip_lat, lt.end_lon AS last_trip_lon
     FROM members m
@@ -190,6 +192,8 @@ export async function memberLocations(ctx: Ctx, viewerId: string, circleId: stri
       deviceName: shown ? r.device_name : null,
       currentPlace: shown ? placeOf.get(r.member_id) ?? null : null,
       inTrip: shown && r.in_trip,
+      // Their phone can be asked, silently, for a fresh location.
+      canRefresh: (self || sharing) && r.can_wake && !r.sharing_paused,
       // The trip they're on: lets apps tell a red light (0 km/h) from parking.
       currentTrip:
         shown && r.drive_started

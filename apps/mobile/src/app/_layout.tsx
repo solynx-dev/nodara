@@ -8,7 +8,7 @@ import { ToastProvider } from '@/components/ui';
 import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
 import { SessionProvider, useSession } from '@/lib/session';
 import { ApiError } from '@/lib/api';
-import { routeForUrl, syncPushToken } from '@/lib/push';
+import { routeForUrl, syncPushToken, syncWakeToken } from '@/lib/push';
 import { useRealtime } from '@/lib/realtime';
 import { ForegroundReporter } from '@/components/ForegroundReporter';
 import { C, NAV } from '@/lib/theme';
@@ -40,7 +40,9 @@ function RootStack() {
   const { ready, server, signedIn } = useSession();
   useRealtime(signedIn);
   useEffect(() => {
-    if (signedIn) void syncPushToken();
+    if (!signedIn) return;
+    void syncPushToken();
+    void syncWakeToken();
   }, [signedIn]);
 
   // Open the right screen when someone taps a push notification.
