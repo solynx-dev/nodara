@@ -12,12 +12,14 @@ import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/session';
-import { useCircles, useLive, usePlaceEvents, usePlaces } from '@/lib/queries';
+import { useBubble, useCircles, useLive, usePlaceEvents, usePlaces } from '@/lib/queries';
 import { circleSummary, nameOrYou } from '@/lib/status';
-import { haversine } from '@/lib/format';
+import { liveSpeed } from '@/lib/driving';
+import { clock, haversine } from '@/lib/format';
 import { C, T } from '@/lib/theme';
 import type { MemberLocation, PlaceWithMeta } from '@/lib/types';
 import { getItem, KEYS } from '@/lib/storage';
+import { refreshFailure, useLocationRefresh } from '@/lib/refresh';
 import { getMapType, MAP_TYPES, setMapTypePref } from '@/lib/prefs';
 import { ensureDevice, syncGeofences } from '@/background/tracking';
 import { toFixes } from '@/background/upload';
@@ -64,7 +66,21 @@ export default function Home() {
   const circle = circles.find((c) => c.id === circleId) ?? null;
   const places = useMemo(() => (circleId ? allPlaces.filter((p) => p.circleId === circleId || p.circleId === null) : allPlaces), [allPlaces, circleId]);
   const selected = members.find((m) => m.id === selectedId) ?? null;
-  const located = useMemo(() => members.filter((m) => m.location), [members]);
+  const locRefresh = useLocationRefresh(selected);
+  const refreshSelected = async () => {
+    const failed = await locRefresh.refresh();
+    if (failed) toast({ tone: 'info', title: refreshFailure[failed] ?? refreshFailure.not_visible! });
+  };
+  /** Where each person appears: their location, or the middle of their bubble. */
+  const spots = useMemo(
+    () =>
+      members.flatMap((m) =>
+        m.location ? [{ latitude: m.location.lat, longitude: m.location.lon }] : m.bubble ? [{ latitude: m.bubble.lat, longitude: m.bubble.lon }] : [],
+      ),
+    [members],
+  );
+  const { data: bubbleState } = useBubble();
+  const myBubble = bubbleState?.bubble ?? null;
 
   useEffect(() => {
     void AsyncStorage.getItem(CIRCLE_KEY).then((v) => v && setCircleIdState(v));
@@ -116,11 +132,11 @@ export default function Home() {
   };
 
   const centerOn = useCallback(
-    (lat: number, lon: number, idx: SheetIndex, latitudeDelta?: number) => {
+    (lat: number, lon: number, idx: SheetIndex, latitudeDelta?: number, duration = 650) => {
       const d = latitudeDelta ?? regionRef.current?.latitudeDelta ?? 0.01;
       const sheetTop = positions[idx === 0 ? 0 : 1] - 60; // minus the floating buttons
       const dy = height / 2 - (visibleTop + sheetTop) / 2;
-      map.current?.animateToRegion({ latitude: lat - (dy * d) / height, longitude: lon, latitudeDelta: d, longitudeDelta: (d * width) / height }, 650);
+      map.current?.animateToRegion({ latitude: lat - (dy * d) / height, longitude: lon, latitudeDelta: d, longitudeDelta: (d * width) / height }, duration);
     },
     [positions, height, width, visibleTop],
   );
@@ -132,10 +148,10 @@ export default function Home() {
   );
 
   const fitAll = useCallback(() => {
-    if (!located.length) return;
-    if (located.length === 1) return centerOn(located[0]!.location!.lat, located[0]!.location!.lon, sheetIndex, 0.02);
-    fitCoords(located.map((m) => ({ latitude: m.location!.lat, longitude: m.location!.lon })));
-  }, [located, centerOn, fitCoords, sheetIndex]);
+    if (!spots.length) return;
+    if (spots.length === 1) return centerOn(spots[0]!.latitude, spots[0]!.longitude, sheetIndex, 0.02);
+    fitCoords(spots);
+  }, [spots, centerOn, fitCoords, sheetIndex]);
 
   /** Tapping a group: zoom in to separate them, or pick one if they're in the same spot. */
   const onGroupPress = (group: MemberLocation[]) => {
@@ -149,24 +165,47 @@ export default function Home() {
   };
   const fitted = useRef(false);
   useEffect(() => {
-    if (!fitted.current && located.length) {
+    if (!fitted.current && spots.length) {
       fitted.current = true;
       setTimeout(fitAll, 400);
     }
-  }, [located.length, fitAll]);
+  }, [spots.length, fitAll]);
 
   // Follow the selected person as their location updates.
   const selLoc = selected?.location;
+  // (While they drive, the map follows their smoothed position instead: see onFollow.)
+  const selDriving = Boolean(selected && liveSpeed(selected) != null);
   useEffect(() => {
-    if (selLoc) centerOn(selLoc.lat, selLoc.lon, 1);
-  }, [selLoc?.lat, selLoc?.lon, selLoc, centerOn]);
+    if (selLoc && !selDriving) centerOn(selLoc.lat, selLoc.lon, 1);
+  }, [selLoc?.lat, selLoc?.lon, selLoc, centerOn, selDriving]);
+  // Soft follow while someone you've selected is driving: the map only glides
+  // when their pin drifts out of the calm middle of the visible map, so it
+  // feels like a camera following them, not a pin glued to the centre.
+  // Touching the map pauses following for a while, so you can look around.
+  const followPausedUntil = useRef(0);
+  const follow = useCallback(
+    (lat: number, lon: number) => {
+      const r = regionRef.current;
+      if (!r || Date.now() < followPausedUntil.current) return;
+      const x = ((lon - r.longitude) / r.longitudeDelta + 0.5) * width;
+      const y = (0.5 - (lat - r.latitude) / r.latitudeDelta) * height;
+      const top = visibleTop;
+      const bottom = positions[sheetIndex === 0 ? 0 : 1] - 60;
+      const midY = (top + bottom) / 2;
+      const comfy = Math.abs(x - width / 2) < width * 0.22 && Math.abs(y - midY) < (bottom - top) * 0.22;
+      if (!comfy) centerOn(lat, lon, sheetIndex, undefined, 1500);
+    },
+    [centerOn, sheetIndex, width, height, visibleTop, positions],
+  );
 
   const selectPerson = (id: string) => {
     void Haptics.selectionAsync();
     setSelectedId(id);
     setSheetIndex(1);
-    const loc = members.find((m) => m.id === id)?.location;
-    if (loc) centerOn(loc.lat, loc.lon, 1, 0.01);
+    const m = members.find((x) => x.id === id);
+    if (m?.location) centerOn(m.location.lat, m.location.lon, 1, 0.01);
+    // Someone in a bubble: show their whole area.
+    else if (m?.bubble) centerOn(m.bubble.lat, m.bubble.lon, 1, (m.bubble.radiusM * 2.6) / 111_000);
   };
 
   const focusPlace = (p: PlaceWithMeta) => {
@@ -259,8 +298,10 @@ export default function Home() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
+      <View style={StyleSheet.absoluteFill} onTouchStart={() => (followPausedUntil.current = Date.now() + 20_000)}>
       <NodaraMap
         ref={map}
+        onFollow={follow}
         members={members}
         places={places}
         meId={me.id}
@@ -277,6 +318,7 @@ export default function Home() {
         onPlacePress={openPlace}
         onMapPress={() => selectedId && clearSelection()}
       />
+      </View>
 
       <MapSheet
         y={y}
@@ -285,9 +327,22 @@ export default function Home() {
         resetKey={selected?.id ?? segment}
         accessory={
           <View style={{ flexDirection: 'row', alignItems: 'flex-end' }} pointerEvents="box-none">
-            <GlassPill icon="mappin.and.ellipse" label="Check in" sub="Tell your circle" onPress={checkIn} />
+            <View style={{ gap: 10, alignItems: 'flex-start' }} pointerEvents="box-none">
+              <GlassPill
+                icon={myBubble ? 'circle.dashed.inset.filled' : 'circle.dashed'}
+                label={myBubble ? 'Bubble on' : 'Bubble'}
+                sub={myBubble ? `Until ${clock(myBubble.endsAt)}` : 'Hide exact spot'}
+                accent={Boolean(myBubble)}
+                tint="rgba(169,50,196,0.92)"
+                onPress={() => router.push('/bubble')}
+              />
+              <GlassPill icon="mappin.and.ellipse" label="Check in" sub="Tell your circle" onPress={checkIn} />
+            </View>
             <View style={{ flex: 1 }} pointerEvents="none" />
             <View style={{ gap: 10 }}>
+              {selected && selected.id !== me.id && locRefresh.canRefresh && (
+                <GlassButton icon="arrow.clockwise" label={`Refresh ${selected.displayName}'s location`} busy={locRefresh.refreshing} onPress={() => void refreshSelected()} />
+              )}
               <GlassButton icon="square.3.layers.3d" label="Map style" onPress={chooseMapType} />
               <GlassButton
                 icon={selectedId ? 'person.2.fill' : 'location.fill'}

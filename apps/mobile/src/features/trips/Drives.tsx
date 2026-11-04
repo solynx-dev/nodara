@@ -13,8 +13,10 @@ export function tripTitle(t: Trip) {
   return `${t.startLabel ?? 'Somewhere'} → ${t.status === 'in_progress' ? 'now' : (t.endLabel ?? 'Somewhere')}`;
 }
 
-export const modeIcon = (t: Trip): SFSymbol => (t.mode === 'walking' ? 'figure.walk' : t.mode === 'cycling' ? 'bicycle' : 'car.fill');
-export const modeLabel = (t: Trip) => (t.mode === 'walking' ? 'Walk' : t.mode === 'cycling' ? 'Ride' : t.mode === 'driving' ? 'Drive' : 'Trip');
+/** Trips are drives or walks (older servers may still say cycling/unknown: those read as drives). */
+export const isWalk = (t: Trip) => t.mode === 'walking';
+export const modeIcon = (t: Trip): SFSymbol => (isWalk(t) ? 'figure.walk' : t.role === 'passenger' ? 'person.2.fill' : 'car.fill');
+export const modeLabel = (t: Trip) => (isWalk(t) ? 'Walk' : t.role === 'passenger' ? 'Ride as passenger' : 'Drive');
 
 /**
  * One drive, laid out like a route: where it started and when, what happened
@@ -53,7 +55,7 @@ export function DriveCard({ t, onOpen, index = 0 }: { t: Trip; onOpen: (id: stri
             )}
           </View>
           <View style={styles.endRow}>
-            <Text style={[T.headline, { color: live ? C.accent : C.label, flex: 1 }]} numberOfLines={1}>
+            <Text style={[T.headline, { color: live ? C.accentText : C.label, flex: 1 }]} numberOfLines={1}>
               {live ? 'On the way now' : (t.endLabel ?? 'Somewhere')}
             </Text>
             {t.endedAt && <Text style={styles.time}>{clock(t.endedAt)}</Text>}

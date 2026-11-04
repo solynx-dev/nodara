@@ -24,7 +24,7 @@ Nodara is a **modular monolith**: one Node.js process serving the REST API, WebS
 | `apps/server/src/app.ts` | Builds the Fastify app and wires services (also used by tests and CLIs). |
 | `apps/server/src/auth.ts` | Session/bearer/device-token resolution, CSRF, `requireUser`/`requireAdmin`, audit. |
 | `apps/server/src/modules/*` | HTTP routes per domain. |
-| `apps/server/src/services/*` | Domain logic: `ingest`, `speed`, `trip-detect` (pure), `trips` (DB), `geofence-eval` (pure), `geofence`, `access` (authorization queries), `notify`, `push`, `geocoder`, `jobs`, `realtime`. |
+| `apps/server/src/services/*` | Domain logic: `ingest`, `speed`, `trip-detect` (pure), `trips` (DB), `geofence-eval` (pure), `geofence`, `access` (authorization queries), `bubbles` (privacy bubbles), `notify`, `push`, `mailer` + `emails` (SMTP and templates), `geocoder`, `jobs`, `realtime`. |
 | `apps/server/src/db/migrations` | Plain SQL migrations, applied in order at startup. |
 | `apps/server/src/cli` | `migrate`, `create-admin`, `seed-demo`. |
 | `apps/web/src/pages` | One file per screen. |
@@ -63,6 +63,7 @@ All rules live in `services/access.ts` and are enforced on every endpoint; anyth
 - **Live:** you see someone's current location only if you share a circle where they have `sharing = true`, they haven't paused globally, and the fix was recorded after they started sharing with that circle.
 - **History/trips:** only from `min(sharing_since)` across circles you share with them (minus a 2-minute clock-skew grace), only if the circle allows it (`historyVisible` / `tripsVisible`), and only fixes recorded while they weren't paused (`locations.shared`).
 - Re-enabling sharing resets `sharing_since`, so the gap stays private.
+- **Bubbles:** while someone's bubble is on, viewers who share only bubble-allowing circles with them get the bubble (a randomised area) instead of their location, and no live updates, trip events, place presence or arrival alerts. The bubble's time window is excluded from those viewers' history, trips, timeline, driving reports and place events (`inBubbleSql` / `tripsVisibleSql`), even after it ends. A circle with `bubblesAllowed: false` always sees exact locations.
 - Device tokens can only call ingestion endpoints.
 
 Circle isolation is covered by integration tests (`apps/server/test/circles.test.ts`).
@@ -82,8 +83,12 @@ Circle isolation is covered by integration tests (`apps/server/test/circles.test
 A pure, unit-tested two-state machine:
 
 - **Stationary**: remember an *anchor*. Fixes within 100 m keep you "at rest"; fixes between 100 m and 200 m are buffered as drift. Moving beyond 200 m starts a trip at the last at-rest fix (including the drift fixes).
-- **Moving**: track a *dwell anchor*. Staying within 100 m for 5 min ends the trip at the dwell anchor; shorter dwells (≥ 90 s) become *stops*. A data gap > 20 min ends the trip at the last fix.
+- **Moving**: track a *dwell anchor*. Staying within 100 m ends the trip at the dwell anchor after 5 min at one of the person's saved places, or after 10 min anywhere else, so red lights, drive-thrus and pick-ups stay part of the same drive. Shorter dwells (≥ 90 s) become *stops*. A data gap > 20 min ends the trip at the last fix.
+- **Getting out and walking**: once a trip has reached driving speed (≈ 25 km/h), a stop of ≥ 90 s followed by walking-pace movement over 120 m (with nothing faster than 4 m/s) ends the drive at the stop; the walk is treated on its own.
+- **Stopped since**: an open trip records when the person came to a standstill (`trips.stopped_since`). `/live` returns it as `currentTrip`, and the apps show 0 km/h for up to 3 minutes of standing still mid-drive, then hide the speed.
+- **GPS jumps**: indoor positions (from Wi-Fi) can hop a couple of hundred metres. Leaving needs to clear the departure radius even allowing for the fix's stated accuracy, confirmed by a second fix (or a fix with real GPS speed). Inside a trip, fixes only count as leaving a stop when they're outside it error included, and hanging around within 300 m at walking pace or slower for 10 min ends the trip, even if jumpy fixes kept resetting the stop. Hops smaller than the fixes' error don't add distance or moving time.
 - Candidate trips under 400 m, 2 min, or with < 30 s of actual movement are discarded as noise.
+- **Drive or walk**: a trip is a drive once its spike-filtered top speed reached ~25 km/h or it averaged ~14 km/h while moving; otherwise a walk. People can correct their own trips (drive/walk, driver/passenger); passenger rides and walks don't count in driving reports.
 - Stats: distance (sum of segments), moving time (segments faster than 0.7 m/s), max speed (median-of-3 smoothed so one spike can't dominate), averages, stops, and a **low-confidence** flag for sparse/imprecise data.
 
 The detector is incremental: its state (`devices.trip_state`) is persisted after each run and the next run only reads fixes after `state.last`. An open trip is re-segmented from its start each run and stored as one `in_progress` row. A job closes trips whose device went silent. `POST /api/trips/rebuild` recomputes everything from history. Thresholds are admin-configurable.

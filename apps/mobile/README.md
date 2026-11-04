@@ -9,8 +9,9 @@ The native Nodara app, built with [Expo](https://expo.dev) (SDK 58) and React Na
 
 | | |
 |---|---|
-| **Background location** | Real iOS background updates (`Always` permission) through a background task, so your circle keeps seeing you when the app is closed. Two modes: *Battery saver* (≈100 m, iOS auto-pause) and *Precise*. |
+| **Background location** | Real iOS background updates (`Always` permission) through a background task, so your circle keeps seeing you when the app is closed. Two modes: *Precise* (the default) and *Battery saver* (≈100 m, iOS auto-pause). |
 | **Geofence wake-ups** | Your family's places (up to 20 nearest) are registered with iOS region monitoring. iOS relaunches Nodara on arrival/departure — even if it was swiped away — and it sends a fresh fix right away. |
+| **Silent refresh** | Select someone on the map and tap ↻ to ask their phone for a fresh location. It's a silent push: their phone shows nothing, nobody is notified, and it's limited to once every 10 seconds per person. Phones that have been quiet for an hour are also nudged automatically, at most hourly. iOS decides when to deliver these (it throttles them, delays them in Low Power Mode, and never wakes an app that was swiped away), and a pause in Nodara is always respected. |
 | **Offline queue** | Fixes are queued on the phone (up to 5 000) and uploaded when you're back online. |
 | **Map-first, one screen** | Everything happens on the map: a draggable sheet (People · Places) snaps between peek, half and full with spring physics. Drag the header *or the list itself*; at full height the list scrolls, and pulling down from its top brings the sheet back down. The floating Check-in and map buttons are part of the sheet, so they ride on top of it and fade out as it expands. |
 | **Liquid Glass** | Top bar, circle switcher, sheet, floating buttons, sharing banner and toasts are drawn with `expo-glass-effect` (real Liquid Glass on iOS 26, system blur on older iOS). The sheet fades to a solid background at full height so long lists stay readable. |
@@ -19,9 +20,16 @@ The native Nodara app, built with [Expo](https://expo.dev) (SDK 58) and React Na
 | **Readable status everywhere** | Every person is described the same way: where they are (“At Home”, “Near 12 King St”), how long (“Here for 3 h”), and a coloured status (*Live*, *Driving · 54 km/h*, *Updated 2 h ago*, *Last seen yesterday*). The circle header summarises everyone (“2 at a saved place · 1 on the move”). |
 | **Places** | Tap a place (or long-press the map to add one) to edit it: move the map under the pin to reposition it, drag the slider to size the zone (50 m – 2 km), rename it, pick an icon and colour, choose which circle sees it, search for an address, or delete it. **Get notified when…** lets you pick, per person, whether you hear about them arriving, leaving, or both. Circle admins can edit everyone's places; anyone can choose their own alerts. |
 | **Weekly driving reports** | For each week: speeding (over 130 km/h / 80 mph), phone use while moving, rapid acceleration and hard braking, with trends against last week, top speed, drives and distance, for everyone in the circle. Each profile shows the person's week, and each trip's map marks where events happened. |
-| **Speed on the map** | While someone is driving, their speed shows next to their photo; over 130 km/h (80 mph) their pin turns red. |
+| **Speed on the map** | While someone is driving, their speed shows next to their photo; over 130 km/h (80 mph) their pin turns red. Stopped at a light or in traffic it shows 0 km/h; after 3 minutes standing still, or once they walk off, the speed goes away. |
+| **Stop-aware tracking** | While you move, Precise mode reports every few seconds even when you're stopped, so your circle sees the stop. After 5 minutes still, the phone switches to a quiet "parked" setting until you move about 40 m, then back. |
+| **Smooth live driving** | Phones upload every 5 s while driving in Precise mode (10 s in Battery saver). Viewers' maps replay each upload's real path a few seconds behind and predict the last few seconds along the speed and heading, so a driver's pin glides instead of jumping. When you select someone who's driving, the map follows them softly; touch the map to look around (following pauses for 20 s). |
+| **Drive replay** | Opening a drive plays it back on the map: the pin follows the real route at the real relative pace, compressed to about 20 s, with play/pause, scrubbing, the time and speed at each moment, and 1×/2×/4×. |
 | **Phone-use detection** | A tiny native module (`modules/phone-use`) records when the iPhone is unlocked, which iOS reports to Nodara while it's sharing location in the background. Times are uploaded with locations, and the server only counts the ones that happened while moving. Needs a passcode on the phone. |
-| **Settings & circles** | A profile card with your week at a glance, a sharing health check, accuracy mode, per-circle management (members, roles, invitations, what members can see, leave/delete), notification types, units and default map style, your devices, and account links. |
+| **Account** | Tap your card at the top of Settings for one Account page: name, photo and colour; email (confirm it, or change it with a code sent to the new address); password (change it, or reset it by email); two-step verification (open in your authenticator, copy the key or scan the QR, then save recovery codes); passkeys (add with Face ID, rename, remove); where you're signed in; history and privacy (how long history is kept, who can see it, delete the last hour/day/week/month or everything, export as JSON/GPX/CSV/GeoJSON through the share sheet); sign out; delete account. No browser needed. |
+| **Forgot password** | *Forgot password?* on the sign-in screen (and in Account → Password) emails a 6-digit code; enter it and choose a new password without leaving the app. If the server requires confirmed emails, new accounts enter their emailed code on the sign-in screen too. |
+| **Passkeys** | Sign in with Face ID instead of a password. Apple only lets the app use passkeys for domains in its entitlements (`webcredentials:nodara.ca` and `demo.nodara.ca` in `app.json`), and those servers publish `/.well-known/apple-app-site-association`. On other servers, add passkeys from the web app; the app explains this. |
+| **Bubbles** | The *Bubble* button above the sheet (or Settings → Location sharing) shows your circles only a general area for 1–8 hours: pick the area (about 1, 5, 15 or 40 km) on a map preview. Their map shows a dashed purple area with your photo instead of your pin, plus your battery. Leaving the area ends it. Circle owners and admins can turn bubbles off in the circle's settings. |
+| **Settings & circles** | Your account card, a sharing health check, bubbles, accuracy mode, per-circle management (members, roles, invitations, what members can see, bubbles, leave/delete), notification types, units and default map style, your devices, and about. |
 | **Know when you're not sharing** | A banner (and the Settings health card) appears when this iPhone is paused, not sharing, or only sharing while open, with a one-tap fix. |
 | **Apple Maps** | Pins are people's photos (or initials) and scale with zoom: a photo with a short label up close (“You · Home, 1 day”), a smaller photo at city level, and a small icon when zoomed out. People whose pins would overlap merge into one group pin; tap it to zoom in, or pick someone if they're in the same spot. Places show as geofence circles. Long-press to add a place, and tap empty map to deselect. |
 | **Check in** | Sends your current location and notifies your circle (“Alex checked in at Home”), with an optional message. |
@@ -32,7 +40,7 @@ Layout:
 
 - **Home (map):**
   - Top glass bar: Settings · circle switcher (animated glass menu: switch circle, invite, new circle) · Alerts with an unread badge.
-  - Above the sheet: *Check in*, map style menu, and recenter.
+  - Above the sheet: *Bubble*, *Check in*, map style menu, and recenter.
 - **Sheet:**
   - **People:** avatar cards with battery level, place/address and “Since 7:32 PM”.
   - **Places:** who's there now, add a place.
@@ -41,9 +49,10 @@ Layout:
 - **Pushed pages:**
   - **Trip report:** route map and speed bars.
   - **Alerts.**
-  - **Settings:** sharing, mode, permission, pause, per-circle sharing, push, units, web app, sign out.
+  - **Settings:** account, sharing, bubble, mode, permission, pause, circles, push, units, devices, about.
+  - **Account:** profile, email, password, two-step, passkeys, sessions, history & privacy, sign out, delete.
 
-The web app still has a few things the iOS app doesn't yet (history calendar & playback, the full places editor, admin); Settings → *Open web app* gets you there.
+The web app still has a few things the iOS app doesn't (the full-screen history calendar and playback, insights, server administration); Settings → *Open the web app* gets you there.
 
 ## Run it on your iPhone — step by step
 
@@ -127,7 +136,7 @@ The first screen is pre-filled with `EXPO_PUBLIC_DEFAULT_SERVER` from the build 
 
 ## Server requirements
 
-- Nodara server with this repository's version or newer (`/api/devices/:id/native-push`, `/api/checkins`, `/api/me/avatar` and the `stay` field on live members). Older servers still work, but photos and "here for" times won't show.
+- Nodara server with this repository's version or newer (`/api/devices/:id/native-push`, `/api/devices/:id/wake-token`, `/api/checkins`, `/api/me/avatar` and the `stay` field on live members). Older servers still work, but photos and "here for" times won't show.
 - HTTPS (iOS App Transport Security blocks plain HTTP).
 - Push: the server relays notifications through Expo's push service (`EXPO_PUSH_ENABLED`, on by default). Apple only accepts pushes signed by the app publisher's key, so a self-hosted server can't talk to APNs directly. The relay sees only the notification title and body. Set `EXPO_PUSH_ENABLED=false` to turn it off; the app then shows alerts only while it's open.
 

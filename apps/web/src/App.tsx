@@ -4,7 +4,7 @@ import { useConfig, useMe } from './lib/queries';
 import { applyTheme } from './lib/theme';
 import { AppShell } from './components/AppShell';
 import { Spinner } from './components/ui';
-import { LoginPage, RegisterPage, SetupPage, ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from './pages/auth';
+import { LoginPage, RegisterPage, SetupPage, ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage, ConfirmEmailPage } from './pages/auth';
 import { JoinPage } from './pages/join';
 import { OverviewPage } from './pages/overview';
 import { useServiceWorker } from './lib/sw';
@@ -61,6 +61,7 @@ const router = createBrowserRouter([
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
   { path: '/verify-email', element: <VerifyEmailPage /> },
+  { path: '/confirm-email', element: <ConfirmEmailPage /> },
   { path: '/join/:token', element: <JoinPage /> },
   {
     element: <Authed />,

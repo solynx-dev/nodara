@@ -1,34 +1,62 @@
 import * as Location from 'expo-location';
 import * as Device from 'expo-device';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '@/lib/api';
 import { getItem, KEYS, setItem } from '@/lib/storage';
 import { haversine } from '@/lib/format';
 import type { PlaceWithMeta } from '@/lib/types';
 import { GEOFENCE_TASK, LOCATION_TASK } from './tasks';
+import { resetMotion } from './motion';
 
-export type TrackingMode = 'balanced' | 'precise';
+export type TrackingMode = 'precise' | 'balanced';
+/** What new installs share with (and what's assumed when nothing was chosen yet). */
+export const DEFAULT_MODE: TrackingMode = 'precise';
 
-export const MODES: Record<TrackingMode, { label: string; detail: string; options: Location.LocationTaskOptions }> = {
-  balanced: {
-    label: 'Battery saver',
-    detail: 'Updates when you move about 100 m. iOS pauses updates when you stay put.',
+/**
+ * Each mode has two settings, and the background task switches between them
+ * on its own (see motion.ts):
+ *  - `options` while on the move: Precise reports even when you stop at a red
+ *    light (no distance filter), so your circle sees 0 km/h, not a stale speed;
+ *  - `parkedOptions` once you've been still for a few minutes: iOS then stays
+ *    quiet until you move again, which saves battery.
+ */
+export const MODES: Record<TrackingMode, { label: string; detail: string; options: Location.LocationTaskOptions; parkedOptions: Location.LocationTaskOptions }> = {
+  precise: {
+    label: 'Precise',
+    detail: 'Recommended. Near-live driving (every 5 seconds, including at red lights), detailed trips and quicker arrival alerts. Uses a bit more battery while you move.',
     options: {
-      accuracy: Location.Accuracy.Balanced,
-      distanceInterval: 100,
-      deferredUpdatesInterval: 60_000,
-      pausesUpdatesAutomatically: true,
+      accuracy: Location.Accuracy.High,
+      distanceInterval: 0,
+      deferredUpdatesInterval: 5_000,
+      pausesUpdatesAutomatically: false,
+      activityType: Location.ActivityType.Other,
+      showsBackgroundLocationIndicator: false,
+    },
+    parkedOptions: {
+      accuracy: Location.Accuracy.High,
+      distanceInterval: 40,
+      deferredUpdatesInterval: 5_000,
+      pausesUpdatesAutomatically: false,
       activityType: Location.ActivityType.Other,
       showsBackgroundLocationIndicator: false,
     },
   },
-  precise: {
-    label: 'Precise',
-    detail: 'Detailed trips and quicker arrival alerts. Uses more battery.',
+  balanced: {
+    label: 'Battery saver',
+    detail: 'Updates about every 10 seconds while driving and goes quiet when you stay put. Stops may take a little longer to show.',
     options: {
-      accuracy: Location.Accuracy.High,
-      distanceInterval: 25,
-      deferredUpdatesInterval: 15_000,
-      pausesUpdatesAutomatically: false,
+      accuracy: Location.Accuracy.Balanced,
+      distanceInterval: 10,
+      deferredUpdatesInterval: 10_000,
+      pausesUpdatesAutomatically: true,
+      activityType: Location.ActivityType.Other,
+      showsBackgroundLocationIndicator: false,
+    },
+    parkedOptions: {
+      accuracy: Location.Accuracy.Balanced,
+      distanceInterval: 100,
+      deferredUpdatesInterval: 10_000,
+      pausesUpdatesAutomatically: true,
       activityType: Location.ActivityType.Other,
       showsBackgroundLocationIndicator: false,
     },
@@ -64,7 +92,7 @@ export async function trackingStatus(): Promise<TrackingStatus> {
     Location.getBackgroundPermissionsAsync().catch(() => ({ status: Location.PermissionStatus.UNDETERMINED })),
     getItem(KEYS.tracking),
   ]);
-  return { running, foreground: fg.status, background: bg.status, mode: (mode as TrackingMode) || 'balanced' };
+  return { running, foreground: fg.status, background: bg.status, mode: (mode as TrackingMode) || DEFAULT_MODE };
 }
 
 /**
@@ -86,14 +114,44 @@ export async function startTracking(mode: TrackingMode): Promise<'always' | 'for
   try {
     if (await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)) await Location.stopLocationUpdatesAsync(LOCATION_TASK);
     await Location.startLocationUpdatesAsync(LOCATION_TASK, MODES[mode].options);
+    await resetMotion();
+    await AsyncStorage.setItem(OPTIONS_KEY, OPTIONS_VERSION);
   } catch {
     // Not available in Expo Go — the foreground watcher in the app still reports while open.
   }
+  // Now that it shares, let circles ask it for a fresh location.
+  void import('@/lib/push').then((m) => m.syncWakeToken());
   return level;
+}
+
+/** Bump when MODES options change, so phones already sharing pick up the new settings. */
+const OPTIONS_VERSION = '3';
+const OPTIONS_KEY = 'nodara.trackingOptions';
+
+/**
+ * iOS keeps the options a location task was started with. After an app update
+ * changes them, restart the running task once (in the foreground, no prompts).
+ */
+export async function refreshTrackingOptions() {
+  try {
+    const mode = (await getItem(KEYS.tracking)) as TrackingMode | null;
+    if (!mode || !MODES[mode]) return;
+    if ((await AsyncStorage.getItem(OPTIONS_KEY)) === OPTIONS_VERSION) return;
+    if (!(await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK))) return;
+    await Location.stopLocationUpdatesAsync(LOCATION_TASK);
+    await Location.startLocationUpdatesAsync(LOCATION_TASK, MODES[mode].options);
+    await resetMotion();
+    await AsyncStorage.setItem(OPTIONS_KEY, OPTIONS_VERSION);
+  } catch {
+    // Not available in Expo Go.
+  }
 }
 
 export async function stopTracking() {
   await setItem(KEYS.tracking, null);
+  // Not sharing from this phone any more, so nothing to refresh.
+  const deviceId = await getItem(KEYS.deviceId);
+  if (deviceId) void api.del(`/api/devices/${deviceId}/wake-token`).catch(() => {});
   if (await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK).catch(() => false)) {
     await Location.stopLocationUpdatesAsync(LOCATION_TASK);
   }

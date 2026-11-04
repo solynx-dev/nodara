@@ -52,3 +52,13 @@ export function deviceLabel(ua = navigator.userAgent): string {
 export function userAgentSummary(ua: string | null) {
   return ua ? deviceLabel(ua) : 'Unknown device';
 }
+
+/** Compact age for tight spots: "Now", "19 min", "3 h", "2 d". */
+export function shortAgo(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const s = (Date.now() - Date.parse(iso)) / 1000;
+  if (s < 60) return 'Now';
+  if (s < 3600) return `${Math.floor(s / 60)} min`;
+  if (s < 86_400) return `${Math.floor(s / 3600)} h`;
+  return `${Math.floor(s / 86_400)} d`;
+}

@@ -9,13 +9,13 @@ import * as Application from 'expo-application';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { MapType } from 'react-native-maps';
 import { api } from '@/lib/api';
-import { useCircles, usePlaces, useWeekTrips } from '@/lib/queries';
+import { useBubble, useCircles, usePlaces, useWeekTrips } from '@/lib/queries';
 import { useMe, useSession } from '@/lib/session';
-import { ago, formatDistance } from '@/lib/format';
+import { ago, clock, formatDistance } from '@/lib/format';
 import { disablePush, enablePush, pushPermission } from '@/lib/push';
 import { getMapType, MAP_TYPES, setMapTypePref } from '@/lib/prefs';
 import { getItem, KEYS } from '@/lib/storage';
-import { C, HEX, T } from '@/lib/theme';
+import { BRAND, C, HEX, T } from '@/lib/theme';
 import type { Device, Me, NotifyKey, NotifyPrefs } from '@/lib/types';
 import { MODES, startTracking, stopTracking, trackingStatus, type TrackingMode } from '@/background/tracking';
 import { lastUpload, pendingCount } from '@/background/upload';
@@ -36,26 +36,24 @@ const deviceKind = (kind: string) => (kind === 'ios' ? 'iPhone app' : kind === '
 
 // ---------------------------------------------------------------------------
 
+/** Your account, Apple ID–style: tap for email, password, two-step, passkeys, history and privacy. */
 function ProfileCard({ me, circles, places, trips, distance }: { me: Me; circles: number; places: number; trips: number; distance: string }) {
+  const attention = !me.emailVerified || Boolean(me.pendingEmail);
   return (
     <Animated.View entering={appear} style={styles.profile}>
-      <Tap onPress={() => router.push('/edit-profile')} style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }} accessibilityRole="button" accessibilityLabel="Edit profile">
-        <View>
-          <Avatar name={me.displayName} color={me.avatarColor} url={me.avatarUrl} size={76} />
-          <View style={styles.camera}>
-            <SymbolView name="camera.fill" size={12} tintColor="white" />
-          </View>
-        </View>
+      <Tap onPress={() => router.push('/account')} style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }} accessibilityRole="button" accessibilityLabel="Account, security and privacy">
+        <Avatar name={me.displayName} color={me.avatarColor} url={me.avatarUrl} size={70} />
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={[T.title2, { color: C.label }]} numberOfLines={1}>
             {me.displayName}
           </Text>
           <Text style={[T.subhead, { color: C.secondaryLabel }]} numberOfLines={1}>
-            {me.email}
+            Account, security & privacy
           </Text>
-          <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+          <View style={{ flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+            {attention && <Badge text={me.pendingEmail ? 'Confirm new email' : 'Confirm your email'} color={HEX.orange} />}
+            {me.totpEnabled && <Badge text="Two-step on" color={HEX.green} />}
             {me.isAdmin && <Badge text="Server admin" color={C.indigo as string} />}
-            <Badge text={`Joined ${new Date(me.createdAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}`} color={HEX.gray} />
           </View>
         </View>
         <SymbolView name="chevron.right" size={14} weight="semibold" tintColor={C.tertiaryLabel} />
@@ -122,7 +120,7 @@ function HealthCard({ paused, running, always, lastSent, pending, onFix }: { pau
 
 export default function Settings() {
   const me = useMe();
-  const { server, config, signOut, disconnect, setMe } = useSession();
+  const { server, config, setMe } = useSession();
   const qc = useQueryClient();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
@@ -132,6 +130,7 @@ export default function Settings() {
   const devices = useQuery({ queryKey: ['devices'], queryFn: () => api.get<Device[]>('/api/devices') });
   const thisDevice = useQuery({ queryKey: ['devices', 'this'], queryFn: () => getItem(KEYS.deviceId) });
   const push = useQuery({ queryKey: ['push-permission'], queryFn: pushPermission });
+  const bubble = useBubble();
   const { data: circles = [] } = useCircles();
   const { data: places = [] } = usePlaces();
   const week = useWeekTrips(me.id);
@@ -278,6 +277,14 @@ export default function Settings() {
           subtitle="Hide your location from every circle until you turn this off"
           accessory={<Switch value={me.sharingPaused} onValueChange={(v) => void setPaused(v)} trackColor={{ true: C.orange }} />}
         />
+        <Row
+          icon="circle.dashed.inset.filled"
+          iconColor={BRAND.pink}
+          title="Bubble"
+          subtitle={bubble.data?.bubble ? `On until ${clock(bubble.data.bubble.endsAt)} · ${bubble.data.bubble.label ?? 'general area only'}` : 'Show just a general area for a while'}
+          value={bubble.data?.bubble ? 'On' : undefined}
+          onPress={() => router.push('/bubble')}
+        />
         <Row icon="lock.shield.fill" iconColor="#007AFF" title="Location access" value={permissionText} onPress={() => void Linking.openSettings()} last />
       </Section>
 
@@ -290,7 +297,7 @@ export default function Settings() {
             title={MODES[mode].label}
             subtitle={MODES[mode].detail}
             onPress={t?.running ? () => void setMode(mode) : undefined}
-            accessory={t?.mode === mode ? <SymbolView name="checkmark" size={17} weight="semibold" tintColor={C.accent} /> : <View />}
+            accessory={t?.mode === mode ? <SymbolView name="checkmark" size={17} weight="semibold" tintColor={C.accentText} /> : <View />}
             last={i === all.length - 1}
           />
         ))}
@@ -375,23 +382,16 @@ export default function Settings() {
         </Section>
       )}
 
-      <Section title="Account & privacy">
-        <Row icon="key.fill" iconColor="#8E8E93" title="Password & sign-in" value={me.totpEnabled ? '2FA on' : '2FA off'} onPress={() => openWeb('/settings/security')} />
-        <Row icon="hand.raised.fill" iconColor="#5856D6" title="History & privacy" subtitle="Retention, who can see your history" onPress={() => openWeb('/settings/privacy')} />
-        <Row icon="square.and.arrow.down.fill" iconColor="#30B0C7" title="Export my data" onPress={() => openWeb('/settings/data')} />
-        <Row icon="safari.fill" iconColor="#007AFF" title="Open the web app" subtitle="History playback, insights, places editor, admin" onPress={() => openWeb()} last />
-      </Section>
-
       <Section title="About" footer="Nodara is open source and was built mainly with AI by a non-professional developer. Please report anything that looks wrong.">
         <Row icon="info.circle.fill" iconColor="#8E8E93" title="App version" value={`${Application.nativeApplicationVersion ?? '—'} (${Application.nativeBuildVersion ?? '—'})`} />
         <Row icon="server.rack" iconColor="#8E8E93" title={config?.instanceName ?? 'Server'} value={config?.version ? `v${config.version}` : undefined} subtitle={server ?? undefined} />
         <Row icon="chevron.left.forwardslash.chevron.right" iconColor="#1C1C1E" title="Source code" subtitle="AGPL-3.0 on GitHub" onPress={() => void WebBrowser.openBrowserAsync(SOURCE_URL)} />
-        <Row icon="hand.raised.fill" iconColor="#34C759" title="Privacy policy" onPress={() => openWeb('/privacy-policy')} last />
+        <Row icon="hand.raised.fill" iconColor="#34C759" title="Privacy policy" onPress={() => openWeb('/privacy-policy')} />
+        <Row icon="safari.fill" iconColor="#007AFF" title="Open the web app" subtitle="Full-screen history playback, insights and server admin" onPress={() => openWeb()} last />
       </Section>
 
-      <Section>
-        <Row title="Sign out" destructive onPress={() => Alert.alert('Sign out?', 'This iPhone will stop sharing your location.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Sign out', style: 'destructive', onPress: () => void signOut() }])} />
-        <Row title="Use a different server" destructive onPress={() => Alert.alert('Disconnect from this server?', 'You will be signed out and can connect to another Nodara server.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Disconnect', style: 'destructive', onPress: () => void signOut().then(disconnect) }])} last />
+      <Section footer="Signing out, changing servers and deleting your account are in Account.">
+        <Row icon="person.crop.circle.fill" iconColor="#8E8E93" title="Account" subtitle={me.email} onPress={() => router.push('/account')} last />
       </Section>
     </ScrollView>
   );
@@ -399,7 +399,6 @@ export default function Settings() {
 
 const styles = StyleSheet.create({
   profile: { marginHorizontal: 16, marginBottom: 16, padding: 18, borderRadius: 28, borderCurve: 'continuous', backgroundColor: C.cell, gap: 18 },
-  camera: { position: 'absolute', right: -2, bottom: -2, width: 28, height: 28, borderRadius: 14, backgroundColor: C.accent, borderWidth: 2.5, borderColor: 'white', alignItems: 'center', justifyContent: 'center' },
   statsRow: { flexDirection: 'row', alignItems: 'center', paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   statSep: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: C.separator },
   health: { marginHorizontal: 16, marginBottom: 28, padding: 18, borderRadius: 26, borderCurve: 'continuous', backgroundColor: C.cell, gap: 14, borderWidth: 1 },

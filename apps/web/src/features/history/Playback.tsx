@@ -59,7 +59,7 @@ export function PlaybackBar({
   const span = Math.max(1, end - start);
   const atEnd = t >= end;
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-line bg-elevated/95 p-2 pr-3 shadow-float backdrop-blur-xl">
+    <div className="flex items-center gap-3 glass rounded-[24px] p-2 pr-3 shadow-float backdrop-blur-xl">
       <button
         onClick={atEnd ? () => onSeek(start) : onToggle}
         className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent text-white shadow-[0_6px_16px_-6px_var(--accent)] active:scale-95"

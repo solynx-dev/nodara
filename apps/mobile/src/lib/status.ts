@@ -1,14 +1,15 @@
+import type { ColorValue } from 'react-native';
 import type { SFSymbol } from 'expo-symbols';
-import { ago, firstName, formatSpeed, formatStay, freshness, sinceLabel, type Units } from './format';
-import { HEX } from './theme';
-import { redSpeedMps } from './driving';
+import { ago, clock, firstName, formatDistance, formatSpeed, formatStay, freshness, sinceLabel, type Units } from './format';
+import { BRAND, C, HEX } from './theme';
+import { driveState, redSpeedMps } from './driving';
 import type { MemberLocation, PlaceEvent } from './types';
 
 export interface MemberStatus {
   /** Where they are, in words: "At Home", "Near 12 King St", "Location sharing off". */
   where: string;
   /** Short state pill: "Live", "Driving · 54 km/h", "Updated 2 h ago". */
-  pill: { text: string; color: string; icon: SFSymbol };
+  pill: { text: string; color: string; icon: SFSymbol; textColor?: ColorValue };
   /** Extra line: "Here for 3 h 12 min · since 7:32 PM". */
   since: string | null;
   /** Just the duration: "3 h 12 min" (or "at least 2 days"). */
@@ -19,8 +20,25 @@ export interface MemberStatus {
 
 const MOVING = 1.5; // m/s
 
+/** Bubbles are drawn in purple everywhere. */
+export const BUBBLE_COLOR = BRAND.pink;
+
+/** "Around Dieppe (5 km)" / "In a bubble (5 km)". */
+export const bubbleArea = (b: { label: string | null; radiusM: number }, units: Units) =>
+  `${b.label ? `Around ${b.label}` : 'Somewhere nearby'} (${formatDistance(b.radiusM, units)})`;
+
 export function describeMember(m: MemberLocation, ev: PlaceEvent | undefined, address: string | null | undefined, units: Units): MemberStatus {
   const loc = m.location;
+  if (!loc && m.bubble) {
+    return {
+      where: m.bubble.label ? `Somewhere around ${m.bubble.label}` : 'In a bubble',
+      pill: { text: `Bubble until ${clock(m.bubble.endsAt)}`, color: BUBBLE_COLOR, icon: 'circle.dashed', textColor: C.bubbleText },
+      since: null,
+      stayFor: null,
+      live: false,
+      stale: false,
+    };
+  }
   if (!loc) {
     return m.sharing
       ? { where: 'Waiting for a first location', pill: { text: 'No location yet', color: HEX.gray, icon: 'location.slash' }, since: null, stayFor: null, live: false, stale: false }
@@ -34,7 +52,14 @@ export function describeMember(m: MemberLocation, ev: PlaceEvent | undefined, ad
   const where = m.currentPlace ? `At ${m.currentPlace.name}` : address ? `Near ${address}` : 'Address unavailable';
 
   let pill: MemberStatus['pill'];
-  if (live && speed > MOVING) {
+  const drive = driveState(m);
+  if (drive?.stopped) {
+    // Mid-drive at a light or in traffic: still on the drive, just not moving.
+    pill = { text: `Stopped · ${formatSpeed(0, units)}`, color: HEX.blue, icon: 'car.fill' };
+  } else if (drive) {
+    const tooFast = drive.speed >= redSpeedMps(units);
+    pill = { text: `Driving · ${formatSpeed(drive.speed, units)}`, color: tooFast ? HEX.red : HEX.blue, icon: tooFast ? 'exclamationmark.triangle.fill' : 'car.fill' };
+  } else if (live && speed > MOVING) {
     const mode = speed > 7 ? 'Driving' : speed > 2.5 ? 'Moving' : 'Walking';
     const icon: SFSymbol = speed > 7 ? 'car.fill' : speed > 2.5 ? 'bicycle' : 'figure.walk';
     const tooFast = speed >= redSpeedMps(units);
@@ -75,8 +100,13 @@ export function circleSummary(members: MemberLocation[]): string {
   let moving = 0;
   let outdated = 0;
   let off = 0;
+  let bubbles = 0;
   for (const m of members) {
     const l = m.location;
+    if (!l && m.bubble) {
+      bubbles++;
+      continue;
+    }
     if (!l) {
       off++;
       continue;
@@ -89,6 +119,7 @@ export function circleSummary(members: MemberLocation[]): string {
   const parts = [
     atPlaces && `${atPlaces} at a saved place`,
     moving && `${moving} on the move`,
+    bubbles && `${bubbles} in a bubble`,
     outdated && `${outdated} not updated recently`,
     off && `${off} not sharing`,
   ].filter(Boolean);

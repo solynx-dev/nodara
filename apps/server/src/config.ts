@@ -52,6 +52,14 @@ const schema = z.object({
   /** Telemetry is OFF unless an admin enables it *and* an endpoint is configured. */
   TELEMETRY_ENDPOINT: z.string().default(''),
 
+  /**
+   * iOS apps allowed to use passkeys for this domain (TEAMID.bundle.id, comma
+   * separated), published at /.well-known/apple-app-site-association. The
+   * official app only has nodara.ca entitlements, so this matters for that
+   * domain; empty turns the file off.
+   */
+  APPLE_APP_IDS: z.string().default('2S4C3A5ZF2.ca.nodara.app'),
+
   WEB_DIST: z.string().optional(),
   LOG_LEVEL: z.string().default('info'),
   /** Disables background schedulers (used in tests). */

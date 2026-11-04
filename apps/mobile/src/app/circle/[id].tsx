@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/session';
 import { ago } from '@/lib/format';
-import { C, T } from '@/lib/theme';
+import { BRAND, C, T } from '@/lib/theme';
 import type { CircleDetail, CircleMember, Invitation } from '@/lib/types';
 import { Avatar, AvatarStack, Empty, PrimaryButton, Row, Section, Skeleton, useToast } from '@/components/ui';
 
@@ -184,11 +184,22 @@ export default function CircleScreen() {
       </Section>
 
       {isAdmin && (
-        <Section title="What members can see" footer="Live locations are always shared. These control history and drives.">
+        <Section
+          title="What members can see"
+          footer={`Live locations are always shared. These control history and drives. With bubbles off, members of ${c.name} always see each other's exact location, even during a bubble.`}
+        >
           <Row icon="pencil" iconColor="#FF9500" title="Name" value={c.name} onPress={rename} />
           <Row icon="clock.arrow.circlepath" iconColor="#007AFF" title="Location history" subtitle="Where people have been" accessory={<Switch value={c.settings.historyVisible} onValueChange={(v) => setSetting('historyVisible', v)} trackColor={{ true: C.accent }} />} />
           <Row icon="car.fill" iconColor="#5856D6" title="Drives" subtitle="Trips with routes and speeds" accessory={<Switch value={c.settings.tripsVisible} onValueChange={(v) => setSetting('tripsVisible', v)} trackColor={{ true: C.accent }} />} />
-          <Row icon="person.badge.plus" iconColor="#34C759" title="Members can invite" accessory={<Switch value={c.settings.membersCanInvite} onValueChange={(v) => setSetting('membersCanInvite', v)} trackColor={{ true: C.accent }} />} last />
+          <Row icon="person.badge.plus" iconColor="#34C759" title="Members can invite" accessory={<Switch value={c.settings.membersCanInvite} onValueChange={(v) => setSetting('membersCanInvite', v)} trackColor={{ true: C.accent }} />} />
+          <Row
+            icon="circle.dashed"
+            iconColor={BRAND.pink}
+            title="Allow bubbles"
+            subtitle="Members can show just a general area for a few hours"
+            accessory={<Switch value={c.settings.bubblesAllowed !== false} onValueChange={(v) => setSetting('bubblesAllowed', v)} trackColor={{ true: C.accent }} />}
+            last
+          />
         </Section>
       )}
 

@@ -5,7 +5,7 @@ import { Linking, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useQueryClient } from '@tanstack/react-query';
-import { startTracking } from '@/background/tracking';
+import { DEFAULT_MODE, startTracking } from '@/background/tracking';
 import { C } from '@/lib/theme';
 import { PrimaryButton } from '@/components/ui';
 
@@ -18,7 +18,7 @@ export default function ShareLocation() {
   const start = async () => {
     setBusy(true);
     try {
-      const r = await startTracking('balanced');
+      const r = await startTracking(DEFAULT_MODE);
       setResult(r);
       qc.invalidateQueries({ queryKey: ['tracking'] });
       if (r === 'always') setTimeout(() => router.back(), 1400);
@@ -30,7 +30,7 @@ export default function ShareLocation() {
   return (
     <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 36, gap: 22 }}>
       <View style={{ alignItems: 'center', gap: 12 }}>
-        <SymbolView name="location.circle.fill" size={64} tintColor={C.accent} type="hierarchical" />
+        <SymbolView name="location.circle.fill" size={64} tintColor={C.accentText} type="hierarchical" />
         <Text style={{ fontSize: 26, fontWeight: '800', color: C.label, textAlign: 'center' }}>Share your location</Text>
       </View>
       <Point delay={60} icon="lock.shield.fill" title="Only on your server" body="Locations go straight to your Nodara server — never to us or advertisers." />
@@ -60,7 +60,7 @@ export default function ShareLocation() {
 function Point({ icon, title, body, delay = 0 }: { icon: SFSymbol; title: string; body: string; delay?: number }) {
   return (
     <Animated.View entering={appear} style={{ flexDirection: 'row', gap: 14 }}>
-      <SymbolView name={icon} size={26} tintColor={C.accent} style={{ width: 32 }} />
+      <SymbolView name={icon} size={26} tintColor={C.accentText} style={{ width: 32 }} />
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ fontSize: 17, fontWeight: '600', color: C.label }}>{title}</Text>
         <Text style={{ fontSize: 15, color: C.secondaryLabel, lineHeight: 20 }}>{body}</Text>

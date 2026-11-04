@@ -34,7 +34,7 @@ const { values } = parseArgs({
 type LL = [number, number];
 // Halifax, Nova Scotia — a compact, recognisable grid.
 const PLACES = {
-  home: { name: 'Home', at: [44.6468, -63.5937] as LL, icon: 'home', color: '#FF7A45', radius: 120 },
+  home: { name: 'Home', at: [44.6468, -63.5937] as LL, icon: 'home', color: '#6D3EF5', radius: 120 },
   work: { name: 'Harbour Office', at: [44.6497, -63.5736] as LL, icon: 'work', color: '#4C9AFF', radius: 150 },
   school: { name: 'Citadel High', at: [44.6431, -63.5839] as LL, icon: 'school', color: '#36B37E', radius: 150 },
   gym: { name: 'Gym', at: [44.6578, -63.6127] as LL, icon: 'gym', color: '#B37FEB', radius: 100 },
@@ -43,7 +43,7 @@ const PLACES = {
 };
 
 const PEOPLE = [
-  { key: 'alex', name: 'Alex Rivera', color: '#FF7A45', device: 'Pixel 9', routine: ['work', 'gym'] },
+  { key: 'alex', name: 'Alex Rivera', color: '#6D3EF5', device: 'Pixel 9', routine: ['work', 'gym'] },
   { key: 'sam', name: 'Sam Rivera', color: '#4C9AFF', device: 'iPhone 16', routine: ['grandma', 'work'] },
   { key: 'maya', name: 'Maya Rivera', color: '#36B37E', device: 'iPhone SE', routine: ['school', 'park'] },
   { key: 'theo', name: 'Theo Rivera', color: '#F5A524', device: 'Galaxy A55', routine: ['school', 'gym'] },
@@ -146,7 +146,7 @@ const tokens: Record<string, string> = {};
 if (!existing.length) {
   const password = await hashPassword(randomToken());
   const [circle] = await sql<{ id: string }[]>`
-    INSERT INTO circles (name, color, is_demo, settings) VALUES ('Demo — Rivera family', '#FF7A45', true,
+    INSERT INTO circles (name, color, is_demo, settings) VALUES ('Demo — Rivera family', '#6D3EF5', true,
       ${sql.json({ historyVisible: true, tripsVisible: true, membersCanInvite: false })}) RETURNING id`;
   const ids: Record<string, { userId: string; deviceId: string }> = {};
   for (const [i, p] of PEOPLE.entries()) {

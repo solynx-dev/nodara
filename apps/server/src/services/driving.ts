@@ -138,3 +138,11 @@ export async function recordPhoneUse(ctx: Ctx, userId: string, deviceId: string,
 
 /** Speeding needs two fixes so a single GPS glitch never counts. */
 export const COUNTED = `(kind <> 'speeding' OR samples >= 2)`;
+
+/**
+ * Events (aliased e) during a trip the person marked as a passenger ride or
+ * a walk don't count: their phone use as a passenger isn't distracted driving.
+ */
+export const AS_DRIVER = `NOT EXISTS (
+  SELECT 1 FROM trips pt WHERE pt.user_id = e.user_id AND pt.started_at <= e.started_at
+    AND COALESCE(pt.ended_at, now()) >= e.started_at AND (pt.role = 'passenger' OR pt.mode_override = 'walking'))`;

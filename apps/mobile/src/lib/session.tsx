@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError, normalizeServer, request, setCredentialsCache } from './api';
 import { getItem, KEYS, setItem } from './storage';
 import type { Me, PublicConfig } from './types';
+import { passkeySignIn } from './account';
 import { stopTracking } from '@/background/tracking';
 
 type LoginResult = { user?: Me; token?: string; twoFactorRequired?: boolean };
@@ -15,7 +16,11 @@ interface SessionValue {
   me: Me | null;
   connect: (input: string) => Promise<PublicConfig>;
   disconnect: () => Promise<void>;
-  signIn: (email: string, password: string) => Promise<'ok' | '2fa'>;
+  /** 'verify': the server wants the account's email confirmed first (a code was emailed). */
+  signIn: (email: string, password: string) => Promise<'ok' | '2fa' | 'verify'>;
+  signInWithPasskey: () => Promise<boolean>;
+  /** Waiting for a two-step code after a password sign-in. */
+  pending2fa: boolean;
   verifyCode: (code: string) => Promise<void>;
   signOut: () => Promise<void>;
   setMe: (me: Me) => void;
@@ -104,16 +109,33 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (email: string, password: string) => {
-      const r = await request<LoginResult>('POST', '/api/auth/login', { email, password, client: 'native' }, { token: null });
+      let r: LoginResult;
+      try {
+        r = await request<LoginResult>('POST', '/api/auth/login', { email, password, client: 'native' }, { token: null });
+      } catch (e) {
+        if (e instanceof ApiError && e.code === 'email_unverified') return 'verify' as const;
+        throw e;
+      }
       if (r.twoFactorRequired && r.token) {
+        // After a password reset this phone's old session is gone; show the code step on the sign-in screen.
+        await setItem(KEYS.session, null);
+        setCredentialsCache(server, null);
+        setToken(null);
         setPending(r.token);
         return '2fa' as const;
       }
       await saveToken(r.token!, r.user!);
       return 'ok' as const;
     },
-    [saveToken],
+    [saveToken, server],
   );
+
+  const signInWithPasskey = useCallback(async () => {
+    const r = await passkeySignIn();
+    if (!r) return false;
+    await saveToken(r.token, r.user);
+    return true;
+  }, [saveToken]);
 
   const verifyCode = useCallback(
     async (code: string) => {
@@ -147,11 +169,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       connect,
       disconnect,
       signIn,
+      signInWithPasskey,
+      pending2fa: Boolean(pending),
       verifyCode,
       signOut,
       setMe: (m) => qc.setQueryData(['me'], m),
     }),
-    [ready, token, meQuery.isLoading, server, config, me, connect, disconnect, signIn, verifyCode, signOut, qc],
+    [ready, token, meQuery.isLoading, server, config, me, connect, disconnect, signIn, signInWithPasskey, pending, verifyCode, signOut, qc],
   );
   return <Ctx value={value}>{children}</Ctx>;
 }

@@ -11,7 +11,7 @@ const ICONS: Record<string, { icon: typeof Bell; tone: string }> = {
   arrival: { icon: LogIn, tone: 'text-success bg-success/12' },
   departure: { icon: LogOut, tone: 'text-warning bg-warning/12' },
   member_joined: { icon: UserPlus, tone: 'text-info bg-info/12' },
-  check_in: { icon: MapPin, tone: 'text-accent bg-accent-soft' },
+  check_in: { icon: MapPin, tone: 'text-accent-text bg-accent-soft' },
   invitation: { icon: UserPlus, tone: 'text-info bg-info/12' },
   sharing_changed: { icon: Eye, tone: 'text-ink-2 bg-surface-2' },
   low_battery: { icon: BatteryWarning, tone: 'text-danger bg-danger/12' },
@@ -42,7 +42,7 @@ export default function NotificationsPage() {
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:py-8">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[28px] font-extrabold tracking-[-0.03em]">Notifications</h1>
+          <h1 className="large-title">Notifications</h1>
           <p className="mt-1 text-[14px] text-muted">
             {unread > 0 ? `${unread} unread` : 'You’re all caught up.'} ·{' '}
             <Link to="/settings/notifications" className="font-semibold text-accent-text">
@@ -71,7 +71,7 @@ export default function NotificationsPage() {
             const d = new Date(n.createdAt);
             const group = isToday(d) ? 'Today' : isYesterday(d) ? 'Yesterday' : format(d, 'EEEE, MMMM d');
             const header = group !== lastGroup ? (lastGroup = group) : null;
-            const meta = ICONS[n.type] ?? { icon: Bell, tone: 'text-accent bg-accent-soft' };
+            const meta = ICONS[n.type] ?? { icon: Bell, tone: 'text-accent-text bg-accent-soft' };
             const url = n.data.url as string | undefined;
             return (
               <div key={n.id}>

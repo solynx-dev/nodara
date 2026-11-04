@@ -1,64 +1,87 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/manrope';
 @import 'maplibre-gl/dist/maplibre-gl.css';
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 /* ---------------------------------------------------------------------------
-   Nodara design tokens. "Ink" neutrals with a single warm "ember" accent.
+   Nodara design tokens. Midnight navy and off-white neutrals with one vibrant
+   purple accent; the blue-to-pink brand gradient is reserved for a few
+   prominent brand moments (logo, onboarding hero, headline accents).
+   Every brand colour lives here; components use these tokens, never hex values.
+
+   Contrast (WCAG AA): white on --accent 5.7:1 and on --accent-hover 7.3:1;
+   --accent-text 7.3:1 (light) / 6.7:1 (dark) on surfaces; --muted ≥ 4.5:1.
    --------------------------------------------------------------------------- */
 :root {
-  --bg: #f6f5f2;
+  /* Brand palette (same in both themes). */
+  --brand-purple: #6d3ef5;
+  --brand-purple-hover: #5930da;
+  --brand-indigo: #3967ff;
+  --brand-blue: #1fb6ff;
+  --brand-violet: #9342fa;
+  --brand-pink: #d94ff5;
+  --brand-midnight: #0b0d1c;
+  --brand-gradient: linear-gradient(120deg, #1fb6ff 0%, #3967ff 32%, #9342fa 70%, #d94ff5 100%);
+
+  --bg: #f4f3fa;
   --bg-elevated: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f1efeb;
-  --surface-3: #e8e5df;
-  --border: rgb(24 22 20 / 0.08);
-  --border-strong: rgb(24 22 20 / 0.14);
-  --text: #16171b;
-  --text-2: #4a4f59;
-  --muted: #7a808c;
-  --accent: #ff5f2e;
-  --accent-hover: #f0521f;
-  --accent-soft: rgb(255 95 46 / 0.1);
-  --accent-text: #d9461a;
+  --surface-2: #eeedf6;
+  --surface-3: #e2e0ee;
+  --border: rgb(22 20 64 / 0.09);
+  --border-strong: rgb(22 20 64 / 0.16);
+  --text: #12132a;
+  --text-2: #474b66;
+  --muted: #666b88;
+  --accent: var(--brand-purple);
+  --accent-hover: var(--brand-purple-hover);
+  --accent-soft: rgb(109 62 245 / 0.1);
+  --accent-text: #5930da;
+  --on-accent: #ffffff;
+  /* Bubbles (privacy areas) use the brand pink so they never read as a button. */
+  --bubble: var(--brand-pink);
+  --bubble-text: #a932c4;
   --success: #1f9d5c;
   --warning: #d48806;
   --danger: #e5384a;
-  --info: #3b82f6;
-  --shadow: 0 1px 2px rgb(16 18 24 / 0.05), 0 8px 24px -12px rgb(16 18 24 / 0.12);
-  --shadow-lg: 0 24px 64px -24px rgb(16 18 24 / 0.35);
-  --map-bg: #e9e6df;
+  --info: var(--brand-indigo);
+  --shadow: 0 1px 2px rgb(18 19 42 / 0.04), 0 6px 20px -12px rgb(18 19 42 / 0.12);
+  --shadow-lg: 0 24px 64px -24px rgb(18 19 42 / 0.38);
+  --map-bg: #ecebf3;
+  --glass-edge: rgb(255 255 255 / 0.7);
   color-scheme: light;
 }
 
 [data-theme='dark'] {
-  --bg: #0c0e12;
-  --bg-elevated: #14171c;
-  --surface: #14171c;
-  --surface-2: #1b1f26;
-  --surface-3: #252a33;
-  --border: rgb(255 255 255 / 0.07);
-  --border-strong: rgb(255 255 255 / 0.13);
-  --text: #eceef2;
-  --text-2: #b3b9c4;
-  --muted: #828a99;
-  --accent: #ff6b3d;
-  --accent-hover: #ff8259;
-  --accent-soft: rgb(255 107 61 / 0.14);
-  --accent-text: #ff8a63;
+  --bg: #0b0d1c;
+  --bg-elevated: #16182d;
+  --surface: #16182d;
+  --surface-2: #20223c;
+  --surface-3: #2a2b46;
+  --border: #2a2b46;
+  --border-strong: #3a3c5e;
+  --text: #f8f9ff;
+  --text-2: #c9cce0;
+  --muted: #a6abc5;
+  --accent: var(--brand-purple);
+  --accent-hover: var(--brand-purple-hover);
+  --accent-soft: rgb(109 62 245 / 0.22);
+  --accent-text: #a98eff;
+  --bubble-text: #e07bf7;
   --success: #34c77b;
   --warning: #f5a524;
   --danger: #f45d6c;
-  --info: #5b9dff;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+  --info: #6e8bff;
+  --shadow: none;
   --shadow-lg: 0 24px 64px -24px rgb(0 0 0 / 0.8);
-  --map-bg: #111418;
+  --map-bg: #0e1022;
+  --glass-edge: rgb(255 255 255 / 0.08);
   color-scheme: dark;
 }
 
 @theme inline {
-  --font-sans: 'Manrope Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* The platform font (SF Pro on Apple devices), like the iOS app. */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI Variable Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --color-bg: var(--bg);
   --color-elevated: var(--bg-elevated);
   --color-surface: var(--surface);
@@ -73,6 +96,18 @@
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
   --color-accent-text: var(--accent-text);
+  --color-on-accent: var(--on-accent);
+  --color-bubble: var(--bubble);
+  --color-bubble-text: var(--bubble-text);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-indigo: var(--brand-indigo);
+  --color-brand-violet: var(--brand-violet);
+  --color-brand-pink: var(--brand-pink);
+  --color-midnight: var(--brand-midnight);
+  /* Text on always-midnight brand surfaces (the sign-in hero). */
+  --color-on-midnight: #f8f9ff;
+  --color-on-midnight-muted: #a6abc5;
+  --color-lavender: #a98eff;
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
@@ -103,7 +138,7 @@
     background: var(--bg);
     color: var(--text);
     font-family: var(--font-sans);
-    font-feature-settings: 'ss01', 'cv11';
+    letter-spacing: -0.005em;
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
@@ -117,12 +152,26 @@
 
 @layer components {
   .tnum { font-variant-numeric: tabular-nums; }
-  .card { @apply rounded-2xl border border-line bg-surface shadow-card; }
+  /* The signature gradient: use sparingly (logo, hero, one headline word). */
+  .bg-brand-gradient { background-image: var(--brand-gradient); }
+  .text-brand-gradient { background-image: var(--brand-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  /* Cards follow the iOS app: big continuous corners, no outlines. */
+  .card { @apply rounded-[26px] bg-surface shadow-card; }
+  /* Translucent "glass" for controls floating over the map. */
+  .glass {
+    background: color-mix(in srgb, var(--surface) 70%, transparent);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
+    border: 1px solid var(--glass-edge);
+    box-shadow: 0 10px 30px -12px rgb(0 0 0 / 0.35);
+  }
+  .large-title { @apply text-[32px] leading-[1.1] font-extrabold tracking-[-0.025em] sm:text-[34px]; }
+  .section-title { @apply px-4 pb-1.5 text-[13px] font-medium uppercase tracking-[0.02em] text-muted; }
   .label { @apply text-[13px] font-semibold text-ink-2; }
-  .eyebrow { @apply text-[11px] font-bold uppercase tracking-[0.08em] text-muted; }
+  .eyebrow { @apply text-[12px] font-semibold uppercase tracking-[0.06em] text-muted; }
   .field {
-    @apply h-11 w-full rounded-xl border border-line-strong bg-surface px-3.5 text-[15px] text-ink outline-none transition
-      placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent-soft;
+    @apply h-12 w-full rounded-2xl border border-transparent bg-surface-2 px-4 text-[16px] text-ink outline-none transition
+      placeholder:text-muted focus:border-accent focus:bg-surface focus:ring-4 focus:ring-accent-soft;
   }
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
   .safe-top { padding-top: env(safe-area-inset-top); }

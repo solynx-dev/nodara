@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import maplibregl, { type Map as MLMap } from 'maplibre-gl';
 import { circlePolygon } from '@nodara/shared';
+import { BRAND } from '@/lib/brand';
 import type { MemberLocation, Place } from '@/lib/types';
 import { freshness, initials } from '@/lib/format';
 import { cx } from '@/components/ui';
@@ -58,6 +59,7 @@ interface Group {
 }
 
 const CLUSTER_PX = 46;
+const BUBBLE = BRAND.pink;
 
 export function MembersLayer({
   map,
@@ -74,6 +76,28 @@ export function MembersLayer({
 }) {
   const frame = useMapFrame(map);
   const located = useMemo(() => members.filter((m) => m.location), [members]);
+  // People in a bubble: a soft area instead of a pin (yours too, so you see what others see).
+  const bubbled = useMemo(() => members.filter((m) => m.bubble && (!m.location || m.id === meId)), [members, meId]);
+
+  useStyleEffect(
+    map,
+    (m) => {
+      const fc: GeoJSON.FeatureCollection = {
+        type: 'FeatureCollection',
+        features: bubbled.map((x) => ({
+          type: 'Feature',
+          properties: { mine: x.id === meId },
+          geometry: { type: 'Polygon', coordinates: [circlePolygon(x.bubble!.lat, x.bubble!.lon, x.bubble!.radiusM)] },
+        })),
+      };
+      setGeoJson(m, 'nd-bubbles', fc);
+      if (!m.getLayer('nd-bubbles-fill')) {
+        m.addLayer({ id: 'nd-bubbles-fill', type: 'fill', source: 'nd-bubbles', paint: { 'fill-color': BUBBLE, 'fill-opacity': ['case', ['get', 'mine'], 0.06, 0.13] } });
+        m.addLayer({ id: 'nd-bubbles-line', type: 'line', source: 'nd-bubbles', paint: { 'line-color': BUBBLE, 'line-opacity': 0.7, 'line-width': 2, 'line-dasharray': [2, 1.5] } });
+      }
+    },
+    [bubbled, meId],
+  );
 
   // Accuracy circles as a GeoJSON layer beneath markers.
   useStyleEffect(
@@ -115,6 +139,27 @@ export function MembersLayer({
 
   return (
     <>
+      {bubbled
+        .filter((m) => m.id !== meId)
+        .map((m) => (
+          <MarkerPortal key={`bubble-${m.id}`} map={map} lon={m.bubble!.lon} lat={m.bubble!.lat} z={m.id === selectedId ? 3 : 1} anchor="center">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(m.id);
+              }}
+              className={cx('relative flex size-12 items-center justify-center rounded-full border-[3px] shadow-[0_6px_16px_-4px_rgb(0_0_0/0.45)] transition hover:scale-105', m.id === selectedId && 'scale-110')}
+              style={{ borderColor: m.id === selectedId ? 'var(--accent)' : BUBBLE, background: m.avatarColor }}
+              aria-label={`${m.displayName}, in a bubble`}
+              title={`${m.displayName} is in a bubble${m.bubble!.label ? ` around ${m.bubble!.label}` : ''}`}
+            >
+              <span className="relative flex size-full items-center justify-center overflow-hidden rounded-full text-[14px] font-bold text-white opacity-80">
+                {initials(m.displayName)}
+                {m.avatarUrl && <img src={m.avatarUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+              </span>
+            </button>
+          </MarkerPortal>
+        ))}
       {groups.map((g) => (
         <MarkerPortal key={g.members.length > 1 ? `cluster-${g.members.map((m) => m.id).join()}` : g.key} map={map} lon={g.lon} lat={g.lat} z={g.members.some((m) => m.id === selectedId) ? 3 : 1}>
           {g.members.length === 1 ? (
@@ -264,7 +309,7 @@ export function RouteLayer({
   map,
   id = 'route',
   coords,
-  color = '#FF6B3D',
+  color = BRAND.purple,
   gradient = true,
   width = 4.5,
 }: {
@@ -290,7 +335,7 @@ export function RouteLayer({
           source: src,
           layout: { 'line-cap': 'round', 'line-join': 'round' },
           paint: gradient
-            ? { 'line-width': width, 'line-gradient': ['interpolate', ['linear'], ['line-progress'], 0, '#FFB547', 0.5, color, 1, '#E5384A'] }
+            ? { 'line-width': width, 'line-gradient': ['interpolate', ['linear'], ['line-progress'], 0, BRAND.blue, 0.5, color, 1, BRAND.pink] }
             : { 'line-width': width, 'line-color': color },
         });
       }
@@ -325,7 +370,7 @@ export function PointsLayer({ map, points, onClick }: { map: MLMap; points: { id
           type: 'circle',
           source: 'nd-points',
           minzoom: 12,
-          paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2, 17, 5], 'circle-color': '#fff', 'circle-stroke-color': '#FF6B3D', 'circle-stroke-width': 1.5 },
+          paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2, 17, 5], 'circle-color': '#fff', 'circle-stroke-color': BRAND.purple, 'circle-stroke-width': 1.5 },
         });
       }
     },

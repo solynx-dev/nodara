@@ -3,10 +3,13 @@ import { AppState } from 'react-native';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { getItem, KEYS } from './storage';
 import type { MemberLocation, ServerEvent } from './types';
+import { addLivePoints, fromFix, fromTrail } from './livePath';
 
 function apply(qc: QueryClient, e: ServerEvent) {
   switch (e.type) {
     case 'location':
+      // Keep the whole uploaded path so the map can replay drives smoothly.
+      addLivePoints(e.userId, e.trail?.length ? e.trail.map(fromTrail) : [fromFix(e.location)]);
       qc.setQueriesData<MemberLocation[]>({ queryKey: ['live'] }, (old) => old?.map((m) => (m.id === e.userId ? { ...m, location: e.location } : m)));
       break;
     case 'notification':
@@ -26,6 +29,10 @@ function apply(qc: QueryClient, e: ServerEvent) {
     case 'profile':
       qc.invalidateQueries({ queryKey: ['me'] });
       qc.invalidateQueries({ queryKey: ['circle'] });
+      qc.invalidateQueries({ queryKey: ['place-events'] });
+    // falls through
+    case 'bubble':
+      qc.invalidateQueries({ queryKey: ['bubble'] });
       qc.invalidateQueries({ queryKey: ['place-events'] });
     // falls through
     case 'sharing':

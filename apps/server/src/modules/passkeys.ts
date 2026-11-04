@@ -12,6 +12,7 @@ import { audit, createSession, requireUser, setSessionCookie } from '../auth.js'
 import { badRequest, HttpError, notFound } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import { loadMe } from '../services/users.js';
+import { notifySecurity } from '../services/emails.js';
 
 /**
  * Optional passkey (WebAuthn) sign-in. Works with platform authenticators
@@ -20,7 +21,10 @@ import { loadMe } from '../services/users.js';
  */
 export default async function passkeyRoutes(app: FastifyInstance, ctx: Ctx) {
   const { sql, config } = ctx;
-  const rp = { rpName: config.INSTANCE_NAME, rpID: config.rpId, origin: config.origin };
+  // The iOS app's passkey sheet reports its origin as https://<rpID> (no port),
+  // which only differs from PUBLIC_URL's origin when that carries a port.
+  const origins = [...new Set([config.origin, `https://${config.rpId}`])];
+  const rp = { rpName: config.INSTANCE_NAME, rpID: config.rpId, origin: origins };
 
   async function storeChallenge(challenge: string, purpose: 'register' | 'login', userId: string | null) {
     await sql`DELETE FROM webauthn_challenges WHERE expires_at < now()`;
@@ -88,6 +92,15 @@ export default async function passkeyRoutes(app: FastifyInstance, ctx: Ctx) {
       VALUES (${credential.id}, ${a.userId}, ${Buffer.from(credential.publicKey)}, ${credential.counter},
               ${credential.transports ?? []}, ${body.name})`;
     await audit(ctx, req, 'auth.passkey_added', { type: 'user', id: a.userId });
+    await notifySecurity(ctx, a.userId, 'A passkey was added', `A passkey named “${body.name}” can now sign in to your account.`);
+    return { ok: true };
+  });
+
+  app.patch<{ Params: { id: string } }>('/api/auth/passkeys/:id', async (req) => {
+    const a = requireUser(req);
+    const { name } = parse(z.object({ name: z.string().trim().min(1).max(60) }), req.body);
+    const r = await sql`UPDATE passkeys SET name = ${name} WHERE id = ${req.params.id} AND user_id = ${a.userId} RETURNING id`;
+    if (!r.length) throw notFound();
     return { ok: true };
   });
 
@@ -106,7 +119,14 @@ export default async function passkeyRoutes(app: FastifyInstance, ctx: Ctx) {
   });
 
   app.post('/api/auth/passkeys/login/verify', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
-    const body = parse(z.object({ challengeId: z.string().uuid(), response: z.object({ id: z.string() }).passthrough() }), req.body);
+    const body = parse(
+      z.object({
+        challengeId: z.string().uuid(),
+        response: z.object({ id: z.string() }).passthrough(),
+        client: z.enum(['web', 'native']).default('web'),
+      }),
+      req.body,
+    );
     const expectedChallenge = await takeChallenge(body.challengeId, 'login', null);
     const [pk] = await sql<{ id: string; user_id: string; public_key: Buffer; counter: number; transports: string[] }[]>`
       SELECT p.id, p.user_id, p.public_key, p.counter, p.transports FROM passkeys p
@@ -133,7 +153,9 @@ export default async function passkeyRoutes(app: FastifyInstance, ctx: Ctx) {
     await sql`UPDATE passkeys SET counter = ${verification.authenticationInfo.newCounter}, last_used_at = now() WHERE id = ${pk.id}`;
     // A passkey is a strong, phishing-resistant factor on its own; no TOTP prompt.
     const s = await createSession(ctx, req, pk.user_id);
+    const user = await loadMe(sql, pk.user_id);
+    if (body.client === 'native') return { user, token: s.token, expiresAt: s.expiresAt };
     setSessionCookie(ctx, reply, s.token, s.expiresAt);
-    return { user: await loadMe(sql, pk.user_id) };
+    return { user };
   });
 }

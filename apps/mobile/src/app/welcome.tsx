@@ -68,7 +68,7 @@ export default function Welcome() {
         <PrimaryButton title="Continue" onPress={submit} loading={busy} disabled={!address.trim()} />
         <Text style={{ fontSize: 13, color: C.secondaryLabel, textAlign: 'center', lineHeight: 19 }}>
           Nodara is self-hosted: your locations go only to the server you enter here.{' '}
-          <Text style={{ color: C.accent }} onPress={() => Linking.openURL('https://github.com/solynx-dev/nodara#quick-start-docker-compose')}>
+          <Text style={{ color: C.accentText }} onPress={() => Linking.openURL('https://github.com/solynx-dev/nodara#quick-start-docker-compose')}>
             Set up your own server
           </Text>
         </Text>

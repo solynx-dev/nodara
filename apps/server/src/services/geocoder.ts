@@ -1,4 +1,5 @@
 import type { FastifyBaseLogger } from 'fastify';
+import { haversine } from '@nodara/shared';
 import type { Sql } from '../db/index.js';
 import type { Config } from '../config.js';
 import type { SettingsService } from './settings.js';
@@ -16,7 +17,29 @@ interface NominatimItem {
   lat: string;
   lon: string;
   type?: string;
+  category?: string;
+  osm_type?: string;
   address?: Record<string, string>;
+}
+
+/** Named places worth calling a destination ("Walmart Supercentre"), not street furniture or regions. */
+const POI_CATEGORIES = new Set(['shop', 'amenity', 'leisure', 'tourism', 'office', 'craft', 'healthcare', 'building', 'club', 'sport', 'historic', 'aeroway', 'railway']);
+const POI_SKIP_TYPES = new Set(['parking', 'parking_entrance', 'parking_space', 'bicycle_parking', 'bench', 'waste_basket', 'atm', 'toilets', 'post_box', 'vending_machine', 'recycling', 'charging_station', 'bus_stop', 'yes']);
+
+/**
+ * Use a nearby named business or venue as the label when there is one: a point
+ * (node) within 75 m, or a building/area within 175 m of its centre (big stores
+ * are wide, and people park out front).
+ */
+export function poiLabel(item: NominatimItem | null, lat: number, lon: number): string | null {
+  if (!item || !item.name || !item.category) return null;
+  if (!POI_CATEGORIES.has(item.category) || POI_SKIP_TYPES.has(item.type ?? '')) return null;
+  const d = haversine(lat, lon, Number(item.lat), Number(item.lon));
+  const max = item.osm_type === 'node' ? 75 : 175;
+  if (!(d <= max)) return null;
+  const a = item.address ?? {};
+  const locality = a.city ?? a.town ?? a.village ?? a.suburb;
+  return locality ? `${item.name}, ${locality}` : item.name;
 }
 
 /**
@@ -84,23 +107,49 @@ export class Geocoder {
     return parts.length ? parts.join(', ') : item.display_name.split(',').slice(0, 2).join(',');
   }
 
-  /** Cached reverse lookup; returns null when geocoding is disabled or fails. */
+  /**
+   * Cached reverse lookup; returns null when geocoding is disabled or fails.
+   * Prefers the business or venue you're at ("Walmart Supercentre, Moncton")
+   * over its street address.
+   */
   async reverse(lat: number, lon: number, opts: { cacheOnly?: boolean } = {}): Promise<string | null> {
-    const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+    // v2: labels now prefer nearby businesses; older address-only entries are ignored.
+    const key = `v2:${lat.toFixed(4)},${lon.toFixed(4)}`;
     const cached = await this.sql<{ label: string | null }[]>`SELECT label FROM geocode_cache WHERE key = ${key}`;
     if (cached.length) return cached[0]!.label;
     if (opts.cacheOnly || !(await this.enabled())) return null;
-    const item = await this.fetchJson<NominatimItem>('reverse', {
-      lat: String(lat),
-      lon: String(lon),
-      format: 'jsonv2',
-      zoom: '18',
-      addressdetails: '1',
-    });
-    if (!item || !('display_name' in item)) return null;
-    const label = Geocoder.shortLabel(item);
+    const params = { lat: String(lat), lon: String(lon), format: 'jsonv2', zoom: '18', addressdetails: '1' };
+    // Nominatim ≥ 4.3 can limit reverse lookups to points of interest.
+    const poi = poiLabel(await this.fetchJson<NominatimItem>('reverse', { ...params, layer: 'poi' }), lat, lon);
+    let label = poi;
+    if (!label) {
+      const item = await this.fetchJson<NominatimItem>('reverse', params);
+      if (!item || !('display_name' in item)) return null;
+      label = Geocoder.shortLabel(item);
+    }
     await this.sql`
       INSERT INTO geocode_cache (key, label) VALUES (${key}, ${label}) ON CONFLICT (key) DO NOTHING`;
+    return label;
+  }
+
+  /**
+   * The town or district around a point ("Dieppe", "Downtown Moncton"), for
+   * labelling a privacy bubble without pointing at any one address. Bigger
+   * bubbles get a coarser name.
+   */
+  async area(lat: number, lon: number, radiusM: number): Promise<string | null> {
+    if (!(await this.enabled())) return null;
+    const zoom = radiusM <= 2_000 ? '14' : radiusM <= 15_000 ? '12' : '10';
+    const key = `area${zoom}:${lat.toFixed(2)},${lon.toFixed(2)}`;
+    const cached = await this.sql<{ label: string | null }[]>`SELECT label FROM geocode_cache WHERE key = ${key}`;
+    if (cached.length) return cached[0]!.label;
+    const item = await this.fetchJson<NominatimItem>('reverse', { lat: String(lat), lon: String(lon), format: 'jsonv2', zoom, addressdetails: '1' });
+    if (!item) return null;
+    const a = item.address ?? {};
+    const town = a.city ?? a.town ?? a.village ?? a.municipality ?? a.county ?? null;
+    const part = zoom === '14' ? (a.suburb ?? a.neighbourhood ?? a.quarter ?? a.city_district ?? null) : null;
+    const label = part && town && part !== town ? `${part}, ${town}` : (town ?? part ?? a.state ?? null);
+    await this.sql`INSERT INTO geocode_cache (key, label) VALUES (${key}, ${label}) ON CONFLICT (key) DO NOTHING`;
     return label;
   }
 

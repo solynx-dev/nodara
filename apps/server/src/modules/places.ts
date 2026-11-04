@@ -1,10 +1,11 @@
+import { BRAND } from '@nodara/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Ctx } from '../context.js';
 import { audit, requireUser } from '../auth.js';
 import { badRequest, forbidden, notFound } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
-import { isCircleMember } from '../services/access.js';
+import { isCircleMember, bubblesAllowedSql, inBubbleSql } from '../services/access.js';
 import { PLACE_COLUMNS, serializePlace, type PlaceRow } from '../services/serialize.js';
 
 const uuid = z.string().uuid();
@@ -16,7 +17,7 @@ const placeBody = z.object({
   lon: z.number().min(-180).max(180),
   radiusM: z.number().min(25).max(50_000).default(150),
   icon: z.enum(PLACE_ICONS).default('pin'),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default('#FF7A45'),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default(BRAND.purple),
   circleId: uuid.nullable().default(null),
   address: z.string().trim().max(200).nullish(),
 });
@@ -56,9 +57,14 @@ export default async function placeRoutes(app: FastifyInstance, ctx: Ctx) {
     // Only reveal presence of people the viewer can currently see.
     const visible = new Set(
       (await sql<{ user_id: string }[]>`
-        SELECT DISTINCT t.user_id FROM circle_members me JOIN circle_members t ON t.circle_id = me.circle_id
+        SELECT t.user_id FROM circle_members me JOIN circle_members t ON t.circle_id = me.circle_id
+        JOIN circles c ON c.id = me.circle_id
         JOIN users u ON u.id = t.user_id
-        WHERE me.user_id = ${a.userId} AND t.sharing AND NOT u.sharing_paused`).map((r) => r.user_id),
+        WHERE me.user_id = ${a.userId} AND t.sharing AND NOT u.sharing_paused
+        GROUP BY t.user_id
+        -- Someone in a bubble isn't shown at places, unless a circle without bubbles shows them.
+        HAVING bool_or(NOT ${bubblesAllowedSql(sql, 'c')})
+            OR NOT EXISTS (SELECT 1 FROM bubbles b WHERE b.user_id = t.user_id AND b.ended_at IS NULL AND b.expires_at > now())`).map((r) => r.user_id),
     );
     visible.add(a.userId);
     // Same rule as PATCH/DELETE: the creator, or an owner/admin of the place's circle.
@@ -181,7 +187,9 @@ export default async function placeRoutes(app: FastifyInstance, ctx: Ctx) {
           SELECT 1 FROM circle_members me JOIN circle_members t ON t.circle_id = me.circle_id
           JOIN circles c ON c.id = me.circle_id
           WHERE me.user_id = ${a.userId} AND t.user_id = e.user_id AND t.sharing
-            AND e.occurred_at >= t.sharing_since AND COALESCE((c.settings ->> 'historyVisible')::boolean, true)))
+            AND e.occurred_at >= t.sharing_since AND COALESCE((c.settings ->> 'historyVisible')::boolean, true)
+            -- Arrivals and departures inside a bubble stay hidden from circles that allow bubbles.
+            AND NOT (${bubblesAllowedSql(sql, 'c')} AND ${inBubbleSql(sql, sql`e.user_id`, sql`e.occurred_at`)})))
       ORDER BY e.occurred_at DESC LIMIT ${q.limit}`;
     return rows.map((r) => ({
       id: String(r.id),

@@ -7,7 +7,8 @@ import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useMe } from '@/lib/session';
 import { useAddress, useDayTimeline, useTripPages, useWeekTrips, type TimelineItem } from '@/lib/queries';
 import { ago, clock, firstName, formatDistance, formatDuration, formatStay, freshness, weekdayShort } from '@/lib/format';
-import { describeMember } from '@/lib/status';
+import { BUBBLE_COLOR, bubbleArea, describeMember } from '@/lib/status';
+import { driveState } from '@/lib/driving';
 import { C, HEX, T } from '@/lib/theme';
 import type { MemberLocation, PlaceEvent } from '@/lib/types';
 import { ApiError } from '@/lib/api';
@@ -17,6 +18,8 @@ import { DriveList, modeIcon, WeekSummary } from '@/features/trips/Drives';
 import { DrivingWeekCard } from '@/features/driving/components';
 
 export type ProfileTab = 'drives' | 'history';
+
+const stoppedFor = (ms: number) => (ms < 60_000 ? `${Math.max(1, Math.round(ms / 1000))} s` : `${Math.round(ms / 60_000)} min`);
 
 const COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
 
@@ -38,11 +41,11 @@ export function ProfileHeader({ m, ev, onBack, onEdit }: { m: MemberLocation; ev
           </Text>
           {s.live && <LiveDot live size={9} />}
         </View>
-        <StatusPill icon={s.pill.icon} text={s.pill.text} color={s.pill.color} />
+        <StatusPill icon={s.pill.icon} text={s.pill.text} color={s.pill.color} textColor={s.pill.textColor} />
       </View>
       {isMe && onEdit && (
         <Tap onPress={onEdit} style={styles.edit} accessibilityRole="button" accessibilityLabel="Edit your profile">
-          <Text style={{ fontSize: 15, fontWeight: '600', color: C.accent }}>Edit</Text>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: C.accentText }}>Edit</Text>
         </Tap>
       )}
     </Animated.View>
@@ -80,8 +83,47 @@ function NowCard({ m, ev }: { m: MemberLocation; ev?: PlaceEvent }) {
   const { data: address } = useAddress(loc?.lat, loc?.lon);
   const s = describeMember(m, ev, address, units);
   const f = freshness(loc?.recordedAt);
-  const moving = Boolean(loc && (loc.speed ?? 0) > 1.5 && f === 'live');
+  const drive = driveState(m);
+  const moving = Boolean(drive ? !drive.stopped : loc && (loc.speed ?? 0) > 1.5 && f === 'live');
+  const driving = Boolean(drive);
   const name = isMe ? 'You' : firstName(m.displayName);
+
+  // In a bubble: a general area only, plus battery and when their phone last checked in.
+  if (!loc && m.bubble) {
+    const b = m.bubble;
+    return (
+      <Animated.View entering={appear} style={styles.card}>
+        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+          <View style={[styles.placeIcon, { backgroundColor: BUBBLE_COLOR }]}>
+            <SymbolView name="circle.dashed" size={20} weight="bold" tintColor="white" />
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[T.title3, { color: C.label }]} numberOfLines={2}>
+              {s.where}
+            </Text>
+            <Text style={[T.footnote, { color: C.secondaryLabel }]}>
+              {name} is sharing only a general area until {clock(b.endsAt)}.
+            </Text>
+          </View>
+        </View>
+        <View style={styles.facts}>
+          <Fact
+            icon={b.charging ? 'battery.100percent.bolt' : (b.battery ?? 100) <= 20 ? 'battery.25percent' : 'battery.75percent'}
+            value={b.battery != null ? `${b.battery}%` : '—'}
+            label={b.charging ? 'Charging' : 'Battery'}
+            tone={b.battery != null && b.battery <= 15 && !b.charging ? HEX.red : undefined}
+          />
+          <View style={styles.factSep} />
+          <Fact icon="clock" value={b.seenAt ? ago(b.seenAt).replace(' ago', '') : '—'} label="Last check-in" />
+          <View style={styles.factSep} />
+          <Fact icon="circle.dashed" value={formatDistance(b.radiusM, units)} label="Area" />
+        </View>
+        <Text style={[T.footnote, { color: C.secondaryLabel, lineHeight: 18 }]}>
+          Places, trips and drives from while the bubble is on stay private. It ends early if {name} leaves the area.
+        </Text>
+      </Animated.View>
+    );
+  }
 
   if (!loc) {
     return (
@@ -103,9 +145,18 @@ function NowCard({ m, ev }: { m: MemberLocation; ev?: PlaceEvent }) {
 
   return (
     <Animated.View entering={appear} style={styles.card}>
+      {isMe && m.bubble && (
+        <Tap onPress={() => router.push('/bubble')} style={styles.bubbleBanner} accessibilityRole="button" accessibilityLabel="Manage your bubble">
+          <SymbolView name="circle.dashed.inset.filled" size={18} tintColor={BUBBLE_COLOR} />
+          <Text style={[T.footnote, { color: C.label, flex: 1, lineHeight: 18 }]}>
+            <Text style={{ fontWeight: '700' }}>Bubble on until {clock(m.bubble.endsAt)}.</Text> Your circles see “{bubbleArea(m.bubble, units)}”.
+          </Text>
+          <SymbolView name="chevron.right" size={12} weight="semibold" tintColor={C.tertiaryLabel} />
+        </Tap>
+      )}
       <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-        <View style={[styles.placeIcon, { backgroundColor: m.currentPlace?.color ?? (moving ? HEX.blue : C.accent) }]}>
-          {m.currentPlace ? <PlaceSymbol icon={m.currentPlace.icon} size={20} color="white" /> : <SymbolView name={moving ? 'car.fill' : 'mappin'} size={20} tintColor="white" />}
+        <View style={[styles.placeIcon, { backgroundColor: m.currentPlace?.color ?? (moving || driving ? HEX.blue : C.accent) }]}>
+          {m.currentPlace ? <PlaceSymbol icon={m.currentPlace.icon} size={20} color="white" /> : <SymbolView name={moving || driving ? 'car.fill' : 'mappin'} size={20} tintColor="white" />}
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={[T.title3, { color: C.label }]} numberOfLines={2}>
@@ -122,10 +173,17 @@ function NowCard({ m, ev }: { m: MemberLocation; ev?: PlaceEvent }) {
       {/* How long they've been here: the thing people actually want to know. */}
       {s.stayFor && m.stay ? (
         <View style={styles.stay}>
-          <SymbolView name="hourglass" size={15} tintColor={C.accent} />
+          <SymbolView name="hourglass" size={15} tintColor={C.accentText} />
           <Text style={[T.subhead, { color: C.label, flex: 1 }]}>
             Here for <Text style={{ fontWeight: '700' }}>{s.stayFor}</Text>
             <Text style={{ color: C.secondaryLabel }}> · since {new Date(m.stay.since).toDateString() === new Date().toDateString() ? clock(m.stay.since) : new Date(m.stay.since).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}</Text>
+          </Text>
+        </View>
+      ) : drive?.stopped ? (
+        <View style={styles.stay}>
+          <SymbolView name="pause.circle.fill" size={15} tintColor={HEX.blue} />
+          <Text style={[T.subhead, { color: C.label, flex: 1 }]}>
+            Stopped for {stoppedFor(drive.stoppedForMs)}, still on a drive
           </Text>
         </View>
       ) : moving ? (
@@ -296,7 +354,7 @@ function TimelineRow({ item, last, current, units, onOpenTrip }: { item: Timelin
         <Rail icon={modeIcon(t)} color={C.accent} last={last} />
         <View style={{ flex: 1, paddingBottom: last ? 0 : 16 }}>
           <Text style={[T.subhead, { color: C.label, fontWeight: '600' }]}>
-            {t.mode === 'walking' ? 'Walked' : t.mode === 'cycling' ? 'Rode' : 'Drove'} {formatDistance(t.distanceM, units)}
+            {t.mode === 'walking' ? 'Walked' : t.role === 'passenger' ? 'Rode along' : 'Drove'} {formatDistance(t.distanceM, units)}
           </Text>
           <Text style={[T.footnote, { color: C.secondaryLabel }]}>
             {clock(t.startedAt)}
@@ -344,6 +402,7 @@ const styles = StyleSheet.create({
   facts: { flexDirection: 'row', alignItems: 'center' },
   factSep: { width: StyleSheet.hairlineWidth, height: 30, backgroundColor: C.separator },
   warn: { padding: 12, borderRadius: 16, backgroundColor: 'rgba(255,149,0,0.14)', flexDirection: 'row', gap: 10 },
+  bubbleBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 16, backgroundColor: `${BUBBLE_COLOR}1F` },
   action: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 46, borderRadius: 23, backgroundColor: C.fill },
   dayChip: { paddingHorizontal: 16, height: 36, borderRadius: 18, backgroundColor: C.cell, alignItems: 'center', justifyContent: 'center' },
   dayChipText: { fontSize: 15, fontWeight: '600', color: C.label },

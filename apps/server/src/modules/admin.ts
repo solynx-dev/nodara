@@ -9,6 +9,7 @@ import { deleteUser, pickAvatarColor } from '../services/users.js';
 import { runRetention, telemetryPayload } from '../services/jobs.js';
 import { createAdminInviteLink, passwordSchema } from './auth.js';
 import { VERSION } from '../version.js';
+import { emails } from '../services/emails.js';
 
 const uuid = z.string().uuid();
 
@@ -100,7 +101,7 @@ export default async function adminRoutes(app: FastifyInstance, ctx: Ctx) {
     // Without a password, the admin gets a one-time link to hand to the person.
     const setupLink = body.password ? null : await createAdminInviteLink(ctx, u.id);
     if (setupLink) {
-      await ctx.mailer.send(body.email, `Your ${ctx.config.INSTANCE_NAME} account`, `An account was created for you.\n\nChoose a password here: ${setupLink}\n\nThe link expires in 7 days.`);
+      void ctx.mailer.send(body.email, emails.welcome(ctx, setupLink));
     }
     await audit(ctx, req, 'admin.user_created', { type: 'user', id: u.id }, { isAdmin: body.isAdmin });
     return { id: u.id, setupLink };
@@ -163,6 +164,7 @@ export default async function adminRoutes(app: FastifyInstance, ctx: Ctx) {
         geocodingEnabled: z.boolean(),
         offlineAfterMinutes: z.number().int().min(10).max(7 * 24 * 60),
         geofenceCooldownSec: z.number().int().min(0).max(3600),
+        requireEmailVerification: z.boolean(),
         trip: z
           .object({
             departRadiusM: z.number().min(50).max(2000),
@@ -176,6 +178,19 @@ export default async function adminRoutes(app: FastifyInstance, ctx: Ctx) {
     const settings = await ctx.settings.update(body);
     await audit(ctx, req, 'admin.settings_updated', undefined, body);
     return { settings };
+  });
+
+  /** Check the SMTP settings by emailing the administrator. */
+  app.post('/api/admin/email/test', { config: { rateLimit: { max: 5, timeWindow: '10 minutes' } } }, async (req) => {
+    const a = requireAdmin(req);
+    if (!ctx.mailer.enabled) return { ok: false, error: 'Email is not set up. Set SMTP_URL (and SMTP_FROM) and restart the server.' };
+    const [u] = await sql<{ email: string }[]>`SELECT email FROM users WHERE id = ${a.userId}`;
+    try {
+      await ctx.mailer.deliver(u!.email, emails.test(ctx));
+      return { ok: true, to: u!.email };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
   });
 
   app.get('/api/admin/audit', async (req) => {

@@ -5,7 +5,8 @@ import { requireUser, resolveDeviceToken, type AuthInfo } from '../auth.js';
 import { badRequest, forbidden, notFound, unauthorized } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
 import { fixSchema, fromOverland, fromOwnTracks, ingestFixes, MAX_BATCH } from '../services/ingest.js';
-import { historyAccess, type HistoryAccess } from '../services/access.js';
+import { requestRefresh } from '../services/refresh.js';
+import { historyAccess, locationsVisibleSql, tripsVisibleSql, type HistoryAccess } from '../services/access.js';
 import { LOCATION_COLUMNS, MODE_SQL, serializeLocation, serializeTrip, TRIP_COLUMNS, type LocationRow, type TripRow } from '../services/serialize.js';
 
 const INGEST_RATE = { max: 240, timeWindow: '1 minute' };
@@ -61,8 +62,7 @@ export async function requireHistory(ctx: Ctx, viewerId: string, targetId: strin
 
 /** SQL fragment restricting location rows to what the viewer may see. */
 export function visibleFilter(ctx: Ctx, access: Exclude<HistoryAccess, null>) {
-  if (access.own) return ctx.sql``;
-  return ctx.sql`AND shared AND recorded_at >= ${access.since}`;
+  return locationsVisibleSql(ctx.sql, access);
 }
 
 export default async function locationRoutes(app: FastifyInstance, ctx: Ctx) {
@@ -147,6 +147,16 @@ export default async function locationRoutes(app: FastifyInstance, ctx: Ctx) {
     return { notified: recipients.length, where };
   });
 
+  // -- Refresh someone's location --------------------------------------------
+  /**
+   * Silently ask a person's phone for a fresh location (yours too). Nobody is
+   * notified; the new fix arrives like any other. One per person every 10 s.
+   */
+  app.post<{ Params: { userId: string } }>('/api/users/:userId/refresh-location', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req) => {
+    const a = requireUser(req);
+    return requestRefresh(ctx, a.userId, parse(uuid, req.params.userId));
+  });
+
   // -- History ---------------------------------------------------------------
   app.get<{ Params: { userId: string } }>('/api/history/:userId/points', async (req) => {
     const a = requireUser(req);
@@ -207,7 +217,7 @@ export default async function locationRoutes(app: FastifyInstance, ctx: Ctx) {
                  THEN ST_Distance(geog, prev) END) AS distance,
              min(recorded_at) AS first, max(recorded_at) AS last
       FROM p GROUP BY 1 ORDER BY 1`;
-    const tripVis = access.own ? sql`` : sql`AND started_at >= ${access.since}`;
+    const tripVis = tripsVisibleSql(sql, access);
     const trips = await sql<{ day: string; n: number }[]>`
       SELECT to_char((started_at AT TIME ZONE ${tz})::date, 'YYYY-MM-DD') AS day, count(*)::int AS n
       FROM trips WHERE user_id = ${target} AND status = 'completed' AND started_at >= ${from} AND started_at < ${to} ${tripVis}
@@ -239,7 +249,7 @@ export default async function locationRoutes(app: FastifyInstance, ctx: Ctx) {
       ? await sql<(TripRow & { mode: string })[]>`
           SELECT ${sql(TRIP_COLUMNS as unknown as string[])}, ${sql.unsafe(MODE_SQL)} AS mode FROM trips
           WHERE user_id = ${target} AND started_at < ${to} AND COALESCE(ended_at, now()) > ${from}
-            ${tripAccess.own ? sql`` : sql`AND started_at >= ${tripAccess.since}`}
+            ${tripsVisibleSql(sql, tripAccess)}
           ORDER BY started_at`
       : [];
     const [bounds] = await sql<{ first: Date | null; last: Date | null }[]>`

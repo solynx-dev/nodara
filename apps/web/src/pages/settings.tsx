@@ -37,13 +37,13 @@ import { SharingPanel } from '@/features/tracking/SharingPanel';
 import { ColorPicker } from './circles';
 
 const SECTIONS = [
-  { id: 'account', label: 'Account', icon: User },
-  { id: 'privacy', label: 'Location & privacy', icon: MapPinned },
-  { id: 'devices', label: 'Devices', icon: Smartphone },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'appearance', label: 'Appearance & units', icon: Palette },
-  { id: 'security', label: 'Security', icon: Shield },
-  { id: 'data', label: 'Your data', icon: Database },
+  { id: 'account', label: 'Account', icon: User, color: 'var(--accent)' },
+  { id: 'privacy', label: 'Location & privacy', icon: MapPinned, color: 'var(--success)' },
+  { id: 'devices', label: 'Devices', icon: Smartphone, color: 'var(--brand-indigo)' },
+  { id: 'notifications', label: 'Notifications', icon: Bell, color: 'var(--danger)' },
+  { id: 'appearance', label: 'Appearance & units', icon: Palette, color: 'var(--brand-violet)' },
+  { id: 'security', label: 'Security', icon: Shield, color: 'var(--muted)' },
+  { id: 'data', label: 'Your data', icon: Database, color: 'var(--brand-blue)' },
 ] as const;
 
 function useSaveMe() {
@@ -59,23 +59,29 @@ function useSaveMe() {
 export default function SettingsPage() {
   const { section = 'account' } = useParams();
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
-      <h1 className="mb-5 text-[28px] font-extrabold tracking-[-0.03em]">Settings</h1>
-      <div className="flex flex-col gap-6 md:flex-row">
-        <nav className="scrollbar-none -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:w-56 md:shrink-0 md:flex-col md:px-0">
+    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:py-10">
+      <h1 className="large-title mb-6">Settings</h1>
+      <div className="flex flex-col gap-6 md:flex-row md:gap-8">
+        <nav className="scrollbar-none -mx-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:w-60 md:shrink-0 md:flex-col md:self-start md:rounded-[26px] md:bg-surface md:p-2 md:shadow-card">
           {SECTIONS.map((s) => (
             <NavLink
               key={s.id}
               to={`/settings/${s.id}`}
               className={({ isActive }) =>
                 cx(
-                  'flex shrink-0 items-center gap-2.5 rounded-xl px-3 py-2 text-[14px] font-semibold whitespace-nowrap transition',
-                  isActive || (section === s.id) ? 'bg-surface-2 text-ink' : 'text-ink-2 hover:bg-surface-2/60',
+                  'group flex shrink-0 items-center gap-3 rounded-full px-3 py-2 text-[15px] font-semibold whitespace-nowrap transition md:rounded-[16px]',
+                  isActive || section === s.id ? 'bg-accent text-on-accent' : 'bg-surface text-ink hover:bg-surface-2 md:bg-transparent',
                 )
               }
             >
-              <s.icon className="size-4 text-muted" />
-              {s.label}
+              {({ isActive }) => (
+                <>
+                  <span className={cx('flex size-7 items-center justify-center rounded-[8px]', isActive || section === s.id ? 'bg-white/20 text-white' : 'text-white')} style={isActive || section === s.id ? undefined : { background: s.color }}>
+                    <s.icon className="size-4" />
+                  </span>
+                  {s.label}
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -93,13 +99,14 @@ export default function SettingsPage() {
   );
 }
 
+/** A settings group, like iOS: small uppercase title above a rounded card, explanation below. */
 function Panel({ title, description, children, className }: { title: ReactNode; description?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <Card className={cx('p-5 sm:p-6', className)}>
-      <h2 className="text-[16px] font-bold tracking-tight">{title}</h2>
-      {description && <p className="mt-1 text-[13.5px] leading-relaxed text-muted">{description}</p>}
-      <div className="mt-5">{children}</div>
-    </Card>
+    <section className={className}>
+      <h2 className="section-title">{title}</h2>
+      <Card className="p-5 sm:p-6">{children}</Card>
+      {description && <p className="mt-2 px-4 text-[13.5px] leading-snug text-muted">{description}</p>}
+    </section>
   );
 }
 
@@ -144,7 +151,67 @@ function AccountSection() {
           )}
         </div>
       </Panel>
+      <EmailPanel />
     </>
+  );
+}
+
+/** Move the account to a new address: the new one confirms with a code (or link); the old one is told. */
+function EmailPanel() {
+  const me = useUser();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [code, setCode] = useState('');
+  const setMe = (user: Me) => qc.setQueryData(['me'], user);
+  const request = useMutation({
+    mutationFn: () => api.post<{ changed: boolean; user: Me }>('/api/me/email', form),
+    onSuccess: (r) => {
+      setMe(r.user);
+      setForm({ email: '', password: '' });
+      if (r.changed) toast({ tone: 'success', title: 'Email changed' });
+    },
+  });
+  const confirm = useMutation({
+    mutationFn: () => api.post<{ user: Me }>('/api/me/email/confirm', { code }),
+    onSuccess: (r) => {
+      setMe(r.user);
+      setCode('');
+      toast({ tone: 'success', title: 'Email changed', body: `Sign in with ${r.user.email} from now on.` });
+    },
+  });
+  const cancel = useMutation({ mutationFn: () => api.del<{ user: Me }>('/api/me/email/pending'), onSuccess: (r) => setMe(r.user) });
+  return (
+    <Panel title="Email address" description="Used to sign in, reset your password and receive security notices.">
+      {me.pendingEmail ? (
+        <div className="space-y-3">
+          <p className="text-[14px]">
+            Enter the 6-digit code we sent to <b>{me.pendingEmail}</b>, or open the link in that email. Until then you keep signing in with {me.email}.
+          </p>
+          <div className="flex gap-2">
+            <Input className="flex-1" label="Code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />
+            <Button className="self-end" variant="primary" disabled={code.replace(/\D/g, '').length < 6} loading={confirm.isPending} onClick={() => confirm.mutate()}>
+              Confirm
+            </Button>
+          </div>
+          <ErrorNote error={confirm.error ?? cancel.error} />
+          <Button size="sm" variant="ghost" onClick={() => cancel.mutate()} loading={cancel.isPending}>
+            Cancel the change
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input type="email" label="New email" autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <Input type="password" label="Current password" autoComplete="current-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          </div>
+          <ErrorNote error={request.error} />
+          <Button variant="primary" disabled={!form.email.includes('@') || !form.password} loading={request.isPending} onClick={() => request.mutate()}>
+            Change email
+          </Button>
+        </div>
+      )}
+    </Panel>
   );
 }
 
@@ -295,11 +362,11 @@ function DevicesSection() {
         description="Browsers can’t share your location in the background. Until Nodara’s native apps ship, you can use these open-source apps — they send locations straight to your Nodara server with full background support."
       >
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl border border-line p-4">
+          <div className="rounded-[22px] bg-surface-2 p-4">
             <div className="font-bold">OwnTracks</div>
             <div className="mt-1 text-[13px] text-muted">iOS & Android · HTTP mode</div>
           </div>
-          <div className="rounded-2xl border border-line p-4">
+          <div className="rounded-[22px] bg-surface-2 p-4">
             <div className="font-bold">Overland</div>
             <div className="mt-1 text-[13px] text-muted">iOS · GeoJSON batches</div>
           </div>
@@ -742,8 +809,8 @@ function DataSection() {
             ['gpx', 'Track (GPX)', 'For mapping & fitness apps.'],
             ['csv', 'Spreadsheet (CSV)', 'For Excel, Numbers, pandas…'],
           ] as const).map(([f, label, desc]) => (
-            <a key={f} href={`/api/me/export?format=${f}`} download className="flex items-start gap-3 rounded-2xl border border-line p-4 transition hover:bg-surface-2">
-              <Download className="mt-0.5 size-5 text-accent" />
+            <a key={f} href={`/api/me/export?format=${f}`} download className="flex items-start gap-3 rounded-[22px] bg-surface-2 p-4 transition hover:bg-surface-2">
+              <Download className="mt-0.5 size-5 text-accent-text" />
               <div>
                 <div className="text-[14px] font-bold">{label}</div>
                 <div className="text-[12.5px] text-muted">{desc}</div>

@@ -9,7 +9,7 @@ import { useMe, useSession } from '@/lib/session';
 import { useAddress, useCircles, usePlaces } from '@/lib/queries';
 import { formatDistance } from '@/lib/format';
 import { MAP_TYPES } from '@/lib/prefs';
-import { C, T } from '@/lib/theme';
+import { BRAND, C, T } from '@/lib/theme';
 import type { CircleDetail, PlaceWithMeta } from '@/lib/types';
 import { Avatar, GlassButton, Row, Section, Skeleton, Tap, useToast } from '@/components/ui';
 import { Slider } from '@/components/Slider';
@@ -20,7 +20,7 @@ const MIN_R = 50;
 const MAX_R = 2000;
 const METERS_PER_DEG = 111_320;
 const ICONS = Object.keys(PLACE_SYMBOLS);
-const COLORS = ['#FF6B3D', '#FF3B30', '#FF9500', '#F5A524', '#34C759', '#13C2C2', '#007AFF', '#5856D6', '#AF52DE', '#F56A9A'];
+const COLORS = ['#6D3EF5', '#FF3B30', '#FF9500', '#F5A524', '#34C759', '#13C2C2', '#007AFF', '#5856D6', '#AF52DE', '#F56A9A'];
 
 // Finer control for small zones: the slider position is the square root of the radius range.
 const toSlider = (r: number) => Math.sqrt((Math.min(MAX_R, Math.max(MIN_R, r)) - MIN_R) / (MAX_R - MIN_R));
@@ -75,7 +75,7 @@ function Editor({ place, start, defaultCircle }: { place: PlaceWithMeta | null; 
   const [name, setName] = useState(place?.name ?? '');
   const [radius, setRadius] = useState(place?.radiusM ?? 150);
   const [icon, setIcon] = useState(place?.icon ?? 'home');
-  const [color, setColor] = useState(place?.color ?? '#FF6B3D');
+  const [color, setColor] = useState(place?.color ?? BRAND.purple);
   // New places are shared with the circle you're looking at (or your first one) unless you pick otherwise.
   const [pickedCircle, setCircleId] = useState<string | null | undefined>(place ? place.circleId : undefined);
   const circleId = pickedCircle !== undefined ? pickedCircle : (circles.find((c) => c.id === defaultCircle)?.id ?? circles[0]?.id ?? null);
@@ -287,7 +287,7 @@ function Editor({ place, start, defaultCircle }: { place: PlaceWithMeta | null; 
             <Text style={[styles.input, { color: address ? C.label : C.secondaryLabel }]} numberOfLines={2}>
               {finding && !address ? 'Finding the address…' : (address ?? `${settled.lat.toFixed(5)}, ${settled.lon.toFixed(5)}`)}
             </Text>
-            {config?.geocoding && editable ? <SymbolView name="magnifyingglass" size={16} tintColor={C.accent} /> : finding ? <ActivityIndicator /> : null}
+            {config?.geocoding && editable ? <SymbolView name="magnifyingglass" size={16} tintColor={C.accentText} /> : finding ? <ActivityIndicator /> : null}
           </Tap>
         </Section>
 
@@ -312,7 +312,7 @@ function Editor({ place, start, defaultCircle }: { place: PlaceWithMeta | null; 
 
         {editable && (
           <Section title="Shared with" footer={circleId ? 'Everyone in this circle sees the place and can get alerts for it.' : 'Only you see this place. Alerts need a shared place.'}>
-            <Row icon="lock.fill" iconColor="#8E8E93" title="Only me" onPress={() => setCircleId(null)} accessory={circleId === null ? <SymbolView name="checkmark" size={17} weight="semibold" tintColor={C.accent} /> : <View />} last={!circles.length} />
+            <Row icon="lock.fill" iconColor="#8E8E93" title="Only me" onPress={() => setCircleId(null)} accessory={circleId === null ? <SymbolView name="checkmark" size={17} weight="semibold" tintColor={C.accentText} /> : <View />} last={!circles.length} />
             {circles.map((c, i) => (
               <Row
                 key={c.id}
@@ -321,7 +321,7 @@ function Editor({ place, start, defaultCircle }: { place: PlaceWithMeta | null; 
                 title={c.name}
                 subtitle={`${c.memberCount} ${c.memberCount === 1 ? 'member' : 'members'}`}
                 onPress={() => setCircleId(c.id)}
-                accessory={circleId === c.id ? <SymbolView name="checkmark" size={17} weight="semibold" tintColor={C.accent} /> : <View />}
+                accessory={circleId === c.id ? <SymbolView name="checkmark" size={17} weight="semibold" tintColor={C.accentText} /> : <View />}
                 last={i === circles.length - 1}
               />
             ))}

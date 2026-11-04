@@ -5,6 +5,9 @@ import { enqueueAndFlush, toFixes } from '@/background/upload';
 import { notePhoneUse } from '@/background/phoneUse';
 import { getItem, KEYS } from '@/lib/storage';
 import { LOCATION_TASK } from '@/background/tasks';
+import { refreshTrackingOptions } from '@/background/tracking';
+import * as Notifications from 'expo-notifications';
+import { isWake, sendFreshLocation } from '@/background/wake';
 
 /**
  * While Nodara is on screen, also watch the position directly and flush the
@@ -18,6 +21,7 @@ export function ForegroundReporter() {
 
     const start = async () => {
       if (!(await getItem(KEYS.tracking))) return;
+      await refreshTrackingOptions();
       const perm = await Location.getForegroundPermissionsAsync();
       if (perm.status !== 'granted' || cancelled) return;
       void Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
@@ -42,10 +46,16 @@ export function ForegroundReporter() {
         void enqueueAndFlush([]);
       }
     });
+    // A silent refresh while the app is open (the background task usually
+    // handles it too; concurrent requests share one fix).
+    const wakeSub = Notifications.addNotificationReceivedListener((n) => {
+      if (isWake(n.request.content.data)) void sendFreshLocation();
+    });
     return () => {
       cancelled = true;
       sub?.remove();
       appSub.remove();
+      wakeSub.remove();
     };
   }, []);
   return null;

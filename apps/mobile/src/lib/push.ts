@@ -4,15 +4,18 @@ import * as Device from 'expo-device';
 import { api } from './api';
 import { getItem, KEYS } from './storage';
 import { ensureDevice } from '@/background/tracking';
+import { isWake } from '@/background/wake';
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (n) => {
+    // The silent location wake-up is never shown.
+    const silent = isWake(n.request.content.data) || (!n.request.content.title && !n.request.content.body);
+    return { shouldShowBanner: !silent, shouldShowList: !silent, shouldPlaySound: !silent, shouldSetBadge: false };
+  },
 });
+
+const projectIdOf = () =>
+  (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId ?? Constants.easConfig?.projectId;
 
 /**
  * Turn on push for this iPhone. Apple only delivers pushes signed with the
@@ -23,7 +26,7 @@ export async function enablePush(): Promise<void> {
   if (!Device.isDevice) throw new Error('Push notifications need a real iPhone, not the simulator.');
   const perm = await Notifications.requestPermissionsAsync();
   if (perm.status !== 'granted') throw new Error('Notifications are turned off for Nodara in iOS Settings.');
-  const projectId = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId ?? Constants.easConfig?.projectId;
+  const projectId = projectIdOf();
   if (!projectId) throw new Error('This build has no EAS project ID. Run `npx eas-cli init` and rebuild.');
   const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
   const deviceId = await ensureDevice();
@@ -44,12 +47,32 @@ export async function syncPushToken(): Promise<void> {
     if (!deviceId) return;
     const devices = await api.get<{ id: string; pushEnabled: boolean }[]>('/api/devices');
     if (!devices.find((d) => d.id === deviceId)?.pushEnabled) return; // they turned push off in Nodara
-    const projectId = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId ?? Constants.easConfig?.projectId;
+    const projectId = projectIdOf();
     if (!projectId) return;
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
     await api.put(`/api/devices/${deviceId}/native-push`, { token });
   } catch {
     // Best effort; the Settings switch still works.
+  }
+}
+
+/**
+ * Register this iPhone for silent location wake-ups. These carry no alert, so
+ * iOS delivers them without notification permission, and they work even when
+ * notifications are off in Nodara. Only phones that share their location
+ * register.
+ */
+export async function syncWakeToken(): Promise<void> {
+  try {
+    if (!Device.isDevice) return;
+    if (!(await getItem(KEYS.tracking))) return;
+    const deviceId = await getItem(KEYS.deviceId);
+    const projectId = projectIdOf();
+    if (!deviceId || !projectId) return;
+    const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
+    await api.put(`/api/devices/${deviceId}/wake-token`, { token });
+  } catch {
+    // Best effort: without it, refresh just isn't offered for this phone.
   }
 }
 

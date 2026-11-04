@@ -1,3 +1,4 @@
+import { liveViewersOf } from './bubbles.js';
 import type { Ctx } from '../context.js';
 import {
   DEFAULT_TRIP_CONFIG,
@@ -49,7 +50,12 @@ async function runDevice(ctx: Ctx, deviceId: string, now: number) {
   const [device] = await sql<{ user_id: string; trip_state: StoredState | null }[]>`
     SELECT user_id, trip_state FROM devices WHERE id = ${deviceId}`;
   if (!device) return { completed: 0, open: false };
-  const cfg = await tripConfig(ctx);
+  // Stopping at one of their saved places ends a drive sooner than stopping elsewhere.
+  const places = await sql<{ lat: number; lon: number; radius_m: number }[]>`
+    SELECT p.lat, p.lon, p.radius_m FROM places p
+    WHERE (p.owner_id = ${device.user_id} AND p.circle_id IS NULL)
+       OR p.circle_id IN (SELECT circle_id FROM circle_members WHERE user_id = ${device.user_id})`;
+  const cfg = { ...(await tripConfig(ctx)), places: places.map((p) => ({ lat: p.lat, lon: p.lon, radiusM: p.radius_m })) };
   let state: DetectorState | null = device.trip_state;
   let completedCount = 0;
   let open: DetectedTrip | null = null;
@@ -94,16 +100,29 @@ export async function rebuildTrips(ctx: Ctx, userId: string) {
   const devices = await ctx.sql<{ id: string }[]>`SELECT id FROM devices WHERE user_id = ${userId}`;
   let completed = 0;
   for (const d of devices) {
+    // The person's own corrections, to put back on the recomputed trips.
+    const fixes = await ctx.sql<{ started_at: Date; ended_at: Date; mode_override: string | null; role: string | null }[]>`
+      SELECT started_at, ended_at, mode_override, role FROM trips
+      WHERE device_id = ${d.id} AND status = 'completed' AND (mode_override IS NOT NULL OR role IS NOT NULL)`;
     await serial(d.id, async () => {
       await ctx.sql`DELETE FROM trips WHERE device_id = ${d.id}`;
       await ctx.sql`UPDATE devices SET trip_state = NULL WHERE id = ${d.id}`;
     });
     completed += (await processDeviceTrips(ctx, d.id)).completed;
+    for (const f of fixes) {
+      // Onto the new trip that overlaps the corrected one the most.
+      await ctx.sql`
+        UPDATE trips SET mode_override = ${f.mode_override}, role = ${f.role}
+        WHERE id = (
+          SELECT id FROM trips WHERE device_id = ${d.id} AND status = 'completed'
+            AND started_at < ${f.ended_at} AND ended_at > ${f.started_at}
+          ORDER BY LEAST(ended_at, ${f.ended_at}) - GREATEST(started_at, ${f.started_at}) DESC LIMIT 1)`;
+    }
   }
   return completed;
 }
 
-async function placeAt(ctx: Ctx, userId: string, lat: number, lon: number) {
+export async function placeAt(ctx: Ctx, userId: string, lat: number, lon: number) {
   const rows = await ctx.sql<{ id: string; name: string }[]>`
     SELECT p.id, p.name FROM places p
     WHERE (p.owner_id = ${userId} AND p.circle_id IS NULL
@@ -133,6 +152,10 @@ async function saveTrip(ctx: Ctx, userId: string, deviceId: string, trip: Detect
   ]);
 
   const [row] = await sql.begin(async (tx) => {
+    // Keep a person's own corrections (drive/walk, driver/passenger) when a trip is saved again.
+    const [prev] = await tx<{ mode_override: string | null; role: string | null }[]>`
+      SELECT mode_override, role FROM trips WHERE device_id = ${deviceId} AND started_at = ${new Date(trip.startedAt)}
+        AND (mode_override IS NOT NULL OR role IS NOT NULL) LIMIT 1`;
     await tx`DELETE FROM trips WHERE device_id = ${deviceId} AND status = 'in_progress'`;
     if (status === 'completed') {
       // Idempotency: never store the same trip twice.
@@ -142,31 +165,60 @@ async function saveTrip(ctx: Ctx, userId: string, deviceId: string, trip: Detect
       INSERT INTO trips (user_id, device_id, status, started_at, ended_at, duration_sec, moving_sec, distance_m,
         max_speed, avg_moving_speed, avg_speed, start_lat, start_lon, end_lat, end_lon, start_label, end_label,
         start_place_id, end_place_id, route, stops, point_count, low_confidence,
-        is_demo)
+        stopped_since, mode_override, role, is_demo)
       VALUES (${userId}, ${deviceId}, ${status}, ${new Date(trip.startedAt)},
         ${status === 'completed' ? new Date(trip.endedAt) : null},
         ${trip.durationSec}, ${trip.movingSec}, ${trip.distanceM}, ${trip.maxSpeed}, ${trip.avgMovingSpeed},
         ${trip.avgSpeed}, ${first.lat}, ${first.lon}, ${last.lat}, ${last.lon},
         ${startPlace?.name ?? null}, ${endPlace?.name ?? null}, ${startPlace?.id ?? null}, ${endPlace?.id ?? null},
         ST_GeogFromText(${wkt}), ${sql.json(trip.stops as never)}, ${trip.points.length}, ${trip.lowConfidence},
+        ${status === 'in_progress' && trip.stoppedSince ? new Date(trip.stoppedSince) : null},
+        ${prev?.mode_override ?? null}, ${prev?.role ?? null},
         (SELECT is_demo FROM users WHERE id = ${userId}))
       RETURNING id`;
   });
 
-  const viewers = await sql<{ user_id: string }[]>`
-    SELECT DISTINCT v.user_id FROM circle_members t JOIN circle_members v ON v.circle_id = t.circle_id
-    WHERE t.user_id = ${userId} AND t.sharing`;
-  ctx.hub.publish([userId, ...viewers.map((v) => v.user_id)], { type: 'trip', userId, tripId: row!.id, status });
+  ctx.hub.publish(await liveViewersOf(sql, userId), { type: 'trip', userId, tripId: row!.id, status });
 
   // Fill in human-readable labels in the background when a geocoder is configured.
-  if (status === 'completed' && (!startPlace || !endPlace)) {
+  if (status === 'completed' && (!startPlace || !endPlace) && (await ctx.geocoder.enabled())) {
     void (async () => {
       const s = startPlace ? null : await ctx.geocoder.reverse(first.lat, first.lon);
       const e = endPlace ? null : await ctx.geocoder.reverse(last.lat, last.lon);
-      if (s || e) {
-        await sql`UPDATE trips SET start_label = COALESCE(start_label, ${s}), end_label = COALESCE(end_label, ${e})
-                  WHERE id = ${row!.id}`;
-      }
+      await sql`UPDATE trips SET start_label = COALESCE(start_label, ${s}), end_label = COALESCE(end_label, ${e}), labelled_at = now()
+                WHERE id = ${row!.id}`;
     })().catch((err) => ctx.log.warn({ err }, 'trip labelling failed'));
   }
+}
+
+/**
+ * Name trips that ended up without a start or end label: saved places first,
+ * then the geocoder (a business you stopped at, or the street). Runs in the
+ * background so trips recorded before a geocoder was configured get names too.
+ * Each trip is tried once; Nominatim's 1 request/second limit is respected.
+ */
+export async function labelUnnamedTrips(ctx: Ctx, limit = 25): Promise<number> {
+  const { sql } = ctx;
+  if (!(await ctx.geocoder.enabled())) return 0;
+  const trips = await sql<{ id: string; user_id: string; start_lat: number; start_lon: number; end_lat: number; end_lon: number; start_label: string | null; end_label: string | null }[]>`
+    SELECT id, user_id, start_lat, start_lon, end_lat, end_lon, start_label, end_label FROM trips
+    WHERE status = 'completed' AND labelled_at IS NULL AND (start_label IS NULL OR end_label IS NULL)
+    ORDER BY started_at DESC LIMIT ${limit}`;
+  for (const t of trips) {
+    const label = async (lat: number, lon: number) => {
+      const place = await placeAt(ctx, t.user_id, lat, lon);
+      return { name: place?.name ?? (await ctx.geocoder.reverse(lat, lon)), placeId: place?.id ?? null };
+    };
+    const s = t.start_label ? null : await label(t.start_lat, t.start_lon);
+    const e = t.end_label ? null : await label(t.end_lat, t.end_lon);
+    await sql`
+      UPDATE trips SET
+        start_label = COALESCE(start_label, ${s?.name ?? null}),
+        end_label = COALESCE(end_label, ${e?.name ?? null}),
+        start_place_id = COALESCE(start_place_id, ${s?.placeId ?? null}),
+        end_place_id = COALESCE(end_place_id, ${e?.placeId ?? null}),
+        labelled_at = now()
+      WHERE id = ${t.id}`;
+  }
+  return trips.length;
 }

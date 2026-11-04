@@ -96,3 +96,10 @@ export function sinceLabel(iso: string) {
 
 /** Short weekday letter/label for charts and chips. */
 export const weekdayShort = (d: Date) => d.toLocaleDateString(undefined, { weekday: 'short' });
+
+/** "Forever", "90 days", "1 year"… for history retention. */
+export function retentionLabel(days: number | null | undefined, serverDefault: number | null = null): string {
+  const fmt = (d: number) => (d % 365 === 0 ? `${d / 365} year${d > 365 ? 's' : ''}` : d === 180 ? '6 months' : `${d} days`);
+  if (days) return fmt(days);
+  return serverDefault ? fmt(serverDefault) : 'Forever';
+}

@@ -31,10 +31,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((t) => {
           const Icon = icons[t.tone];
           return (
-            <div key={t.id} role="status" className="pointer-events-auto flex w-full max-w-sm animate-rise items-start gap-3 rounded-2xl border border-line bg-elevated p-3.5 shadow-float">
-              <Icon className={cx('mt-0.5 size-5 shrink-0', t.tone === 'success' && 'text-success', t.tone === 'error' && 'text-danger', t.tone === 'info' && 'text-accent')} />
+            <div key={t.id} role="status" className="pointer-events-auto glass flex w-full max-w-sm animate-rise items-center gap-3 rounded-[24px] p-4">
+              <Icon className={cx('mt-0.5 size-5 shrink-0', t.tone === 'success' && 'text-success', t.tone === 'error' && 'text-danger', t.tone === 'info' && 'text-accent-text')} />
               <div className="min-w-0 flex-1">
-                <div className="text-[14px] font-semibold">{t.title}</div>
+                <div className="text-[16px] font-semibold">{t.title}</div>
                 {t.body && <div className="mt-0.5 text-[13px] text-muted">{t.body}</div>}
                 {t.action && (
                   <button className="mt-1.5 text-[13px] font-bold text-accent-text" onClick={() => { t.action!.onClick(); dismiss(t.id); }}>

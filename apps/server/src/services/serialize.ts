@@ -60,12 +60,14 @@ export interface TripRow {
   end_label: string | null;
   stops: unknown[];
   low_confidence: boolean;
+  mode_override: 'driving' | 'walking' | null;
+  role: 'driver' | 'passenger' | null;
 }
 
 export const TRIP_COLUMNS = [
   'id', 'user_id', 'status', 'started_at', 'ended_at', 'duration_sec', 'distance_m', 'max_speed',
   'avg_moving_speed', 'avg_speed', 'start_lat', 'start_lon', 'end_lat', 'end_lon', 'start_label',
-  'end_label', 'stops', 'low_confidence',
+  'end_label', 'stops', 'low_confidence', 'mode_override', 'role',
 ] as const;
 
 export function serializeTrip(r: TripRow): TripSummary {
@@ -88,6 +90,8 @@ export function serializeTrip(r: TripRow): TripSummary {
     endLabel: r.end_label,
     stopCount: r.stops.length,
     lowConfidence: r.low_confidence,
+    role: r.role,
+    modeEdited: r.mode_override != null,
   };
 }
 
@@ -126,8 +130,13 @@ export function serializePlace(r: PlaceRow): Place {
 }
 
 /** Heuristic travel mode from average moving speed (m/s). Always presented as an estimate. */
-export const MODE_SQL = `CASE
-  WHEN avg_moving_speed IS NULL THEN 'unknown'
-  WHEN avg_moving_speed < 2.2 THEN 'walking'
-  WHEN avg_moving_speed < 6.5 THEN 'cycling'
-  ELSE 'driving' END`;
+/**
+ * A trip is a drive or a walk: a drive once it reached ~25 km/h (spike-filtered
+ * top speed) or averaged ~14 km/h while moving. People can override it.
+ */
+export const MODE_SQL = `COALESCE(mode_override, CASE
+  WHEN COALESCE(max_speed, 0) >= 7 OR COALESCE(avg_moving_speed, 0) >= 4 THEN 'driving'
+  ELSE 'walking' END)`;
+
+/** Trips that count as your own driving: drives where you weren't the passenger. */
+export const DRIVER_SQL = `(${MODE_SQL} = 'driving' AND role IS DISTINCT FROM 'passenger')`;

@@ -49,7 +49,7 @@ export function JoinPage() {
   return (
     <AuthLayout title={`Join ${p.circleName}`} subtitle={`${p.invitedBy ?? 'Someone'} invited you to share locations with ${p.memberCount} ${p.memberCount === 1 ? 'person' : 'people'}.`}>
       <div className="space-y-4">
-        <div className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-4">
+        <div className="flex items-center gap-4 rounded-[22px] bg-surface shadow-card p-4">
           <div className="flex size-12 items-center justify-center rounded-2xl text-white" style={{ background: p.circleColor }}>
             <Users className="size-6" />
           </div>

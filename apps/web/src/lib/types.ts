@@ -59,6 +59,19 @@ export interface TripDetail extends Trip {
   route: [number, number][];
   stops: TripStop[];
   samples: { t: string; speed: number | null; source: string; accuracy: number | null; lat: number; lon: number; altitude: number | null }[];
+  /** Speeding, hard braking, rapid acceleration and phone use during the trip. */
+  events?: TripEvent[];
+}
+
+export interface TripEvent {
+  id: string;
+  kind: 'speeding' | 'phone_use' | 'rapid_accel' | 'hard_brake';
+  startedAt: string;
+  endedAt: string;
+  lat: number;
+  lon: number;
+  speed: number | null;
+  value: number | null;
 }
 
 export interface HistoryPoints {

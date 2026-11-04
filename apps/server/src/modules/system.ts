@@ -27,6 +27,7 @@ export default async function systemRoutes(app: FastifyInstance, ctx: Ctx) {
       geocoding: await ctx.geocoder.enabled(),
       webPushPublicKey: ctx.push.publicKey,
       passkeys: true,
+      passkeyRpId: ctx.config.rpId,
       emailEnabled: ctx.mailer.enabled,
       defaultRetentionDays: s.defaultRetentionDays || null,
       driving: { speedingKmh: ctx.config.DRIVING_SPEEDING_KMH },

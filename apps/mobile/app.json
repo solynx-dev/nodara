@@ -3,7 +3,7 @@
     "name": "Nodara",
     "slug": "nodara",
     "scheme": "nodara",
-    "version": "1.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -20,12 +20,16 @@
           "owntracks"
         ],
         "NSLocationUsageDescription": "Nodara shares your location with the circles you choose, on the server you connect to."
-      }
+      },
+      "associatedDomains": [
+        "webcredentials:nodara.ca",
+        "webcredentials:demo.nodara.ca"
+      ]
     },
     "android": {
       "package": "ca.nodara.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0C0E12",
+        "backgroundColor": "#0B0D1C",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -51,7 +55,8 @@
       [
         "expo-notifications",
         {
-          "color": "#FF6B3D"
+          "color": "#6D3EF5",
+          "enableBackgroundRemoteNotifications": true
         }
       ],
       "expo-image",
@@ -69,13 +74,14 @@
         {
           "image": "./assets/splash-icon.png",
           "imageWidth": 160,
-          "backgroundColor": "#F6F5F2",
+          "backgroundColor": "#F7F7FB",
           "dark": {
             "image": "./assets/splash-icon.png",
-            "backgroundColor": "#0C0E12"
+            "backgroundColor": "#0B0D1C"
           }
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": false

@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
   CalendarClock,
+  Check,
+  Plus,
   ChevronDown,
   Compass,
   LayoutGrid,
@@ -84,12 +86,12 @@ function ShellInner({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-full">
       {/* Desktop sidebar */}
-      <aside className="hidden w-[248px] shrink-0 flex-col border-r border-line bg-elevated lg:flex">
-        <div className="flex h-16 items-center px-5">
+      <aside className="hidden w-[264px] shrink-0 flex-col bg-bg lg:flex">
+        <div className="flex h-[72px] items-center px-6">
           <Logo />
         </div>
         <CircleSwitcher />
-        <nav className="mt-2 flex flex-1 flex-col gap-0.5 px-3">
+        <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
           {NAV.map((n) => (
             <NavLink
               key={n.to}
@@ -97,17 +99,17 @@ function ShellInner({ children }: { children: ReactNode }) {
               end={'end' in n}
               className={({ isActive }) =>
                 cx(
-                  'group flex h-10 items-center gap-3 rounded-xl px-3 text-[14px] font-semibold transition',
-                  isActive ? 'bg-surface-2 text-ink' : 'text-ink-2 hover:bg-surface-2/60 hover:text-ink',
+                  'group flex h-11 items-center gap-3 rounded-[14px] px-3.5 text-[15px] font-semibold transition',
+                  isActive ? 'bg-accent text-on-accent' : 'text-ink hover:bg-surface',
                 )
               }
             >
               {({ isActive }) => (
                 <>
-                  <n.icon className={cx('size-[18px]', isActive ? 'text-accent' : 'text-muted group-hover:text-ink-2')} />
+                  <n.icon className={cx('size-[19px]', isActive ? 'text-on-accent' : 'text-accent-text')} />
                   <span className="flex-1">{n.label}</span>
                   {n.to === '/notifications' && unread > 0 && (
-                    <span className="tnum rounded-md bg-accent px-1.5 text-[11px] font-bold leading-5 text-white">{unread > 99 ? '99+' : unread}</span>
+                    <span className={cx('tnum rounded-full px-2 text-[12px] font-bold leading-5', isActive ? 'bg-white/25 text-white' : 'bg-accent text-on-accent')}>{unread > 99 ? '99+' : unread}</span>
                   )}
                 </>
               )}
@@ -117,10 +119,10 @@ function ShellInner({ children }: { children: ReactNode }) {
             <NavLink
               to="/admin"
               className={({ isActive }) =>
-                cx('mt-2 flex h-10 items-center gap-3 rounded-xl px-3 text-[14px] font-semibold transition', isActive ? 'bg-surface-2 text-ink' : 'text-ink-2 hover:bg-surface-2/60')
+                cx('group mt-3 flex h-11 items-center gap-3 rounded-[14px] px-3.5 text-[15px] font-semibold transition', isActive ? 'bg-accent text-on-accent' : 'text-ink hover:bg-surface')
               }
             >
-              <Shield className="size-[18px] text-muted" /> Administration
+              <Shield className="size-[19px] text-muted group-[.bg-accent]:text-on-accent" /> Administration
             </NavLink>
           )}
         </nav>
@@ -133,7 +135,7 @@ function ShellInner({ children }: { children: ReactNode }) {
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
         {!fullBleed && (
-          <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-bg/85 px-4 backdrop-blur-xl lg:hidden">
+          <header className="safe-top sticky top-0 z-30 flex items-center gap-3 bg-bg/80 px-4 backdrop-blur-xl backdrop-saturate-150 lg:hidden">
             <div className="flex h-14 flex-1 items-center gap-2">
               <Logo />
             </div>
@@ -148,18 +150,18 @@ function ShellInner({ children }: { children: ReactNode }) {
       </div>
 
       {/* Mobile tab bar */}
-      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-elevated/92 backdrop-blur-xl lg:hidden">
+      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-elevated/80 backdrop-blur-2xl backdrop-saturate-150 lg:hidden">
         <div className="mx-auto flex h-[64px] max-w-lg items-stretch">
           {MOBILE_TABS.map((to) => {
             const n = NAV.find((x) => x.to === to)!;
             return (
-              <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => cx('flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-bold', isActive ? 'text-accent' : 'text-muted')}>
+              <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => cx('flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-bold', isActive ? 'text-accent-text' : 'text-muted')}>
                 <n.icon className="size-[22px]" />
                 {n.label}
               </NavLink>
             );
           })}
-          <button onClick={() => setMore(true)} className={cx('relative flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-bold', more ? 'text-accent' : 'text-muted')}>
+          <button onClick={() => setMore(true)} className={cx('relative flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-bold', more ? 'text-accent-text' : 'text-muted')}>
             <MoreHorizontal className="size-[22px]" />
             More
             {unread > 0 && <span className="absolute top-2.5 right-[calc(50%-16px)] size-2 rounded-full bg-accent" />}
@@ -172,8 +174,8 @@ function ShellInner({ children }: { children: ReactNode }) {
         </div>
         <div className="grid grid-cols-3 gap-2 pb-2">
           {[...NAV.filter((n) => !(MOBILE_TABS as readonly string[]).includes(n.to)), ...(me.isAdmin ? [{ to: '/admin', label: 'Admin', icon: Shield }] : [])].map((n) => (
-            <NavLink key={n.to} to={n.to} className="relative flex flex-col items-center gap-2 rounded-2xl bg-surface-2 py-4 text-[13px] font-semibold">
-              <n.icon className="size-5 text-accent" />
+            <NavLink key={n.to} to={n.to} className="relative flex flex-col items-center gap-2 rounded-[22px] bg-surface-2 py-4 text-[14px] font-semibold">
+              <n.icon className="size-5 text-accent-text" />
               {n.label}
               {n.to === '/notifications' && unread > 0 && <span className="tnum absolute top-2 right-2 rounded-md bg-accent px-1.5 text-[10.5px] font-bold leading-[18px] text-white">{unread}</span>}
             </NavLink>
@@ -187,28 +189,40 @@ function ShellInner({ children }: { children: ReactNode }) {
   );
 }
 
-function CircleSwitcher({ inline }: { inline?: boolean }) {
+/**
+ * The circle picker, styled like the iOS top bar: a pill with the circle's
+ * colour, its name and member count. `glass` floats it over the map.
+ */
+export function CircleSwitcher({ inline, glass }: { inline?: boolean; glass?: boolean }) {
   const { data: circles } = useCircles();
   const { circleId, setCircleId } = useActiveCircle();
   const [open, setOpen] = useState(false);
   const active = circles?.find((c) => c.id === circleId);
   const navigate = useNavigate();
+  const sub = active ? `${active.memberCount} ${active.memberCount === 1 ? 'member' : 'members'}` : `${circles?.length ?? 0} ${circles?.length === 1 ? 'circle' : 'circles'}`;
   return (
-    <div className={cx('relative', !inline && 'px-3')}>
-      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-3 rounded-xl border border-line bg-surface px-3 py-2.5 text-left transition hover:border-line-strong">
-        <div className="flex size-8 items-center justify-center rounded-lg text-white" style={{ background: active?.color ?? 'var(--surface-3)' }}>
-          {active ? <Users className="size-4" /> : <Compass className="size-4 text-ink-2" />}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="eyebrow">Circle</div>
-          <div className="truncate text-[14px] font-bold">{active?.name ?? 'All circles'}</div>
-        </div>
-        <ChevronDown className={cx('size-4 text-muted transition', open && 'rotate-180')} />
+    <div className={cx('relative', !inline && !glass && 'px-3')}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className={cx(
+          'flex w-full items-center gap-3 rounded-full py-1.5 pr-4 pl-1.5 text-left transition',
+          glass ? 'glass h-[52px]' : 'bg-surface-2 hover:bg-surface-3',
+        )}
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full text-white" style={{ background: active?.color ?? 'var(--accent)' }}>
+          {active ? <Users className="size-[18px]" /> : <Compass className="size-[18px]" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[16px] leading-tight font-bold">{active?.name ?? 'All circles'}</span>
+          <span className="block truncate text-[13px] text-muted">{sub}</span>
+        </span>
+        <ChevronDown className={cx('size-5 shrink-0 text-muted transition', open && 'rotate-180')} />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className={cx('absolute z-50 mt-1.5 animate-rise rounded-xl border border-line bg-elevated p-1.5 shadow-float', inline ? 'inset-x-0' : 'inset-x-3')}>
+          <div className={cx('absolute z-50 mt-2 animate-rise rounded-[24px] bg-elevated p-2 shadow-float', inline || glass ? 'inset-x-0' : 'inset-x-3')}>
             {[{ id: null, name: 'All circles', color: null as string | null, memberCount: undefined as number | undefined }, ...(circles ?? [])].map((c) => (
               <button
                 key={c.id ?? 'all'}
@@ -216,22 +230,28 @@ function CircleSwitcher({ inline }: { inline?: boolean }) {
                   setCircleId(c.id);
                   setOpen(false);
                 }}
-                className={cx('flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[14px] font-semibold hover:bg-surface-2', c.id === circleId && 'bg-surface-2')}
+                className={cx('flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-[15px] font-semibold hover:bg-surface-2', c.id === circleId && 'bg-surface-2')}
               >
-                <span className="size-2.5 rounded-full" style={{ background: c.color ?? 'var(--muted)' }} />
+                <span className="flex size-8 items-center justify-center rounded-full text-white" style={{ background: c.color ?? 'var(--accent)' }}>
+                  {c.id ? <Users className="size-4" /> : <Compass className="size-4" />}
+                </span>
                 <span className="flex-1 truncate">{c.name}</span>
-                {c.memberCount != null && <span className="text-[12px] text-muted">{c.memberCount}</span>}
+                {c.memberCount != null && <span className="text-[13px] text-muted">{c.memberCount}</span>}
+                {c.id === circleId && <Check className="size-4 text-accent-text" />}
               </button>
             ))}
-            <div className="my-1 h-px bg-line" />
+            <div className="mx-3 my-1 h-px bg-line" />
             <button
               onClick={() => {
                 setOpen(false);
                 navigate('/circles?new=1');
               }}
-              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[14px] font-semibold text-accent-text hover:bg-surface-2"
+              className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-[15px] font-semibold text-accent-text hover:bg-surface-2"
             >
-              + New circle
+              <span className="flex size-8 items-center justify-center rounded-full bg-accent-soft">
+                <Plus className="size-4" />
+              </span>
+              New circle
             </button>
           </div>
         </>

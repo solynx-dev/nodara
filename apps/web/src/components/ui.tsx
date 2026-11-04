@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import { Loader2, X } from 'lucide-react';
+import { ChevronRight, Loader2, X } from 'lucide-react';
 import {
   forwardRef,
   useEffect,
@@ -19,17 +19,18 @@ export const cx = clsx;
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'subtle';
 type Size = 'sm' | 'md' | 'lg';
 
+// Pill buttons like the iOS app: a solid purple primary, tinted "plain" fills for the rest.
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-accent text-white hover:bg-accent-hover shadow-[0_1px_0_rgb(255_255_255/0.2)_inset,0_6px_16px_-6px_var(--accent)]',
-  secondary: 'bg-surface text-ink border border-line-strong hover:bg-surface-2',
+  primary: 'bg-accent text-on-accent hover:bg-accent-hover',
+  secondary: 'bg-surface-2 text-accent-text hover:bg-surface-3',
   subtle: 'bg-surface-2 text-ink hover:bg-surface-3',
   ghost: 'text-ink-2 hover:bg-surface-2 hover:text-ink',
-  danger: 'bg-danger/10 text-danger hover:bg-danger/15',
+  danger: 'bg-danger/12 text-danger hover:bg-danger/18',
 };
 const SIZES: Record<Size, string> = {
-  sm: 'h-8 px-3 text-[13px] gap-1.5 rounded-lg',
-  md: 'h-10 px-4 text-sm gap-2 rounded-xl',
-  lg: 'h-12 px-5 text-[15px] gap-2 rounded-xl',
+  sm: 'h-9 px-4 text-[14px] gap-1.5',
+  md: 'h-11 px-5 text-[15px] gap-2',
+  lg: 'h-[54px] px-6 text-[17px] gap-2',
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -47,7 +48,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     <button
       ref={ref}
       className={cx(
-        'inline-flex shrink-0 items-center justify-center font-semibold whitespace-nowrap transition-[background,color,box-shadow,transform] active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100',
+        'inline-flex shrink-0 items-center justify-center rounded-full font-semibold whitespace-nowrap transition-[background,color,opacity] active:opacity-70 disabled:opacity-45',
         VARIANTS[variant],
         SIZES[size],
         className,
@@ -73,7 +74,7 @@ export function IconButton({
       aria-label={label}
       title={label}
       className={cx(
-        'inline-flex size-9 shrink-0 items-center justify-center rounded-xl text-ink-2 transition hover:bg-surface-2 hover:text-ink active:scale-95',
+        'inline-flex size-10 shrink-0 items-center justify-center rounded-full text-ink-2 transition hover:bg-surface-2 hover:text-ink active:opacity-70',
         active && 'bg-accent-soft text-accent-text hover:bg-accent-soft',
         className,
       )}
@@ -142,25 +143,26 @@ export function Switch({
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cx(
-        'relative inline-flex h-[26px] w-[44px] shrink-0 items-center rounded-full transition-colors disabled:opacity-50',
+        'relative inline-flex h-[31px] w-[51px] shrink-0 items-center rounded-full transition-colors duration-200 disabled:opacity-50',
         checked ? 'bg-accent' : 'bg-surface-3',
       )}
     >
-      <span className={cx('absolute left-[3px] size-5 rounded-full bg-white shadow-sm transition-transform', checked && 'translate-x-[18px]')} />
+      <span className={cx('absolute left-[2px] size-[27px] rounded-full bg-white shadow-[0_3px_8px_rgb(0_0_0/0.15),0_1px_1px_rgb(0_0_0/0.16)] transition-transform duration-200', checked && 'translate-x-[20px]')} />
     </button>
   );
   if (!label) return sw;
   return (
-    <div className="flex items-start justify-between gap-4 py-1">
+    <div className="flex items-center justify-between gap-4 py-1">
       <label htmlFor={id} className="min-w-0 flex-1 cursor-pointer">
-        <div className="text-[15px] font-semibold">{label}</div>
-        {description && <div className="mt-0.5 text-[13px] leading-snug text-muted">{description}</div>}
+        <div className="text-[16px]">{label}</div>
+        {description && <div className="mt-0.5 text-[13.5px] leading-snug text-muted">{description}</div>}
       </label>
       {sw}
     </div>
   );
 }
 
+/** iOS-style segmented control: a soft track with a raised pill on the chosen option. */
 export function Segmented<T extends string>({
   value,
   onChange,
@@ -170,29 +172,133 @@ export function Segmented<T extends string>({
 }: {
   value: T;
   onChange: (v: T) => void;
-  options: { value: T; label: ReactNode }[];
+  options: { value: T; label: ReactNode; icon?: ReactNode; count?: number }[];
   size?: 'sm' | 'md';
   className?: string;
 }) {
   return (
-    <div className={cx('inline-flex rounded-xl bg-surface-2 p-1', className)} role="tablist">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          role="tab"
-          aria-selected={value === o.value}
-          onClick={() => onChange(o.value)}
-          className={cx(
-            'flex-1 rounded-lg font-semibold whitespace-nowrap transition',
-            size === 'sm' ? 'h-7 px-2.5 text-[12px]' : 'h-8 px-3.5 text-[13px]',
-            value === o.value ? 'bg-surface text-ink shadow-card' : 'text-muted hover:text-ink',
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
+    <div className={cx('inline-flex rounded-full bg-surface-2 p-[3px]', className)} role="tablist">
+      {options.map((o) => {
+        const on = value === o.value;
+        return (
+          <button
+            key={o.value}
+            role="tab"
+            aria-selected={on}
+            onClick={() => onChange(o.value)}
+            className={cx(
+              'flex flex-1 items-center justify-center gap-1.5 rounded-full font-semibold whitespace-nowrap transition-[background,color,box-shadow] duration-200',
+              size === 'sm' ? 'h-8 px-3 text-[13px]' : 'h-10 px-4 text-[15px]',
+              on ? 'bg-surface text-ink shadow-[0_2px_8px_rgb(0_0_0/0.12)] dark:bg-surface-3' : 'text-muted hover:text-ink',
+            )}
+          >
+            {o.icon && <span className={cx('flex', on ? 'text-accent-text' : 'text-muted')}>{o.icon}</span>}
+            {o.label}
+            {o.count != null && o.count > 0 && <span className="tnum text-[12px] font-bold text-muted">{o.count}</span>}
+          </button>
+        );
+      })}
     </div>
   );
+}
+
+/** Frosted surface for controls that float over the map. */
+export function Glass({ className, children, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={cx('glass', className)} {...rest}>
+      {children}
+    </div>
+  );
+}
+
+export type Tone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info' | 'bubble';
+const TONES: Record<Tone, string> = {
+  neutral: 'bg-surface-2 text-ink-2',
+  accent: 'bg-accent-soft text-accent-text',
+  success: 'bg-success/14 text-success',
+  warning: 'bg-warning/15 text-warning',
+  danger: 'bg-danger/13 text-danger',
+  info: 'bg-info/14 text-info',
+  bubble: 'bg-bubble/14 text-bubble-text',
+};
+
+/** Coloured status capsule: "Live", "Driving · 54 km/h", "Updated 2 h ago". */
+export function StatusPill({ tone = 'neutral', icon, children, className }: { tone?: Tone; icon?: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <span className={cx('inline-flex h-7 max-w-full items-center gap-1.5 rounded-full px-3 text-[13px] font-bold', TONES[tone], className)}>
+      {icon && <span className="flex shrink-0 [&>svg]:size-3.5">{icon}</span>}
+      <span className="truncate">{children}</span>
+    </span>
+  );
+}
+
+/** A stat on its own card, like the iOS trip report: icon + label, a big value, a note. */
+export function StatCard({ icon, label, value, sub, className }: { icon?: ReactNode; label: ReactNode; value: ReactNode; sub?: ReactNode; className?: string }) {
+  return (
+    <div className={cx('card p-5', className)}>
+      <div className="flex items-center gap-2 text-[13px] font-semibold tracking-[0.04em] text-muted uppercase [&>svg]:size-4">
+        {icon}
+        {label}
+      </div>
+      <div className="tnum mt-2 text-[24px] leading-tight font-bold tracking-tight sm:text-[28px]">{value}</div>
+      {sub && <div className="mt-1 text-[14px] text-muted">{sub}</div>}
+    </div>
+  );
+}
+
+/** iOS Settings-style grouped list. */
+export function ListGroup({ title, footer, children, className }: { title?: ReactNode; footer?: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <section className={className}>
+      {title && <h2 className="section-title">{title}</h2>}
+      <div className="card overflow-hidden">{children}</div>
+      {footer && <p className="mt-1.5 px-4 text-[13px] leading-snug text-muted">{footer}</p>}
+    </section>
+  );
+}
+
+/** One row in a ListGroup, with an optional coloured icon square like iOS Settings. */
+export function ListRow({
+  icon,
+  iconColor = 'var(--accent)',
+  title,
+  subtitle,
+  value,
+  accessory,
+  onClick,
+  href,
+  destructive,
+}: {
+  icon?: ReactNode;
+  iconColor?: string;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  value?: ReactNode;
+  accessory?: ReactNode;
+  onClick?: () => void;
+  href?: string;
+  destructive?: boolean;
+}) {
+  const body = (
+    <div className="flex min-h-[52px] items-center gap-3.5 pl-4">
+      {icon && (
+        <span className="flex size-[30px] shrink-0 items-center justify-center rounded-[8px] text-white [&>svg]:size-4" style={{ background: iconColor }}>
+          {icon}
+        </span>
+      )}
+      <div className="flex min-w-0 flex-1 items-center gap-3 self-stretch border-b border-line py-3 pr-4 [div:last-child>&]:border-b-0">
+        <div className="min-w-0 flex-1">
+          <div className={cx('truncate text-[16px]', destructive && 'text-danger')}>{title}</div>
+          {subtitle && <div className="mt-0.5 text-[13.5px] leading-snug text-muted">{subtitle}</div>}
+        </div>
+        {value != null && <div className="shrink-0 text-[15px] text-muted">{value}</div>}
+        {accessory ?? ((onClick || href) && <ChevronRight className="size-4 shrink-0 text-muted/70" />)}
+      </div>
+    </div>
+  );
+  if (href) return <a href={href} className="block transition hover:bg-surface-2/60">{body}</a>;
+  if (onClick) return <button type="button" onClick={onClick} className="block w-full text-left transition hover:bg-surface-2/60">{body}</button>;
+  return <div>{body}</div>;
 }
 
 export function Card({ className, children, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
@@ -205,8 +311,8 @@ export function Card({ className, children, ...rest }: React.HTMLAttributes<HTML
 
 export function SectionHeader({ title, action, className }: { title: ReactNode; action?: ReactNode; className?: string }) {
   return (
-    <div className={cx('mb-3 flex items-center justify-between gap-3', className)}>
-      <h2 className="text-[15px] font-bold tracking-tight">{title}</h2>
+    <div className={cx('mb-3 flex items-center justify-between gap-3 px-1', className)}>
+      <h2 className="text-[20px] font-bold tracking-tight">{title}</h2>
       {action}
     </div>
   );
@@ -259,7 +365,7 @@ export function Badge({ tone = 'neutral', children, className }: { tone?: 'neutr
     danger: 'bg-danger/12 text-danger',
     info: 'bg-info/12 text-info',
   };
-  return <span className={cx('inline-flex h-[22px] items-center gap-1 rounded-md px-2 text-[11.5px] font-bold', tones[tone], className)}>{children}</span>;
+  return <span className={cx('inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-[12px] font-bold', tones[tone], className)}>{children}</span>;
 }
 
 export function Spinner({ className }: { className?: string }) {
@@ -267,7 +373,7 @@ export function Spinner({ className }: { className?: string }) {
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cx('animate-pulse rounded-xl bg-surface-2', className)} />;
+  return <div className={cx('animate-pulse rounded-[22px] bg-surface-2', className)} />;
 }
 
 export function EmptyState({
@@ -285,12 +391,9 @@ export function EmptyState({
 }) {
   return (
     <div className={cx('flex flex-col items-center px-6 py-12 text-center', className)}>
-      <div className="relative mb-5 flex size-16 items-center justify-center rounded-[20px] bg-accent-soft text-accent-text">
-        <div className="absolute inset-0 rounded-[20px] border border-accent/20" />
-        {icon}
-      </div>
-      <h3 className="text-[17px] font-bold tracking-tight">{title}</h3>
-      {body && <p className="mt-1.5 max-w-sm text-[14px] leading-relaxed text-muted">{body}</p>}
+      <div className="mb-4 flex size-[76px] items-center justify-center rounded-full bg-accent-soft text-accent-text">{icon}</div>
+      <h3 className="text-[20px] font-semibold tracking-tight">{title}</h3>
+      {body && <p className="mt-1.5 max-w-sm text-[15px] leading-relaxed text-muted">{body}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
   );
@@ -339,13 +442,13 @@ export function Dialog({
       <div
         ref={panel}
         className={cx(
-          'relative flex max-h-[92dvh] w-full animate-rise flex-col overflow-hidden rounded-t-3xl border border-line bg-elevated shadow-float sm:rounded-3xl',
+          'relative flex max-h-[92dvh] w-full animate-rise flex-col overflow-hidden rounded-t-[30px] bg-elevated shadow-float sm:rounded-[30px]',
           wide ? 'sm:max-w-2xl' : 'sm:max-w-md',
         )}
       >
         <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-2">
           <div className="min-w-0">
-            <h2 className="text-lg font-bold tracking-tight">{title}</h2>
+            <h2 className="text-[22px] font-bold tracking-tight">{title}</h2>
             {description && <p className="mt-1 text-[14px] leading-relaxed text-muted">{description}</p>}
           </div>
           <IconButton label="Close" data-close onClick={onClose} className="-mt-1 -mr-2">
@@ -353,7 +456,7 @@ export function Dialog({
           </IconButton>
         </div>
         <div className="overflow-y-auto px-6 py-3">{children}</div>
-        {footer && <div className="safe-bottom flex justify-end gap-2 border-t border-line px-6 py-4">{footer}</div>}
+        {footer && <div className="safe-bottom flex justify-end gap-2 px-6 pt-2 pb-5">{footer}</div>}
       </div>
     </div>,
     document.body,
@@ -364,8 +467,8 @@ export function Stat({ label, value, sub, className }: { label: ReactNode; value
   return (
     <div className={cx('min-w-0', className)}>
       <div className="eyebrow">{label}</div>
-      <div className="tnum mt-1 truncate text-[22px] font-bold tracking-tight">{value}</div>
-      {sub && <div className="mt-0.5 text-[12.5px] text-muted">{sub}</div>}
+      <div className="tnum mt-1 truncate text-[24px] font-bold tracking-tight">{value}</div>
+      {sub && <div className="mt-0.5 text-[13px] text-muted">{sub}</div>}
     </div>
   );
 }
@@ -373,7 +476,7 @@ export function Stat({ label, value, sub, className }: { label: ReactNode; value
 export function Logo({ className, withText = true }: { className?: string; withText?: boolean }) {
   return (
     <div className={cx('flex items-center gap-2.5', className)}>
-      <img src="/logo-mark.svg" alt="" className="size-7" />
+      <img src="/logo-mark.png" alt="" className="size-8" />
       {withText && <span className="text-[19px] font-extrabold tracking-[-0.03em]">nodara</span>}
     </div>
   );

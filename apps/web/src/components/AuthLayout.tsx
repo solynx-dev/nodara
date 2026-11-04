@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { BRAND, BRAND_GRADIENT } from '@/lib/brand';
 import { Logo } from './ui';
 
 /** Split layout for sign-in flows: form on the left, brand canvas on the right. */
@@ -28,41 +29,50 @@ export function AuthLayout({ title, subtitle, children, footer }: { title: React
   );
 }
 
-/** Abstract "constellation map" — nodes and routes on a soft grid. Pure SVG, no external assets. */
+/**
+ * Midnight brand canvas: a quiet map grid, a few people on it, one route drawn
+ * in the signature gradient. Pure SVG, no external assets.
+ */
 function BrandCanvas() {
   const nodes = [
-    { x: 180, y: 210, c: '#FF6B3D', r: 9, live: true },
-    { x: 420, y: 150, c: '#4C9AFF', r: 7 },
-    { x: 520, y: 380, c: '#2FBF71', r: 8, live: true },
-    { x: 300, y: 470, c: '#F5A524', r: 7 },
-    { x: 640, y: 230, c: '#B37FEB', r: 6 },
+    { x: 180, y: 210, c: BRAND.blue, r: 9, live: true },
+    { x: 420, y: 150, c: BRAND.indigo, r: 7 },
+    { x: 520, y: 380, c: BRAND.pink, r: 8, live: true },
+    { x: 300, y: 470, c: BRAND.violet, r: 7 },
+    { x: 640, y: 230, c: BRAND.lavender, r: 6 },
   ];
   return (
-    <div className="relative hidden flex-1 overflow-hidden bg-[#0c0e12] lg:block">
-      <svg className="absolute inset-0 size-full" viewBox="0 0 800 640" preserveAspectRatio="xMidYMid slice">
+    <div className="relative hidden flex-1 overflow-hidden bg-midnight lg:block">
+      <svg className="absolute inset-0 size-full" viewBox="0 0 800 640" preserveAspectRatio="xMidYMid slice" aria-hidden>
         <defs>
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M40 0H0V40" fill="none" stroke="rgb(255 255 255 / 0.04)" />
+            <path d="M40 0H0V40" fill="none" stroke="rgb(255 255 255 / 0.035)" />
           </pattern>
-          <radialGradient id="glow" cx="0.35" cy="0.35" r="0.7">
-            <stop offset="0" stopColor="#FF6B3D" stopOpacity="0.22" />
-            <stop offset="1" stopColor="#FF6B3D" stopOpacity="0" />
+          <radialGradient id="glow-a" cx="0.25" cy="0.3" r="0.6">
+            <stop offset="0" stopColor={BRAND.indigo} stopOpacity="0.2" />
+            <stop offset="1" stopColor={BRAND.indigo} stopOpacity="0" />
           </radialGradient>
-          <linearGradient id="route" x1="0" x2="1">
-            <stop offset="0" stopColor="#FFB547" />
-            <stop offset="1" stopColor="#FF5A2B" />
+          <radialGradient id="glow-b" cx="0.8" cy="0.75" r="0.55">
+            <stop offset="0" stopColor={BRAND.violet} stopOpacity="0.16" />
+            <stop offset="1" stopColor={BRAND.violet} stopOpacity="0" />
+          </radialGradient>
+          <linearGradient id="route" x1="0" y1="0" x2="1" y2="0.6">
+            {BRAND_GRADIENT.map(([o, c]) => (
+              <stop key={o} offset={o} stopColor={c} />
+            ))}
           </linearGradient>
         </defs>
         <rect width="800" height="640" fill="url(#grid)" />
-        <rect width="800" height="640" fill="url(#glow)" />
+        <rect width="800" height="640" fill="url(#glow-a)" />
+        <rect width="800" height="640" fill="url(#glow-b)" />
         {/* streets */}
-        <g stroke="rgb(255 255 255 / 0.07)" strokeWidth="10" fill="none" strokeLinecap="round">
+        <g stroke="rgb(255 255 255 / 0.06)" strokeWidth="10" fill="none" strokeLinecap="round">
           <path d="M-20 300 C 200 260, 380 330, 820 280" />
           <path d="M260 -20 C 240 200, 340 420, 300 660" />
           <path d="M560 -20 L 600 660" />
         </g>
         {/* geofence */}
-        <circle cx="520" cy="380" r="70" fill="#2FBF71" fillOpacity="0.07" stroke="#2FBF71" strokeOpacity="0.5" strokeDasharray="6 5" />
+        <circle cx="520" cy="380" r="70" fill={BRAND.pink} fillOpacity="0.06" stroke={BRAND.pink} strokeOpacity="0.45" strokeDasharray="6 5" />
         {/* trip route */}
         <path d="M180 210 C 230 260, 260 300, 300 320 S 440 330, 520 380" fill="none" stroke="url(#route)" strokeWidth="4" strokeLinecap="round" />
         {nodes.map((n, i) => (
@@ -73,16 +83,19 @@ function BrandCanvas() {
                 <animate attributeName="opacity" from="0.45" to="0" dur="2.6s" repeatCount="indefinite" begin={`${i * 0.4}s`} />
               </circle>
             )}
-            <circle cx={n.x} cy={n.y} r={n.r + 4} fill="#0c0e12" />
+            <circle cx={n.x} cy={n.y} r={n.r + 4} fill={BRAND.midnight} />
             <circle cx={n.x} cy={n.y} r={n.r} fill={n.c} />
           </g>
         ))}
       </svg>
-      <div className="absolute inset-x-0 bottom-0 p-14 text-white">
+      <div className="absolute inset-x-0 bottom-0 p-14 text-on-midnight">
         <div className="max-w-md">
-          <div className="text-[13px] font-bold tracking-[0.12em] text-[#FFB547] uppercase">Self-hosted · Open source</div>
-          <p className="mt-3 text-[30px] leading-[1.15] font-extrabold tracking-[-0.03em]">Know your people got home safe — on a server you own.</p>
-          <p className="mt-4 text-[15px] leading-relaxed text-white/60">Live sharing, full location history, trips and places. No subscriptions, no ads, no one else reading your map.</p>
+          <img src="/logo-mark.png" alt="" className="mb-6 size-14" />
+          <div className="text-[13px] font-bold tracking-[0.12em] text-lavender uppercase">Self-hosted · Open source</div>
+          <p className="mt-3 text-[30px] leading-[1.15] font-extrabold tracking-[-0.03em]">
+            Know your people got home safe, on a server <span className="text-brand-gradient">you own</span>.
+          </p>
+          <p className="mt-4 text-[15px] leading-relaxed text-on-midnight-muted">Live sharing, full location history, trips and places. No subscriptions, no ads, no one else reading your map.</p>
         </div>
       </div>
     </div>

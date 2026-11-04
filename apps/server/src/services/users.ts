@@ -14,7 +14,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 };
 
 /** A small, pleasant palette used for member avatars and map markers. */
-export const AVATAR_COLORS = ['#FF7A45', '#4C9AFF', '#36B37E', '#B37FEB', '#F5A524', '#13C2C2', '#F56A9A', '#7A8CFF'];
+export const AVATAR_COLORS = ['#6D3EF5', '#4C9AFF', '#36B37E', '#B37FEB', '#F5A524', '#13C2C2', '#F56A9A', '#7A8CFF'];
 
 export function pickAvatarColor(seed: string) {
   let h = 0;
@@ -36,13 +36,16 @@ export async function loadMe(sql: Sql, userId: string): Promise<Me | null> {
       sharing_paused: boolean;
       totp_enabled_at: Date | null;
       passkeys: number;
+      pending_email: string | null;
       created_at: Date;
       preferences: Partial<UserPreferences> & Record<string, unknown>;
     }[]
   >`
     SELECT u.id, u.email, u.display_name, u.avatar_color, u.avatar_url, u.email_verified_at, u.is_admin, u.is_demo,
            u.sharing_paused, u.totp_enabled_at, u.created_at, u.preferences,
-           (SELECT count(*)::int FROM passkeys p WHERE p.user_id = u.id) AS passkeys
+           (SELECT count(*)::int FROM passkeys p WHERE p.user_id = u.id) AS passkeys,
+           (SELECT t.email FROM auth_tokens t WHERE t.user_id = u.id AND t.purpose = 'change_email' AND t.used_at IS NULL
+              AND t.expires_at > now() ORDER BY t.created_at DESC LIMIT 1) AS pending_email
     FROM users u WHERE u.id = ${userId}`;
   if (!u) return null;
   return {
@@ -52,6 +55,7 @@ export async function loadMe(sql: Sql, userId: string): Promise<Me | null> {
     avatarColor: u.avatar_color,
     avatarUrl: u.avatar_url,
     emailVerified: Boolean(u.email_verified_at),
+    pendingEmail: u.pending_email,
     isAdmin: u.is_admin,
     isDemo: u.is_demo,
     sharingPaused: u.sharing_paused,

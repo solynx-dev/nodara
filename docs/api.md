@@ -17,21 +17,25 @@ Rate limits: 600 req/min/IP globally; auth endpoints ~10/min; ingestion 240/min.
 | Endpoint | Body | Description |
 |---|---|---|
 | `POST /auth/setup` | `{email, password, displayName, setupToken?}` | First-run: create the administrator (only when no users exist). |
-| `POST /auth/register` | `{email, password, displayName, inviteToken?, client?}` | Subject to the registration policy. With `inviteToken` the user joins that circle. |
-| `POST /auth/login` | `{email, password, client?: "web"\|"native"}` | → `{user}` (+ `token` for native) or `{twoFactorRequired: true}`. |
+| `POST /auth/register` | `{email, password, displayName, inviteToken?, client?}` | Subject to the registration policy. With `inviteToken` the user joins that circle. When the server requires email confirmation, → `{verificationRequired: true, email}` and no session (confirm with the emailed code, then log in). |
+| `POST /auth/login` | `{email, password, client?: "web"\|"native"}` | → `{user}` (+ `token` for native) or `{twoFactorRequired: true}`. `403 email_unverified` when the account must confirm its email first (a fresh code is emailed, at most every 2 minutes). |
 | `POST /auth/2fa` | `{code}` | TOTP code or recovery code, using the pending session. |
 | `POST /auth/logout` | | |
 | `GET /auth/me` | | Current user (`Me`). |
-| `POST /auth/verify-email` | `{token}` | |
-| `POST /auth/resend-verification` | | |
-| `POST /auth/forgot-password` | `{email}` | Always `200`. |
-| `POST /auth/reset-password` | `{token, password}` | Signs out all sessions. |
-| `POST /auth/password` | `{currentPassword, newPassword}` | Signs out other sessions. |
+| `POST /auth/verify-email` | `{token}` \| `{code}` (signed in) \| `{email, code}` | Confirm an email with the link's token or the emailed 6-digit code. |
+| `POST /auth/resend-verification` | `{email?}` | New code + link: to yourself when signed in, or to `email` from the sign-in screen. |
+| `POST /auth/forgot-password` | `{email}` | Always `200` → `{emailEnabled}`. Emails a link and a 6-digit code (2 hours). |
+| `POST /auth/reset-password/check` | `{email, code}` | Checks a reset code without using it (the app's second step). |
+| `POST /auth/reset-password` | `{token, password}` \| `{email, code, password}` | Signs out all sessions and emails a notice. |
+| `POST /auth/confirm-email` | `{token}` | Confirms an email change from its link (no sign-in needed). |
+| `POST /auth/password` | `{currentPassword, newPassword}` | Signs out other sessions and emails a notice. |
 | `GET /auth/sessions` · `DELETE /auth/sessions/:id` · `POST /auth/sessions/revoke-others` | | |
-| `POST /auth/totp/setup` → `{secret, uri}` · `POST /auth/totp/enable {code}` → `{recoveryCodes}` · `POST /auth/totp/disable {password}` | | |
-| `GET /auth/passkeys` · `DELETE /auth/passkeys/:id` | | |
+| `POST /auth/totp/setup` → `{secret, uri, qr}` (`qr`: PNG data URL) · `POST /auth/totp/enable {code}` → `{recoveryCodes}` · `POST /auth/totp/disable {password}` | | |
+| `GET /auth/passkeys` · `PATCH /auth/passkeys/:id {name}` · `DELETE /auth/passkeys/:id` | | |
 | `POST /auth/passkeys/register/options` → `{challengeId, options}` · `POST /auth/passkeys/register/verify {challengeId, response, name}` | | |
-| `POST /auth/passkeys/login/options` · `POST /auth/passkeys/login/verify {challengeId, response}` | | Discoverable-credential sign-in. |
+| `POST /auth/passkeys/login/options` · `POST /auth/passkeys/login/verify {challengeId, response, client?}` | | Discoverable-credential sign-in. `client: "native"` returns a bearer `token`. |
+
+Emailed codes are 6 digits, stored hashed, and only the newest code of each kind works. Five wrong tries use a code up. Codes are accepted with spaces (`123 456`).
 
 ## Account — `/me`
 
@@ -42,12 +46,18 @@ Rate limits: 600 req/min/IP globally; auth endpoints ~10/min; ingestion 240/min.
 | `PUT /me/avatar` | `{image}` — base64 JPEG, PNG or WebP (≤ 2 MB; data URLs accepted). Anything else, including SVG, is refused. Returns the updated profile with a versioned `avatarUrl`. Clients should shrink photos first (the apps send 512×512 JPEG). |
 | `DELETE /me/avatar` | Remove the profile photo. |
 | `GET /users/:id/avatar?v=…` | The photo itself. Only for yourself and people who share a circle with you (404 otherwise). Cached forever per version; served with `nosniff` and a sandboxing CSP. |
+| `POST /me/email` | `{email, password}` — move the account to a new address. With email set up, the new address gets a code and link (24 hours) and the old one a heads-up; `Me.pendingEmail` shows it until confirmed. Without email the change is immediate. → `{changed, user}`. |
+| `POST /me/email/confirm` | `{code}` — confirm the change; the old address is told. → `{user}`. |
+| `DELETE /me/email/pending` | Cancel a pending change. |
+| `GET /bubble` | `{bubble: Bubble \| null, circles: [{id, name, color, allowed, sharing}]}` — your bubble and which circles it hides you from. |
+| `POST /bubble` | `{radiusM (500–100000), hours (0.25–24), lat?, lon?}` — start (or replace) a bubble around where you are. Refused when every circle has bubbles off. |
+| `DELETE /bubble` | End it now. |
 | `DELETE /me` | `{password, confirm: "DELETE"}` — delete the account and all data. |
 | `GET /me/export?format=json\|geojson\|gpx\|csv&from&to` | Streamed export of your own data. |
 
 ## Devices — `/devices`
 
-`GET /devices` · `POST /devices {name, kind}` → `{device, token}` (token for non-web kinds, shown once) · `PATCH /devices/:id {name}` · `POST /devices/:id/token` (rotate) · `DELETE /devices/:id` (revoke) · `PUT /devices/:id/push {subscription}` · `DELETE /devices/:id/push` · `PUT /devices/:id/native-push {token}` (Expo push token from the iOS app) · `DELETE /devices/:id/native-push` · `POST /devices/:id/push/test`.
+`GET /devices` · `POST /devices {name, kind}` → `{device, token}` (token for non-web kinds, shown once) · `PATCH /devices/:id {name}` · `POST /devices/:id/token` (rotate) · `DELETE /devices/:id` (revoke) · `PUT /devices/:id/push {subscription}` · `DELETE /devices/:id/push` · `PUT /devices/:id/native-push {token}` (Expo push token from the iOS app) · `DELETE /devices/:id/native-push` · `PUT /devices/:id/wake-token {token}` / `DELETE /devices/:id/wake-token` (Expo token for silent location refreshes; registered by phones that share, independent of notification settings) · `POST /devices/:id/push/test`.
 
 ## Locations
 
@@ -59,6 +69,7 @@ Rate limits: 600 req/min/IP globally; auth endpoints ~10/min; ingestion 240/min.
 | `POST /ingest/overland` | Overland GeoJSON batch. |
 | `GET /live` | Everyone visible to you across all circles (`MemberLocation[]`). |
 | `GET /circles/:id/live` | Members of one circle. |
+| `POST /users/:userId/refresh-location` | Silently ask that person's phone for a fresh fix (a content-available push with no alert). Nobody is notified and nothing is logged. One request per person every 10 s, whoever asks. Returns `{requested: true, devices}` or `{requested: false, reason: 'not_visible' \| 'paused' \| 'no_app' \| 'too_soon', retryAfterSec?}`. Live members carry `canRefresh` when this will work. Phones that have sent nothing for an hour are also woken automatically, at most hourly. |
 
 ## History — `/history/:userId`
 
@@ -76,8 +87,9 @@ Rate limits: 600 req/min/IP globally; auth endpoints ~10/min; ingestion 240/min.
 |---|---|
 | `GET /trips?userId&from&to&before&limit` | Trips, newest first (cursor: `before` = last `startedAt`). Includes estimated `mode`. |
 | `GET /trips/:id` | Trip with simplified `route` coordinates, `stops`, decimated speed `samples`. |
+| `PATCH /trips/:id` | Your own completed trips only: `{mode?: "driving"\|"walking", role?: "driver"\|"passenger"}`. Passenger rides and walks (and their driving events) don't count in driving reports or driving insights. Trips are only ever `driving` or `walking`. |
 | `DELETE /trips/:id` | Delete one of your trips (history is kept). |
-| `POST /trips/rebuild` | Recompute your trips from history. |
+| `POST /trips/rebuild` | Recompute your trips from history. Drive/walk and driver/passenger corrections are carried over to the recomputed trip that overlaps them most. |
 | `GET /insights?userId&period=week\|month\|year&offset&tz&mode=driving\|all` | Totals, previous-period comparison and buckets. |
 
 ## Driving reports
@@ -98,8 +110,8 @@ Events are detected on the server from uploaded fixes (speeding, hard braking, r
 |---|---|
 | `GET /circles` · `POST /circles {name, color}` | |
 | `GET /circles/:id` | Detail with members (emails only for admins). |
-| `GET /live` · `GET /circles/:id/live` | Members with their latest visible location, `currentPlace`, `inTrip`, and `stay: {since, atLeast} \| null` — when they arrived where they are now (geofence arrival, else the end of their last trip if it ended within 1 km). `atLeast` is true when the real arrival is earlier than what you're allowed to see. |
-| `PATCH /circles/:id` | Admin: `{name?, color?, settings?: {historyVisible, tripsVisible, membersCanInvite}}`. |
+| `GET /live` · `GET /circles/:id/live` | Members with their latest visible location, `currentPlace`, `inTrip`, and `stay: {since, atLeast} \| null` — when they arrived where they are now (geofence arrival, else the end of their last trip if it ended within 1 km). `atLeast` is true when the real arrival is earlier than what you're allowed to see. Someone in a bubble has `location: null` and `bubble: {lat, lon, radiusM, label, startedAt, endsAt, battery, charging, seenAt}` (a randomised centre); your own entry carries your active `bubble` alongside your location. |
+| `PATCH /circles/:id` | Admin: `{name?, color?, settings?: {historyVisible, tripsVisible, membersCanInvite, bubblesAllowed}}`. Turning `bubblesAllowed` off shows members' exact locations to this circle even during a bubble. |
 | `DELETE /circles/:id` | Owner only. |
 | `PATCH /circles/:id/me` | `{sharing?, notify?: {muted}}`. |
 | `PATCH /circles/:id/members/:userId` | `{role}` (owner can transfer ownership). |
@@ -118,11 +130,11 @@ Events are detected on the server from uploaded fixes (speeding, hard braking, r
 
 ## Administration (admins only)
 
-`GET /admin/overview` · `GET/POST /admin/users` · `PATCH /admin/users/:id {isAdmin?, disabled?}` · `POST /admin/users/:id/reset-link` · `DELETE /admin/users/:id` · `GET/PATCH /admin/settings` · `GET /admin/audit` · `GET /admin/retention/preview` · `POST /admin/retention/run` · `GET /admin/telemetry/preview` · `DELETE /admin/demo`.
+`GET /admin/overview` · `GET/POST /admin/users` · `PATCH /admin/users/:id {isAdmin?, disabled?}` · `POST /admin/users/:id/reset-link` · `DELETE /admin/users/:id` · `GET/PATCH /admin/settings` (includes `requireEmailVerification`) · `POST /admin/email/test` → `{ok, to?, error?}` (emails the admin) · `GET /admin/audit` · `GET /admin/retention/preview` · `POST /admin/retention/run` · `GET /admin/telemetry/preview` · `DELETE /admin/demo`.
 
 ## System
 
-`GET /health` · `GET /version` · `GET /config` (public: instance name, registration policy, map styles, VAPID public key, feature flags).
+`GET /health` · `GET /version` · `GET /config` (public: instance name, registration policy, map styles, VAPID public key, feature flags, `emailEnabled`, `passkeyRpId`) · `GET /.well-known/apple-app-site-association` (lets the iOS app use passkeys for this domain; see `APPLE_APP_IDS`).
 
 ## WebSocket — `GET /api/ws`
 
@@ -130,8 +142,9 @@ Authenticated by the session cookie (or bearer) during the upgrade. Server → c
 
 ```ts
 { type: 'hello', userId }
-{ type: 'location', userId, location: LocationFix }
+{ type: 'location', userId, location: LocationFix, trail?: TrailPoint[] }   // trail: the fixes from that upload, for smooth live movement
 { type: 'sharing', userId, circleId | null, sharing }
+{ type: 'bubble', userId }   // someone's bubble started, ended or changed: refetch /live
 { type: 'notification', notification }
 { type: 'trip', userId, tripId, status }
 { type: 'presence', userId, placeId, inside }

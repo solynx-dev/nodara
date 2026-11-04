@@ -13,7 +13,7 @@ import { MapView } from '@/features/map/MapView';
 import { HtmlMarker, PointsLayer, RouteLayer } from '@/features/map/layers';
 import { HistoryCalendar } from '@/features/history/Calendar';
 import { PlaybackBar, usePlaybackClock } from '@/features/history/Playback';
-import { MODE_META, tripTitle } from '@/features/trips/TripRow';
+import { tripKind, tripTitle } from '@/features/trips/TripRow';
 import { BatteryIndicator } from '@/features/members/MemberRow';
 
 type Range = 'day' | 'week' | 'month';
@@ -146,7 +146,7 @@ export default function HistoryPage() {
       <aside className="order-2 w-full shrink-0 border-line lg:order-1 lg:w-[380px] lg:overflow-y-auto lg:border-r">
         <div className="space-y-5 p-4 sm:p-5">
           <div className="hidden lg:block">
-            <h1 className="text-[24px] font-extrabold tracking-[-0.03em]">History</h1>
+            <h1 className="text-[28px] leading-tight font-extrabold tracking-[-0.025em]">History</h1>
             <p className="text-[13px] text-muted">Every place, every trip — kept on your server for as long as you want.</p>
           </div>
           <div className="scrollbar-none -mx-1 flex gap-1.5 overflow-x-auto px-1">
@@ -199,7 +199,7 @@ export default function HistoryPage() {
 
         {/* Range header */}
         <div className="safe-top absolute inset-x-3 top-3 z-10 flex flex-wrap items-center gap-2">
-          <div className="flex items-center rounded-2xl border border-line bg-elevated/95 p-1 shadow-card backdrop-blur">
+          <div className="flex items-center glass rounded-[24px] p-1 shadow-card backdrop-blur">
             <IconButton label="Previous" onClick={() => shift(-1)}>
               <ChevronLeft className="size-4" />
             </IconButton>
@@ -268,7 +268,7 @@ export default function HistoryPage() {
 
 function StatChip({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-line bg-elevated/95 px-3 py-1.5 shadow-card backdrop-blur">
+    <div className="glass rounded-full px-3 py-1.5 shadow-card backdrop-blur">
       <div className="eyebrow text-[9.5px]">{label}</div>
       <div className="tnum text-[14px] font-bold">
         {value} {sub && <span className="text-[10.5px] font-semibold text-muted">{sub}</span>}
@@ -313,7 +313,7 @@ function Timeline({
               {item.type === 'stay' ? (
                 <button onClick={() => onStay(item)} className="relative flex w-full items-start gap-3 rounded-xl py-2 pr-2 text-left hover:bg-surface-2">
                   <span className="relative z-10 mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface">
-                    {item.placeId ? <Home className="size-4 text-accent" /> : <MapPin className="size-4 text-ink-2" />}
+                    {item.placeId ? <Home className="size-4 text-accent-text" /> : <MapPin className="size-4 text-ink-2" />}
                   </span>
                   <div className="min-w-0 flex-1 pt-0.5">
                     <div className="truncate text-[14.5px] font-bold">{item.label ?? coords(item.lat, item.lon)}</div>
@@ -335,7 +335,7 @@ function Timeline({
 
 function TimelineTrip({ item, selected, onClick, units }: { item: Extract<TimelineItem, { type: 'trip' }>; selected: boolean; onClick: () => void; units: 'metric' | 'imperial' }) {
   const t = item.trip;
-  const Mode = MODE_META[t.mode].icon;
+  const Mode = tripKind(t).icon;
   const { to } = tripTitle(t);
   return (
     <div className={cx('relative my-1 flex items-start gap-3 rounded-2xl py-2.5 pr-2 transition', selected && 'bg-accent-soft')}>
@@ -344,7 +344,7 @@ function TimelineTrip({ item, selected, onClick, units }: { item: Extract<Timeli
       </span>
       <button onClick={onClick} className="min-w-0 flex-1 text-left">
         <div className="text-[14px] font-bold">
-          {MODE_META[t.mode].label} to <span className="text-ink">{to}</span>
+          {tripKind(t).label} to <span className="text-ink">{to}</span>
         </div>
         <div className="tnum text-[12.5px] text-muted">
           {clock(t.startedAt)} · {formatDistance(t.distanceM, units)} · {formatDuration(t.durationSec)}
@@ -361,7 +361,7 @@ function TimelineTrip({ item, selected, onClick, units }: { item: Extract<Timeli
 function PointInspector({ userId, id, onClose, units }: { userId: string; id: string; onClose: () => void; units: 'metric' | 'imperial' }) {
   const { data, error } = useQuery({ queryKey: ['point', userId, id], queryFn: () => api.get<LocationFix & { address: string | null }>(`/api/history/${userId}/points/${id}`) });
   return (
-    <div className="absolute top-[68px] right-3 z-20 w-72 animate-rise rounded-2xl border border-line bg-elevated p-4 shadow-float sm:top-[120px]">
+    <div className="absolute top-[68px] right-3 z-20 w-72 animate-rise rounded-[24px] bg-elevated p-4 shadow-float sm:top-[120px]">
       <div className="mb-2 flex items-center justify-between">
         <div className="eyebrow">Location point</div>
         <IconButton label="Close" onClick={onClose} className="-mr-2 size-7">

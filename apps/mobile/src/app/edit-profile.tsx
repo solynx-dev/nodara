@@ -96,7 +96,7 @@ export default function EditProfile() {
             <View style={styles.cameraBadge}>{uploading ? <ActivityIndicator color="white" /> : <SymbolView name="camera.fill" size={17} tintColor="white" />}</View>
           </Tap>
           <Tap onPress={changePhoto} haptic="none">
-            <Text style={{ fontSize: 17, fontWeight: '600', color: C.accent }}>{me.avatarUrl ? 'Change photo' : 'Add a photo'}</Text>
+            <Text style={{ fontSize: 17, fontWeight: '600', color: C.accentText }}>{me.avatarUrl ? 'Change photo' : 'Add a photo'}</Text>
           </Tap>
         </Animated.View>
 

@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Marked } from 'marked';
+import { BRAND } from '@nodara/shared';
 import type { Ctx } from '../context.js';
 
 /**
@@ -57,15 +58,15 @@ export function renderPolicy(markdown: string, instanceName: string): string {
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="/favicon.png">
 <style>
-:root{--bg:#f6f5f2;--card:#fff;--ink:#16181d;--ink2:#545a66;--line:#e6e3dc;--accent:#ff6b3d;--accent-ink:#d94a1f;--soft:#fff1eb}
-@media (prefers-color-scheme:dark){:root{--bg:#0c0e12;--card:#15181e;--ink:#eef0f3;--ink2:#a3a9b5;--line:#262a32;--accent:#ff7a4d;--accent-ink:#ff9a75;--soft:#2a1a14}}
+:root{--bg:#f7f7fb;--card:#fff;--ink:#12132a;--ink2:#474b66;--line:#e6e4f2;--accent:${BRAND.purple};--accent-ink:${BRAND.purpleHover};--soft:#f1edff}
+@media (prefers-color-scheme:dark){:root{--bg:${BRAND.midnight};--card:${BRAND.midnightSurface};--ink:${BRAND.textOnDark};--ink2:${BRAND.mutedOnDark};--line:${BRAND.midnightBorder};--accent:${BRAND.lavender};--accent-ink:${BRAND.lavender};--soft:#1d1f38}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.65 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
 header{position:sticky;top:0;z-index:1;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:saturate(180%) blur(14px);-webkit-backdrop-filter:saturate(180%) blur(14px);border-bottom:1px solid var(--line)}
 .bar{max-width:760px;margin:0 auto;padding:12px max(20px,env(safe-area-inset-left));display:flex;align-items:center;gap:10px}
 .brand{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none;font-weight:800;font-size:18px;letter-spacing:-.2px}
-.brand svg{width:28px;height:28px}
+.brand img{width:30px;height:30px}
 .bar .spacer{flex:1}
 .bar .open{color:var(--accent-ink);text-decoration:none;font-weight:600;font-size:15px}
 main{max-width:760px;margin:0 auto;padding:28px max(20px,env(safe-area-inset-left)) 64px}
@@ -97,7 +98,7 @@ footer a{color:var(--ink2)}
 </head>
 <body>
 <header><div class="bar">
-<a class="brand" href="/"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFB547"/><stop offset="1" stop-color="#FF5A2B"/></linearGradient></defs><path d="M32 58S14 41.5 14 26a18 18 0 0 1 36 0c0 15.5-18 32-18 32z" fill="none" stroke="url(#g)" stroke-width="6" stroke-linejoin="round"/><circle cx="32" cy="26" r="6.5" fill="url(#g)"/><circle cx="51" cy="8" r="4" fill="#FFB547"/></svg>${escapeHtml(instanceName)}</a>
+<a class="brand" href="/"><img src="/logo-mark.png" alt="">${escapeHtml(instanceName)}</a>
 <span class="spacer"></span><a class="open" href="/">Open Nodara</a>
 </div></header>
 <main><article>
@@ -124,4 +125,14 @@ export default async function legalRoutes(app: FastifyInstance, ctx: Ctx) {
     return reply.type('text/html; charset=utf-8').header('Cache-Control', 'public, max-age=600').send(html);
   });
   app.get('/privacy', async (_req, reply) => reply.redirect('/privacy-policy', 301));
+
+  /**
+   * Lets the iOS app create and use passkeys for this domain (Apple reads this
+   * through its CDN before trusting the app's webcredentials entitlement).
+   */
+  app.get('/.well-known/apple-app-site-association', async (_req, reply) => {
+    const apps = ctx.config.APPLE_APP_IDS.split(',').map((s) => s.trim()).filter(Boolean);
+    if (!apps.length) return reply.code(404).type('text/plain').send('Not found');
+    return reply.type('application/json').header('Cache-Control', 'public, max-age=3600').send({ webcredentials: { apps } });
+  });
 }

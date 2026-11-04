@@ -5,19 +5,23 @@ import type { DrivingKind } from './driving';
 
 export type {
   AppNotification,
+  Bubble,
   Circle,
   LocationFix,
   Me,
+  MemberBubble,
   MemberLocation,
   Place,
   PublicConfig,
   ServerEvent,
+  TrailPoint,
   TripSummary,
   UserPreferences,
 } from '@shared/types';
 
 
-export type TravelMode = 'walking' | 'cycling' | 'driving' | 'unknown';
+/** Servers detect drives and walks; 'cycling' and 'unknown' only come from older servers. */
+export type TravelMode = 'walking' | 'driving' | 'cycling' | 'unknown';
 export interface Trip extends TripSummary {
   mode: TravelMode;
 }
@@ -26,7 +30,7 @@ export interface TripDetail extends Trip {
   pointCount: number;
   route: [number, number][];
   stops: { lat: number; lon: number; arrivedAt: string; departedAt: string; durationSec: number }[];
-  samples: { t: string; speed: number | null; source: string }[];
+  samples: { t: string; speed: number | null; source: string; lat?: number; lon?: number }[];
   /** Missing on servers older than driving reports. */
   events?: DrivingEvent[];
 }
@@ -47,7 +51,7 @@ export interface CircleDetail {
   role: 'owner' | 'admin' | 'member';
   sharing: boolean;
   memberCount: number;
-  settings: { historyVisible: boolean; tripsVisible: boolean; membersCanInvite: boolean };
+  settings: { historyVisible: boolean; tripsVisible: boolean; membersCanInvite: boolean; bubblesAllowed?: boolean };
   notify: { muted: boolean };
   members: CircleMember[];
 }
@@ -134,4 +138,10 @@ export interface DrivingReport {
     previous: DrivingCounts;
   };
   people: DrivingPerson[];
+}
+
+/** Your bubble, and which circles it hides you from. */
+export interface BubbleState {
+  bubble: import('@shared/types').Bubble | null;
+  circles: { id: string; name: string; color: string; allowed: boolean; sharing: boolean }[];
 }

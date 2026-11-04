@@ -36,7 +36,7 @@ export function SharingPanel() {
 
   return (
     <div className="space-y-5 pb-2">
-      <div className="rounded-2xl border border-line bg-surface-2/50 p-4">
+      <div className="rounded-[22px] bg-surface-2 p-4">
         <div className="flex items-start gap-3">
           <div className={cx('flex size-10 shrink-0 items-center justify-center rounded-xl', t.enabled ? 'bg-success/12 text-success' : 'bg-surface-3 text-muted')}>
             <Smartphone className="size-5" />
@@ -109,7 +109,7 @@ export function SharingPanel() {
       {circles && circles.length > 0 && (
         <div>
           <div className="eyebrow mb-2">Per circle</div>
-          <div className="divide-y divide-line rounded-2xl border border-line">
+          <div className="divide-y divide-line rounded-[22px] bg-surface-2">
             {circles.map((c) => (
               <div key={c.id} className="flex items-center gap-3 px-3.5 py-3">
                 <span className="size-2.5 rounded-full" style={{ background: c.color }} />

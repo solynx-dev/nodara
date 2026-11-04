@@ -5,9 +5,9 @@ import type { Ctx } from '../context.js';
 import { requireUser } from '../auth.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { parse } from '../lib/validate.js';
-import { circleMatesOf, historyAccess, isCircleMember, type HistoryAccess } from '../services/access.js';
-import { COUNTED, DRIVING_KINDS, recordPhoneUse, type DrivingKind } from '../services/driving.js';
-import { MODE_SQL } from '../services/serialize.js';
+import { circleMatesOf, historyAccess, inBubbleSql, isCircleMember, tripsVisibleSql, type HistoryAccess } from '../services/access.js';
+import { AS_DRIVER, COUNTED, DRIVING_KINDS, recordPhoneUse, type DrivingKind } from '../services/driving.js';
+import { DRIVER_SQL } from '../services/serialize.js';
 import { ingestIdentity } from './locations.js';
 
 const uuid = z.string().uuid();
@@ -27,7 +27,11 @@ export interface DrivingEventOut {
 }
 
 /** SQL fragment: only events the viewer may see (same rules as trips). */
-const visible = (ctx: Ctx, access: Exclude<HistoryAccess, null>) => (access.own ? ctx.sql`` : ctx.sql`AND e.shared AND e.started_at >= ${access.since}`);
+const visible = (ctx: Ctx, access: Exclude<HistoryAccess, null>) =>
+  access.own
+    ? ctx.sql``
+    : ctx.sql`AND e.shared AND e.started_at >= ${access.since}
+        ${access.bubbles ? ctx.sql`AND NOT ${inBubbleSql(ctx.sql, ctx.sql`${access.userId}::uuid`, ctx.sql`e.started_at`)}` : ctx.sql``}`;
 
 export async function drivingEvents(ctx: Ctx, userId: string, access: Exclude<HistoryAccess, null>, from: Date, to: Date, limit = 500): Promise<DrivingEventOut[]> {
   const rows = await ctx.sql<{ id: number; kind: DrivingKind; started_at: Date; ended_at: Date; lat: number; lon: number; speed: number | null; value: number | null; trip_id: string | null }[]>`
@@ -37,7 +41,7 @@ export async function drivingEvents(ctx: Ctx, userId: string, access: Exclude<Hi
       SELECT id FROM trips WHERE user_id = e.user_id AND started_at <= e.started_at AND COALESCE(ended_at, now()) >= e.started_at
       ORDER BY started_at DESC LIMIT 1
     ) t ON true
-    WHERE e.user_id = ${userId} AND e.started_at >= ${from} AND e.started_at < ${to} AND ${ctx.sql.unsafe(COUNTED)}
+    WHERE e.user_id = ${userId} AND e.started_at >= ${from} AND e.started_at < ${to} AND ${ctx.sql.unsafe(COUNTED)} AND ${ctx.sql.unsafe(AS_DRIVER)}
       ${visible(ctx, access)}
     ORDER BY e.started_at DESC LIMIT ${limit}`;
   return rows.map((r) => ({
@@ -135,20 +139,19 @@ export default async function drivingRoutes(app: FastifyInstance, ctx: Ctx) {
         people.push({ user, hidden: true as const });
         continue;
       }
-      const since = access.own ? null : access.since;
       const [t] = await sql<{ drives: number; distance: number; duration: number; top: number | null }[]>`
         SELECT count(*)::int AS drives, COALESCE(sum(distance_m), 0)::float AS distance,
                COALESCE(sum(duration_sec), 0)::int AS duration, max(max_speed) AS top
         FROM trips
-        WHERE user_id = ${u.id} AND status = 'completed' AND ${sql.unsafe(MODE_SQL)} = 'driving'
+        WHERE user_id = ${u.id} AND status = 'completed' AND ${sql.unsafe(DRIVER_SQL)}
           AND started_at >= ${start} AND started_at < ${end}
-          ${since ? sql`AND started_at >= ${since}` : sql``}`;
+          ${tripsVisibleSql(sql, access)}`;
       const counts = await sql<{ kind: DrivingKind; current: number; previous: number }[]>`
         SELECT kind,
                count(*) FILTER (WHERE started_at >= ${start})::int AS current,
                count(*) FILTER (WHERE started_at < ${start})::int AS previous
         FROM driving_events e
-        WHERE user_id = ${u.id} AND started_at >= ${prev_start} AND started_at < ${end} AND ${sql.unsafe(COUNTED)}
+        WHERE user_id = ${u.id} AND started_at >= ${prev_start} AND started_at < ${end} AND ${sql.unsafe(COUNTED)} AND ${sql.unsafe(AS_DRIVER)}
           ${visible(ctx, access)}
         GROUP BY kind`;
       const events = zero();

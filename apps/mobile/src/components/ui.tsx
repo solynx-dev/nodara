@@ -1,5 +1,5 @@
 import { createContext, use, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, type ColorValue, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
@@ -57,11 +57,27 @@ export function Glass({ style, children, interactive, tint }: { style?: StylePro
   );
 }
 
-export function GlassButton({ icon, label, onPress, badge, size = 48, tintIcon }: { icon: SFSymbol; label: string; onPress: () => void; badge?: number; size?: number; tintIcon?: string }) {
+export function GlassButton({
+  icon,
+  label,
+  onPress,
+  badge,
+  size = 48,
+  tintIcon,
+  busy,
+}: {
+  icon: SFSymbol;
+  label: string;
+  onPress: () => void;
+  badge?: number;
+  size?: number;
+  tintIcon?: string;
+  busy?: boolean;
+}) {
   return (
-    <Tap accessibilityLabel={label} accessibilityRole="button" onPress={onPress}>
+    <Tap accessibilityLabel={label} accessibilityRole="button" accessibilityState={{ busy: Boolean(busy) }} onPress={busy ? () => {} : onPress}>
       <Glass style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center' }}>
-        <SymbolView name={icon} size={size * 0.42} weight="medium" tintColor={tintIcon ?? C.label} />
+        {busy ? <ActivityIndicator color={tintIcon ?? C.label} /> : <SymbolView name={icon} size={size * 0.42} weight="medium" tintColor={tintIcon ?? C.label} />}
       </Glass>
       {!!badge && (
         <View pointerEvents="none" style={styles.badge}>
@@ -72,10 +88,10 @@ export function GlassButton({ icon, label, onPress, badge, size = 48, tintIcon }
   );
 }
 
-export function GlassPill({ icon, label, onPress, accent, sub }: { icon: SFSymbol; label: string; onPress: () => void; accent?: boolean; sub?: string }) {
+export function GlassPill({ icon, label, onPress, accent, sub, tint }: { icon: SFSymbol; label: string; onPress: () => void; accent?: boolean; sub?: string; tint?: string }) {
   return (
-    <Tap accessibilityRole="button" accessibilityLabel={label} onPress={onPress} haptic="light">
-      <Glass tint={accent ? 'rgba(255,107,61,0.85)' : undefined} style={styles.pill}>
+    <Tap accessibilityRole="button" accessibilityLabel={sub ? `${label}, ${sub}` : label} onPress={onPress} haptic="light">
+      <Glass tint={accent ? (tint ?? 'rgba(109,62,245,0.9)') : undefined} style={styles.pill}>
         <SymbolView name={icon} size={18} weight="semibold" tintColor={accent ? 'white' : C.label} />
         <View>
           <Text style={[styles.pillText, accent && { color: 'white' }]}>{label}</Text>
@@ -173,7 +189,7 @@ export function Segmented<K extends string>({
         const on = s.key === value;
         return (
           <Tap key={s.key} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => onChange(s.key)} style={styles.segmentItem}>
-            {s.icon && <SymbolView name={s.icon} size={15} tintColor={on ? C.accent : C.secondaryLabel} />}
+            {s.icon && <SymbolView name={s.icon} size={15} tintColor={on ? C.accentText : C.secondaryLabel} />}
             <Text style={[styles.segmentText, on && { color: C.label }]}>{s.label}</Text>
             {!!s.count && <Text style={styles.segmentCount}>{s.count}</Text>}
           </Tap>
@@ -198,11 +214,11 @@ export function LiveDot({ color = HEX.green, live, size = 10 }: { color?: string
   );
 }
 
-export function StatusPill({ icon, text, color }: { icon?: SFSymbol; text: string; color: string }) {
+export function StatusPill({ icon, text, color, textColor }: { icon?: SFSymbol; text: string; color: string; textColor?: ColorValue }) {
   return (
     <View style={[styles.statusPill, { backgroundColor: `${color}22` }]}>
-      {icon && <SymbolView name={icon} size={11} weight="bold" tintColor={color} />}
-      <Text style={[styles.statusText, { color }]} numberOfLines={1}>
+      {icon && <SymbolView name={icon} size={11} weight="bold" tintColor={textColor ?? color} />}
+      <Text style={[styles.statusText, { color: textColor ?? color }]} numberOfLines={1}>
         {text}
       </Text>
     </View>
@@ -288,8 +304,8 @@ export function PrimaryButton({ title, onPress, loading, disabled, icon, tone = 
   const plain = tone === 'plain';
   return (
     <Tap disabled={disabled || loading} onPress={onPress} haptic="light" style={[styles.primary, plain && { backgroundColor: C.fill }, (disabled || loading) && { opacity: 0.5 }]}>
-      {loading ? <ActivityIndicator color={plain ? undefined : 'white'} /> : icon ? <SymbolView name={icon} size={18} tintColor={plain ? C.accent : 'white'} /> : null}
-      <Text style={[styles.primaryText, plain && { color: C.accent }]}>{title}</Text>
+      {loading ? <ActivityIndicator color={plain ? undefined : 'white'} /> : icon ? <SymbolView name={icon} size={18} tintColor={plain ? C.accentText : 'white'} /> : null}
+      <Text style={[styles.primaryText, plain && { color: C.accentText }]}>{title}</Text>
     </Tap>
   );
 }
@@ -298,7 +314,7 @@ export function Empty({ icon, title, body, action }: { icon: SFSymbol; title: st
   return (
     <Animated.View entering={appear} style={{ alignItems: 'center', paddingVertical: 36, paddingHorizontal: 28, gap: 8 }}>
       <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-        <SymbolView name={icon} size={36} tintColor={C.accent} type="hierarchical" />
+        <SymbolView name={icon} size={36} tintColor={C.accentText} type="hierarchical" />
       </View>
       <Text style={[T.title3, { color: C.label, textAlign: 'center' }]}>{title}</Text>
       {body && <Text style={[T.subhead, { color: C.secondaryLabel, textAlign: 'center', lineHeight: 21 }]}>{body}</Text>}

@@ -3,9 +3,11 @@ import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import MapView, { Circle as MapCircle, Marker, type EdgePadding, type MapType, type Region } from 'react-native-maps';
 import type { MemberLocation, PlaceWithMeta } from '@/lib/types';
 import { ago, firstName, formatSpeed, freshness, type Units } from '@/lib/format';
-import { stayDuration } from '@/lib/status';
+import { BUBBLE_COLOR, stayDuration } from '@/lib/status';
+import { SymbolView } from 'expo-symbols';
 import { C } from '@/lib/theme';
 import { Avatar } from '@/components/ui';
+import { useLiveDrive } from './useLiveDrive';
 import { liveSpeed, redSpeedMps, speedUnit, speedValue } from '@/lib/driving';
 import { PlaceSymbol } from './placeIcons';
 
@@ -89,17 +91,32 @@ export const NodaraMap = forwardRef<
     onSelect: (id: string) => void;
     onGroupPress: (members: MemberLocation[]) => void;
     onPlacePress: (p: PlaceWithMeta) => void;
+    /** Called about once a second with the selected person's smoothed position while they drive. */
+    onFollow?: (lat: number, lon: number) => void;
     onLongPress: (lat: number, lon: number) => void;
     onMapPress: () => void;
   }
->(function NodaraMap({ members, places, meId, units, selectedId, mapType, region, bottomInset, attributionInsets, onRegion, onSelect, onGroupPress, onPlacePress, onLongPress, onMapPress }, ref) {
+>(function NodaraMap({ members, places, meId, units, selectedId, mapType, region, bottomInset, attributionInsets, onRegion, onSelect, onGroupPress, onPlacePress, onLongPress, onMapPress, onFollow }, ref) {
   const screen = useWindowDimensions();
   const view = region ?? { latitude: 0, longitude: 0, latitudeDelta: 0.2, longitudeDelta: 0.2 };
   const tier = tierFor(view.latitudeDelta);
-  const located = useMemo(() => members.filter((m) => m.location), [members]);
+  // Drivers glide along their real path instead of jumping between uploads.
+  const smooth = useLiveDrive(members, selectedId, onFollow);
+  const located = useMemo(
+    () =>
+      members
+        .filter((m) => m.location)
+        .map((m) => {
+          const s = smooth.get(m.id);
+          return s ? { ...m, location: { ...m.location!, lat: s.lat, lon: s.lon, speed: s.speed ?? m.location!.speed } } : m;
+        }),
+    [members, smooth],
+  );
   // Cheap for family-sized circles; region only changes when a pan or zoom finishes.
   const groups = groupMembers(located, view, tier, screen);
   const occupied = new Set(located.filter((m) => m.currentPlace).map((m) => m.currentPlace!.id));
+  // People in a bubble show as a soft area, not a pin. Your own bubble is drawn too, so you see what they see.
+  const bubbled = members.filter((m) => m.bubble && (!m.location || m.id === meId));
 
   return (
     <MapView
@@ -141,6 +158,55 @@ export const NodaraMap = forwardRef<
               </View>
             </Marker>
           ))}
+      {bubbled.map((m) => (
+        <MapCircle
+          key={`bubble-area-${m.id}-${m.bubble!.id}`}
+          center={{ latitude: m.bubble!.lat, longitude: m.bubble!.lon }}
+          radius={m.bubble!.radiusM}
+          strokeColor={`${BUBBLE_COLOR}B3`}
+          strokeWidth={2}
+          lineDashPattern={[8, 6]}
+          fillColor={m.id === meId ? `${BUBBLE_COLOR}14` : `${BUBBLE_COLOR}24`}
+          zIndex={1}
+        />
+      ))}
+      {bubbled
+        .filter((m) => m.id !== meId)
+        .map((m) => {
+          const selected = m.id === selectedId;
+          const size = SIZE[tier];
+          const ring = RING[tier];
+          const outer = size + ring * 2;
+          const showLabel = selected || tier === 'near';
+          const total = outer + (showLabel ? LABEL_GAP + LABEL_H : 0);
+          return (
+            <Marker
+              key={`bubble-${m.id}:${tier}:${selected ? 's' : ''}:${showLabel ? 'l' : ''}`}
+              coordinate={{ latitude: m.bubble!.lat, longitude: m.bubble!.lon }}
+              centerOffset={{ x: 0, y: total / 2 - outer / 2 }}
+              onPress={() => onSelect(m.id)}
+              zIndex={selected ? 3 : 2}
+            >
+              <View collapsable={false} style={{ alignItems: 'center' }}>
+                <View style={[styles.bubble, { height: outer, width: outer, borderRadius: outer / 2, padding: ring, backgroundColor: selected ? C.accent : BUBBLE_COLOR }]}>
+                  <Avatar name={m.displayName} color={m.avatarColor} url={m.avatarUrl} size={size} dim />
+                  {tier !== 'far' && (
+                    <View style={[styles.bubbleBadge, { left: outer - 14 }]}>
+                      <SymbolView name="circle.dashed" size={10} weight="bold" tintColor="white" />
+                    </View>
+                  )}
+                </View>
+                {showLabel && (
+                  <View style={styles.label}>
+                    <Text style={styles.labelText} allowFontScaling={false} numberOfLines={1}>
+                      {firstName(m.displayName)} · in a bubble
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </Marker>
+          );
+        })}
       {groups.map((g) => {
         const selected = g.members.some((m) => m.id === selectedId);
         const showLabel = selected || (tier === 'near' && !selectedId);
@@ -225,6 +291,18 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
   },
   more: { marginHorizontal: 5, fontWeight: '800', color: '#1c1c1e' },
+  bubbleBadge: {
+    position: 'absolute',
+    bottom: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: BUBBLE_COLOR,
+    borderWidth: 1.5,
+    borderColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   redGlow: { shadowColor: RED, shadowOpacity: 0.8, shadowRadius: 8, shadowOffset: { width: 0, height: 0 } },
   speed: {
     position: 'absolute',

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { api } from './api';
-import type { Circle, DrivingEvent, DrivingReport, MemberLocation, PlaceEvent, PlaceWithMeta, Trip } from './types';
+import type { BubbleState, Circle, DrivingEvent, DrivingReport, MemberLocation, PlaceEvent, PlaceWithMeta, Trip } from './types';
 
 /** Live members of one circle, or of every circle when circleId is null. */
 export const useLive = (circleId: string | null = null) =>
@@ -10,6 +10,9 @@ export const useLive = (circleId: string | null = null) =>
     queryFn: () => api.get<MemberLocation[]>(circleId ? `/api/circles/${circleId}/live` : '/api/live'),
     refetchInterval: 60_000,
   });
+
+/** Your privacy bubble (null when off). */
+export const useBubble = () => useQuery({ queryKey: ['bubble'], queryFn: () => api.get<BubbleState>('/api/bubble'), staleTime: 30_000 });
 
 export const useCircles = () => useQuery({ queryKey: ['circles'], queryFn: () => api.get<Circle[]>('/api/circles') });
 

@@ -4,6 +4,7 @@ import { computeSpeed, type SpeedInput } from './speed.js';
 import { processDeviceTrips } from './trips.js';
 import { evaluateGeofences } from './geofence.js';
 import { viewersOf } from './access.js';
+import { checkBubbleExit, liveViewersOf } from './bubbles.js';
 import { LOCATION_COLUMNS, serializeLocation, type LocationRow } from './serialize.js';
 import { recordDrivingEvents, type DrivingFix } from './driving.js';
 
@@ -129,8 +130,16 @@ export async function ingestFixes(
   const latest = serializeLocation(newest);
 
   if (updated.length > 0) {
-    const viewers = user.sharing_paused ? [userId] : await viewersOf(sql, userId);
-    ctx.hub.publish(viewers, { type: 'location', userId, location: latest });
+    // Leaving a bubble's area ends it first, so this fix goes to everyone again.
+    if (!user.sharing_paused) await checkBubbleExit(ctx, userId, newest).catch((err) => ctx.log.error({ err }, 'bubble check failed'));
+    const viewers = user.sharing_paused ? [userId] : await liveViewersOf(sql, userId);
+    // The path since the last upload (at most the last 2 minutes), for smooth live movement.
+    const trail = [...inserted]
+      .filter((r) => newest.recorded_at.getTime() - r.recorded_at.getTime() <= 120_000 && (r.accuracy ?? 0) <= 100)
+      .sort((a, b) => a.recorded_at.getTime() - b.recorded_at.getTime())
+      .slice(-60)
+      .map((r) => ({ t: r.recorded_at.toISOString(), lat: r.lat, lon: r.lon, speed: r.speed, heading: r.heading }));
+    ctx.hub.publish(viewers, { type: 'location', userId, location: latest, trail });
     await checkLowBattery(ctx, userId, user, prevRow?.battery ?? null, newest);
   }
 

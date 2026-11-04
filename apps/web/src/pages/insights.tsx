@@ -43,7 +43,7 @@ export default function InsightsPage() {
       </Link>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-extrabold tracking-[-0.03em]">{mode === 'driving' ? 'Driving insights' : 'Travel insights'}</h1>
+          <h1 className="large-title">{mode === 'driving' ? 'Driving insights' : 'Travel insights'}</h1>
           <p className="mt-1 text-[14px] text-muted">Totals and trends from detected trips.</p>
         </div>
         <Segmented value={mode} onChange={setMode} options={[{ value: 'driving', label: 'Driving' }, { value: 'all', label: 'All trips' }]} />
@@ -72,7 +72,7 @@ export default function InsightsPage() {
             }}
             options={[{ value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }, { value: 'year', label: 'Year' }]}
           />
-          <div className="flex items-center rounded-xl border border-line bg-surface">
+          <div className="flex items-center rounded-full bg-surface shadow-card">
             <IconButton label="Previous period" onClick={() => setOffset((o) => o + 1)}>
               <ChevronLeft className="size-4" />
             </IconButton>
