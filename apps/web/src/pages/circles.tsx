@@ -90,7 +90,7 @@ export default function CirclesPage() {
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
       <div className="mb-6 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-extrabold tracking-[-0.03em]">Circles</h1>
+          <h1 className="large-title">Circles</h1>
           <p className="mt-1 text-[14px] text-muted">The groups you share your location with. You control sharing per circle.</p>
         </div>
         <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>

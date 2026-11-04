@@ -94,7 +94,7 @@ export default function PlacesPage() {
             <>
               <div className="mb-5 flex items-end justify-between gap-3">
                 <div>
-                  <h1 className="text-[24px] font-extrabold tracking-[-0.03em]">Places</h1>
+                  <h1 className="text-[28px] leading-tight font-extrabold tracking-[-0.025em]">Places</h1>
                   <p className="text-[13px] text-muted">Get notified when people arrive or leave.</p>
                 </div>
                 <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => startNew()}>
@@ -182,7 +182,7 @@ export default function PlacesPage() {
           )}
         </MapView>
         {draft && (
-          <div className="absolute top-3 left-1/2 z-10 -translate-x-1/2 rounded-xl border border-line bg-elevated/95 px-3 py-1.5 text-[12.5px] font-semibold shadow-card backdrop-blur">
+          <div className="absolute top-3 left-1/2 z-10 -translate-x-1/2 glass rounded-full px-3 py-1.5 text-[12.5px] font-semibold shadow-card backdrop-blur">
             Tap the map to move the pin
           </div>
         )}
@@ -272,7 +272,7 @@ function PlaceEditor({
             <Search className="pointer-events-none absolute top-3 left-3.5 size-4.5 text-muted" />
             <input className="field pl-10" placeholder="Search for an address or place" value={q} onChange={(e) => setQ(e.target.value)} />
             {results.data && search.length >= 3 && (
-              <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-xl border border-line bg-elevated p-1 shadow-float">
+              <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-[20px] bg-elevated shadow-float p-1 shadow-float">
                 {results.data.results.length === 0 && <div className="px-3 py-2 text-[13px] text-muted">No results</div>}
                 {results.data.results.map((r, i) => (
                   <button

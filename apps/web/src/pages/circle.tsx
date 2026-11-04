@@ -81,7 +81,7 @@ export default function CirclePage() {
           <span className="text-[22px] font-extrabold">{circle.name[0]?.toUpperCase()}</span>
         </div>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[28px] font-extrabold tracking-[-0.03em]">{circle.name}</h1>
+          <h1 className="large-title truncate">{circle.name}</h1>
           <p className="text-[14px] text-muted">
             {circle.memberCount} {circle.memberCount === 1 ? 'member' : 'members'} · created {format(new Date(circle.createdAt), 'MMM d, yyyy')}
           </p>
@@ -288,7 +288,7 @@ function InviteDialog({ open, onClose, circle }: { open: boolean; onClose: () =>
     <Dialog open={open} onClose={close} title={`Invite to ${circle.name}`} description="Create a secure, expiring link and send it however you like.">
       {url ? (
         <div className="space-y-4 pb-3">
-          <div className="rounded-2xl border border-line bg-surface-2 p-3.5">
+          <div className="rounded-[22px] bg-surface-2 p-3.5">
             <div className="eyebrow mb-1">Invitation link</div>
             <div className="font-mono text-[13px] break-all">{url}</div>
           </div>

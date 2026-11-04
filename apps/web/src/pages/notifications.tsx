@@ -42,7 +42,7 @@ export default function NotificationsPage() {
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:py-8">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[28px] font-extrabold tracking-[-0.03em]">Notifications</h1>
+          <h1 className="large-title">Notifications</h1>
           <p className="mt-1 text-[14px] text-muted">
             {unread > 0 ? `${unread} unread` : 'You’re all caught up.'} ·{' '}
             <Link to="/settings/notifications" className="font-semibold text-accent-text">

@@ -312,7 +312,7 @@ export function ForgotPasswordPage() {
   return (
     <AuthLayout title="Reset your password" subtitle="We'll email you a link (and a code for the iPhone app) to choose a new one." footer={<Link to="/login" className="font-bold text-accent-text">Back to sign in</Link>}>
       {sent ? (
-        <div className="rounded-2xl border border-line bg-surface p-5 text-[14px] leading-relaxed">
+        <div className="rounded-[22px] bg-surface shadow-card p-5 text-[14px] leading-relaxed">
           <MailCheck className="mb-3 size-6 text-success" />
           If an account exists for <b>{email}</b>, a reset link is on its way.
           {!sent.emailEnabled && (
@@ -358,7 +358,7 @@ export function ResetPasswordPage() {
     <AuthLayout title={welcome ? 'Welcome to Nodara' : 'Choose a new password'} subtitle={welcome ? 'An account was created for you. Choose a password to finish setting it up.' : undefined}>
       {done ? (
         <div className="space-y-4">
-          <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-[14px]">
+          <div className="flex items-center gap-3 rounded-[22px] bg-surface shadow-card p-4 text-[14px]">
             <CheckCircle2 className="size-6 text-success" /> Password saved. You can sign in now.
           </div>
           <Link to="/login">
@@ -399,7 +399,7 @@ export function VerifyEmailPage() {
     <AuthLayout title="Verify your email">
       {state === 'ok' ? (
         <div className="space-y-4">
-          <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-[14px]">
+          <div className="flex items-center gap-3 rounded-[22px] bg-surface shadow-card p-4 text-[14px]">
             <CheckCircle2 className="size-6 text-success" /> Your email address is verified.
           </div>
           <Link to="/">
@@ -442,7 +442,7 @@ export function ConfirmEmailPage() {
     <AuthLayout title="Confirm your new email">
       {state === 'ok' ? (
         <div className="space-y-4">
-          <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-[14px]">
+          <div className="flex items-center gap-3 rounded-[22px] bg-surface shadow-card p-4 text-[14px]">
             <CheckCircle2 className="size-6 shrink-0 text-success" /> Done. Sign in with {email} from now on.
           </div>
           <Link to="/">

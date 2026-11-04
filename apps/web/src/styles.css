@@ -1,5 +1,4 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/manrope';
 @import 'maplibre-gl/dist/maplibre-gl.css';
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
@@ -24,11 +23,11 @@
   --brand-midnight: #0b0d1c;
   --brand-gradient: linear-gradient(120deg, #1fb6ff 0%, #3967ff 32%, #9342fa 70%, #d94ff5 100%);
 
-  --bg: #f7f7fb;
+  --bg: #f4f3fa;
   --bg-elevated: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f1f0f8;
-  --surface-3: #e6e4f2;
+  --surface-2: #eeedf6;
+  --surface-3: #e2e0ee;
   --border: rgb(22 20 64 / 0.09);
   --border-strong: rgb(22 20 64 / 0.16);
   --text: #12132a;
@@ -46,9 +45,10 @@
   --warning: #d48806;
   --danger: #e5384a;
   --info: var(--brand-indigo);
-  --shadow: 0 1px 2px rgb(18 19 42 / 0.05), 0 8px 24px -12px rgb(18 19 42 / 0.14);
+  --shadow: 0 1px 2px rgb(18 19 42 / 0.04), 0 6px 20px -12px rgb(18 19 42 / 0.12);
   --shadow-lg: 0 24px 64px -24px rgb(18 19 42 / 0.38);
   --map-bg: #ecebf3;
+  --glass-edge: rgb(255 255 255 / 0.7);
   color-scheme: light;
 }
 
@@ -56,7 +56,7 @@
   --bg: #0b0d1c;
   --bg-elevated: #16182d;
   --surface: #16182d;
-  --surface-2: #1d1f38;
+  --surface-2: #20223c;
   --surface-3: #2a2b46;
   --border: #2a2b46;
   --border-strong: #3a3c5e;
@@ -72,14 +72,16 @@
   --warning: #f5a524;
   --danger: #f45d6c;
   --info: #6e8bff;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+  --shadow: none;
   --shadow-lg: 0 24px 64px -24px rgb(0 0 0 / 0.8);
   --map-bg: #0e1022;
+  --glass-edge: rgb(255 255 255 / 0.08);
   color-scheme: dark;
 }
 
 @theme inline {
-  --font-sans: 'Manrope Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* The platform font (SF Pro on Apple devices), like the iOS app. */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI Variable Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --color-bg: var(--bg);
   --color-elevated: var(--bg-elevated);
   --color-surface: var(--surface);
@@ -136,7 +138,7 @@
     background: var(--bg);
     color: var(--text);
     font-family: var(--font-sans);
-    font-feature-settings: 'ss01', 'cv11';
+    letter-spacing: -0.005em;
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
@@ -153,12 +155,23 @@
   /* The signature gradient: use sparingly (logo, hero, one headline word). */
   .bg-brand-gradient { background-image: var(--brand-gradient); }
   .text-brand-gradient { background-image: var(--brand-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .card { @apply rounded-2xl border border-line bg-surface shadow-card; }
+  /* Cards follow the iOS app: big continuous corners, no outlines. */
+  .card { @apply rounded-[26px] bg-surface shadow-card; }
+  /* Translucent "glass" for controls floating over the map. */
+  .glass {
+    background: color-mix(in srgb, var(--surface) 70%, transparent);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
+    border: 1px solid var(--glass-edge);
+    box-shadow: 0 10px 30px -12px rgb(0 0 0 / 0.35);
+  }
+  .large-title { @apply text-[32px] leading-[1.1] font-extrabold tracking-[-0.025em] sm:text-[34px]; }
+  .section-title { @apply px-4 pb-1.5 text-[13px] font-medium uppercase tracking-[0.02em] text-muted; }
   .label { @apply text-[13px] font-semibold text-ink-2; }
-  .eyebrow { @apply text-[11px] font-bold uppercase tracking-[0.08em] text-muted; }
+  .eyebrow { @apply text-[12px] font-semibold uppercase tracking-[0.06em] text-muted; }
   .field {
-    @apply h-11 w-full rounded-xl border border-line-strong bg-surface px-3.5 text-[15px] text-ink outline-none transition
-      placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-accent-soft;
+    @apply h-12 w-full rounded-2xl border border-transparent bg-surface-2 px-4 text-[16px] text-ink outline-none transition
+      placeholder:text-muted focus:border-accent focus:bg-surface focus:ring-4 focus:ring-accent-soft;
   }
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
   .safe-top { padding-top: env(safe-area-inset-top); }

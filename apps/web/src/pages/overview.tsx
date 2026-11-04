@@ -73,11 +73,11 @@ export function OverviewPage() {
   const noCircles = !circlesLoading && circles?.length === 0;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-      <div className="mb-6 flex items-end justify-between gap-4">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+      <div className="mb-7 flex items-end justify-between gap-4">
         <div>
           <div className="eyebrow">{format(new Date(), 'EEEE, MMMM d')}</div>
-          <h1 className="mt-1 text-[28px] font-extrabold tracking-[-0.03em]">
+          <h1 className="large-title mt-1">
             {greeting()}, {firstName(me.displayName)}
           </h1>
         </div>
@@ -107,7 +107,7 @@ export function OverviewPage() {
         {alerts.length > 0 && (
           <div className="grid gap-2 sm:grid-cols-2">
             {alerts.map((a) => (
-              <div key={a.key} className="flex items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3 text-[14px] font-semibold">
+              <div key={a.key} className="card flex items-center gap-3 px-5 py-4 text-[15px] font-semibold">
                 <a.icon className={`size-5 ${a.tone}`} />
                 {a.text}
               </div>
@@ -122,19 +122,19 @@ export function OverviewPage() {
                 {map && <PlacesLayer map={map} places={places} showLabels={false} />}
                 {map && <MembersLayer map={map} members={members} selectedId={null} onSelect={(id) => navigate(`/map?member=${id}`)} meId={me.id} />}
               </MapView>
-              <div className="pointer-events-none absolute top-3 left-3 flex items-center gap-2 rounded-xl bg-surface/90 px-3 py-1.5 text-[13px] font-bold shadow-card backdrop-blur">
+              <div className="glass pointer-events-none absolute top-3 left-3 flex items-center gap-2 rounded-full px-3.5 py-2 text-[14px] font-bold">
                 <span className="size-2 rounded-full bg-success" /> {sharingMembers.length} on the map
               </div>
-              <div className="pointer-events-none absolute right-3 bottom-3 flex items-center gap-1.5 rounded-xl bg-surface/90 px-3 py-1.5 text-[13px] font-bold opacity-0 shadow-card backdrop-blur transition group-hover:opacity-100">
+              <div className="glass pointer-events-none absolute right-3 bottom-3 flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[14px] font-bold opacity-0 transition group-hover:opacity-100">
                 Open map <ArrowRight className="size-4" />
               </div>
             </Link>
           </Card>
 
           <Card className="p-2">
-            <div className="flex items-center justify-between px-3 pt-2.5 pb-1">
-              <h2 className="text-[15px] font-bold">People</h2>
-              <Link to="/circles" className="text-[13px] font-semibold text-accent-text">
+            <div className="flex items-center justify-between px-3 pt-3 pb-1">
+              <h2 className="text-[20px] font-bold tracking-tight">People</h2>
+              <Link to="/circles" className="text-[15px] font-semibold text-accent-text">
                 Manage
               </Link>
             </div>
@@ -156,7 +156,7 @@ export function OverviewPage() {
 
         <div className="grid gap-5 lg:grid-cols-2">
           <Card className="p-5">
-            <SectionHeader title="Arrivals & departures" action={<Link to="/places" className="text-[13px] font-semibold text-accent-text">Places</Link>} />
+            <SectionHeader title="Arrivals & departures" action={<Link to="/places" className="text-[15px] font-semibold text-accent-text">Places</Link>} />
             {events.length === 0 ? (
               <p className="py-6 text-center text-[14px] text-muted">
                 No arrivals yet. <Link to="/places" className="font-semibold text-accent-text">Add places</Link> like Home or School to see them here.
@@ -184,7 +184,7 @@ export function OverviewPage() {
           </Card>
 
           <Card className="p-5">
-            <SectionHeader title="Recent trips" action={<Link to="/trips" className="text-[13px] font-semibold text-accent-text">All trips</Link>} />
+            <SectionHeader title="Recent trips" action={<Link to="/trips" className="text-[15px] font-semibold text-accent-text">All trips</Link>} />
             {recentTrips.length === 0 ? (
               <div className="flex flex-col items-center py-6 text-center text-[14px] text-muted">
                 <Route className="mb-2 size-6" />
@@ -193,7 +193,7 @@ export function OverviewPage() {
             ) : (
               <div className="-mx-3">
                 {recentTrips.map((t) => (
-                  <TripRow key={t.id} trip={t} person={byId.get(t.userId)} />
+                  <TripRow key={t.id} trip={t} person={byId.get(t.userId)} variant="row" />
                 ))}
               </div>
             )}

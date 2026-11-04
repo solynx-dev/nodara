@@ -1,8 +1,9 @@
-import { BatteryCharging, BatteryLow, BatteryMedium, BatteryFull, Car, EyeOff } from 'lucide-react';
+import { BatteryCharging, BatteryLow, BatteryMedium, BatteryFull, ChevronRight } from 'lucide-react';
 import type { MemberLocation } from '@/lib/types';
 import { ago, coords, formatSpeed, freshness } from '@/lib/format';
 import { useUser } from '@/lib/queries';
-import { Avatar, cx } from '@/components/ui';
+import { Avatar, cx, StatusPill } from '@/components/ui';
+import { describeMember } from '@/lib/status';
 import { PlaceIcon } from '@/features/map/icons';
 import { useAddress } from './hooks';
 
@@ -35,48 +36,61 @@ export function useWhereLabel(m: MemberLocation) {
   return coords(loc.lat, loc.lon);
 }
 
-export function MemberRow({ member, onClick, selected }: { member: MemberLocation; onClick?: () => void; selected?: boolean }) {
+/** A person, like the iOS People list: photo with battery, where they are, how long, and a status pill. */
+export function MemberRow({ member, onClick, selected, variant = 'row' }: { member: MemberLocation; onClick?: () => void; selected?: boolean; variant?: 'row' | 'card' }) {
   const me = useUser();
-  const where = useWhereLabel(member);
   const loc = member.location;
-  const f = freshness(loc?.recordedAt);
-  const moving = loc && (loc.speed ?? 0) > 1.5 && f === 'live';
+  const { data: address } = useAddress(member.currentPlace ? undefined : loc?.lat, member.currentPlace ? undefined : loc?.lon);
+  const s = describeMember(member, address, me.preferences.units);
+  const battery = loc?.battery ?? member.bubble?.battery ?? null;
+  const charging = loc?.charging ?? member.bubble?.charging ?? null;
+  const card = variant === 'card';
+  const size = card ? 64 : 50;
   return (
     <button
       onClick={onClick}
-      className={cx('flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition', selected ? 'bg-accent-soft' : 'hover:bg-surface-2')}
+      className={cx(
+        'group flex w-full items-center gap-4 text-left transition',
+        card ? 'card px-4 py-4 hover:bg-surface-2/40' : 'rounded-[22px] px-3 py-2.5 hover:bg-surface-2',
+        selected && 'ring-2 ring-accent',
+      )}
     >
-      <div className="relative">
-        <Avatar name={member.displayName} color={member.avatarColor} url={member.avatarUrl} size={42} dim={!loc || f === 'old'} />
+      <div className="relative shrink-0 pb-1.5">
+        <Avatar name={member.displayName} color={member.avatarColor} url={member.avatarUrl} size={size} dim={!loc && !member.bubble ? true : s.stale} />
+        {battery != null && (
+          <span
+            className={cx(
+              'tnum absolute -bottom-0.5 left-1/2 flex h-[22px] -translate-x-1/2 items-center gap-1 rounded-full border-[2.5px] border-surface bg-surface px-1.5 text-[11.5px] font-bold whitespace-nowrap',
+              battery <= 15 && !charging ? 'text-danger' : 'text-ink',
+            )}
+          >
+            <BatteryIcon level={battery} charging={charging} />
+            {battery}%
+          </span>
+        )}
         {member.currentPlace && (
-          <span className="absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full border-2 border-surface text-white" style={{ background: member.currentPlace.color }}>
-            <PlaceIcon name={member.currentPlace.icon} className="size-2.5" />
+          <span className="absolute -top-0.5 -right-1 flex size-6 items-center justify-center rounded-full border-2 border-surface text-white" style={{ background: member.currentPlace.color }}>
+            <PlaceIcon name={member.currentPlace.icon} className="size-3" />
           </span>
         )}
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="truncate text-[15px] font-bold">{member.id === me.id ? `${member.displayName} (you)` : member.displayName}</span>
-          {member.inTrip && <Car className="size-3.5 shrink-0 text-accent-text" />}
+          <span className={cx('truncate font-bold', card ? 'text-[19px]' : 'text-[17px]')}>{member.id === me.id ? 'You' : member.displayName}</span>
+          {s.live && <span className="size-2.5 shrink-0 rounded-full bg-success shadow-[0_0_0_4px_color-mix(in_srgb,var(--success)_18%,transparent)]" />}
         </div>
-        <div className="flex items-center gap-1.5 text-[13px] text-muted">
-          {!loc && member.bubble ? (
-            <span className="inline-block size-2 shrink-0 rounded-full border border-bubble" />
-          ) : !member.sharing && !loc ? (
-            <EyeOff className="size-3.5" />
-          ) : (
-            <FreshDot iso={loc?.recordedAt} />
-          )}
-          <span className="truncate">{where}</span>
-        </div>
+        <div className={cx('truncate', card ? 'text-[16px]' : 'text-[15px]')}>{s.where}</div>
+        {s.stayFor && <div className="truncate text-[14px] text-muted">Here for {s.stayFor}</div>}
+        <StatusPill tone={s.pill.tone} icon={<s.pill.icon />} className="mt-1.5">
+          {s.pill.text}
+        </StatusPill>
       </div>
-      <div className="flex shrink-0 flex-col items-end gap-0.5">
-        {loc && <span className={cx('text-[12px] font-semibold', f === 'stale' || f === 'old' ? 'text-warning' : 'text-muted')}>{f === 'live' ? (moving ? formatSpeed(loc.speed, me.preferences.units) : 'Now') : ago(loc.recordedAt)}</span>}
-        {!loc && member.bubble && (
-          <span className="text-[12px] font-semibold text-bubble-text">until {new Date(member.bubble.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
-        )}
-        <BatteryIndicator level={loc?.battery ?? member.bubble?.battery ?? null} charging={loc?.charging ?? member.bubble?.charging ?? null} />
-      </div>
+      <ChevronRight className="size-5 shrink-0 text-muted/60" />
     </button>
   );
+}
+
+function BatteryIcon({ level, charging }: { level: number; charging: boolean | null }) {
+  const Icon = charging ? BatteryCharging : level <= 15 ? BatteryLow : level <= 60 ? BatteryMedium : BatteryFull;
+  return <Icon className="size-3.5" />;
 }
