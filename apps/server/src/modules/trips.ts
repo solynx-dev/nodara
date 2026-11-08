@@ -9,6 +9,7 @@ import { DRIVER_SQL, MODE_SQL, serializeTrip, TRIP_COLUMNS, type TripRow } from 
 import { rebuildTrips } from '../services/trips.js';
 import { requireHistory } from './locations.js';
 import { drivingEvents } from './driving.js';
+import { withPreviews } from '../services/trip-preview.js';
 
 const uuid = z.string().uuid();
 
@@ -26,6 +27,7 @@ export default async function tripRoutes(app: FastifyInstance, ctx: Ctx) {
         to: z.string().datetime({ offset: true }).optional(),
         before: z.string().datetime({ offset: true }).optional(),
         limit: z.coerce.number().int().min(1).max(200).default(30),
+        preview: z.enum(['0', '1', 'true', 'false']).optional(),
       }),
       req.query,
     );
@@ -39,7 +41,10 @@ export default async function tripRoutes(app: FastifyInstance, ctx: Ctx) {
         ${q.to ? sql`AND started_at < ${new Date(q.to)}` : sql``}
         ${q.before ? sql`AND started_at < ${new Date(q.before)}` : sql``}
       ORDER BY started_at DESC LIMIT ${q.limit}`;
-    return rows.map((r) => ({ ...serializeTrip(r), mode: r.mode }));
+    const trips = rows.map((r) => ({ ...serializeTrip(r), mode: r.mode }));
+    // Cards with a map: a small route and the number of driving events.
+    if ((q.preview === '1' || q.preview === 'true') && q.limit <= 50) return withPreviews(ctx, target, access, trips);
+    return trips;
   });
 
   app.get<{ Params: { id: string } }>('/api/trips/:id', async (req) => {

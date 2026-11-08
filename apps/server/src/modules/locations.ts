@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { withPreviews } from '../services/trip-preview.js';
 import { z } from 'zod';
 import type { Ctx } from '../context.js';
 import { requireUser, resolveDeviceToken, type AuthInfo } from '../auth.js';
@@ -300,6 +301,13 @@ export default async function locationRoutes(app: FastifyInstance, ctx: Ctx) {
     const lastTrip = trips[trips.length - 1];
     if (bounds.last > cursor) {
       await stayAt(cursor, bounds.last, lastTrip ? { lat: lastTrip.end_lat, lon: lastTrip.end_lon } : null);
+    }
+    // Trip cards with a map (?preview=1): a small route and the number of driving events.
+    const q = req.query as { preview?: string };
+    if (tripAccess && (q.preview === '1' || q.preview === 'true') && trips.length <= 50) {
+      const tripItems = items.filter((i): i is Extract<Item, { type: 'trip' }> => i.type === 'trip');
+      const rich = await withPreviews(ctx, target, tripAccess, tripItems.map((i) => i.trip));
+      tripItems.forEach((i, n) => (i.trip = rich[n]!));
     }
     return { items };
   });

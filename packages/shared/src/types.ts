@@ -148,6 +148,10 @@ export interface TripSummary {
   role?: 'driver' | 'passenger' | null;
   /** The person changed whether this was a drive or a walk. */
   modeEdited?: boolean;
+  /** With ?preview=1: a simplified route for a small map, as [lat, lon] pairs (≤ ~100). */
+  preview?: [number, number][];
+  /** With ?preview=1: driving events (speeding, phone use, harsh braking…) on this trip. */
+  eventCount?: number;
 }
 
 export interface Place {

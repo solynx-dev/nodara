@@ -118,6 +118,16 @@ describe('ingestion, trips and geofences', () => {
     expect(days.reduce((s: number, d: { trips: number }) => s + d.trips, 0)).toBe(1);
     const tl = (await u.client.get(`/api/history/${u.id}/timeline?from=${new Date(Date.now() - 86_400_000).toISOString()}&to=${new Date(Date.now() + 60_000).toISOString()}`)).json();
     expect(tl.items.map((i: { type: string }) => i.type)).toEqual(['stay', 'trip', 'stay']);
+
+    // Cards with a small map get a simplified route and an event count.
+    const [card] = (await u.client.get('/api/trips?preview=1&limit=5')).json() as { preview: [number, number][]; eventCount: number }[];
+    expect(card!.preview.length).toBeGreaterThan(1);
+    expect(card!.preview.length).toBeLessThanOrEqual(detail.route.length);
+    expect(card!.preview[0]![0]).toBeCloseTo(44.65, 1); // [lat, lon]
+    expect(card!.eventCount).toBe(0);
+    const tlp = (await u.client.get(`/api/history/${u.id}/timeline?preview=1&from=${new Date(Date.now() - 86_400_000).toISOString()}&to=${new Date(Date.now() + 60_000).toISOString()}`)).json();
+    expect(tlp.items[1].trip.preview.length).toBeGreaterThan(1);
+    expect((await u.client.get('/api/trips')).json()[0].preview).toBeUndefined();
   });
 
   it('refreshes a circle-mate’s location silently, at most every 10 seconds', async () => {

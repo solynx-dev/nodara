@@ -8,6 +8,7 @@ import { clock, dayLabel, formatDistance, formatDuration, formatSpeed, weekdaySh
 import { C, HEX, T } from '@/lib/theme';
 import type { Trip } from '@/lib/types';
 import { Tap } from '@/components/ui';
+import { RoutePreview } from './RoutePreview';
 
 export function tripTitle(t: Trip) {
   return `${t.startLabel ?? 'Somewhere'} → ${t.status === 'in_progress' ? 'now' : (t.endLabel ?? 'Somewhere')}`;
@@ -67,6 +68,75 @@ export function DriveCard({ t, onOpen, index = 0 }: { t: Trip; onOpen: (id: stri
   );
 }
 
+/** Driving events count only when they were driving (not a passenger ride or a walk). */
+const asDriver = (t: Trip) => !isWalk(t) && t.role !== 'passenger';
+
+/**
+ * A trip as a card with a small map of the route on top, then where from and
+ * to, when, how far, the top speed and how many risky moments it had.
+ * Falls back to the compact card when the server sends no route preview.
+ */
+export function TripMapCard({ t, onOpen }: { t: Trip; onOpen: (id: string) => void }) {
+  const units = useMe().preferences.units;
+  if (!t.preview) return <DriveCard t={t} onOpen={onOpen} />;
+  const live = t.status === 'in_progress';
+  const events = t.eventCount ?? 0;
+  const showEvents = asDriver(t) && t.eventCount != null;
+  const from = t.startLabel ?? 'Somewhere';
+  const to = live ? 'now' : (t.endLabel ?? 'Somewhere');
+  return (
+    <Tap
+      onPress={() => onOpen(t.id)}
+      style={styles.mapCard}
+      accessibilityRole="button"
+      accessibilityLabel={`${modeLabel(t)} from ${from} to ${to}, ${clock(t.startedAt)}${t.endedAt ? ` to ${clock(t.endedAt)}` : ''}, ${formatDistance(t.distanceM, units)}${showEvents ? `, ${events} risky ${events === 1 ? 'event' : 'events'}` : ''}`}
+    >
+      <View>
+        <RoutePreview points={t.preview} live={live} />
+        <View style={styles.modeBadge}>
+          <SymbolView name={modeIcon(t)} size={15} tintColor={live ? 'white' : C.label} />
+        </View>
+        {live && (
+          <View style={styles.liveBadge}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>Happening now</Text>
+          </View>
+        )}
+      </View>
+      <View style={{ padding: 16, gap: 4 }}>
+        <Text style={[T.headline, { color: C.label, fontSize: 18 }]} numberOfLines={2}>
+          {from} → {live ? 'On the way' : to}
+        </Text>
+        <Text style={[T.subhead, { color: C.secondaryLabel }]} numberOfLines={1}>
+          {clock(t.startedAt)} – {t.endedAt ? clock(t.endedAt) : 'now'} · {formatDistance(t.distanceM, units)} · {formatDuration(t.durationSec)}
+        </Text>
+        <View style={styles.chips}>
+          {t.maxSpeed != null && t.maxSpeed > 1 && (
+            <View style={styles.chip}>
+              <SymbolView name="gauge.with.dots.needle.67percent" size={14} tintColor={HEX.green} />
+              <Text style={styles.chipText}>{formatSpeed(t.maxSpeed, units)}</Text>
+            </View>
+          )}
+          <View style={{ flex: 1 }} />
+          {showEvents && (
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>{events ? `${events} risky ${events === 1 ? 'event' : 'events'}` : 'No risky events'}</Text>
+              <View style={[styles.chipIcon, { backgroundColor: events ? HEX.orange : HEX.green }]}>
+                <SymbolView name={events ? 'exclamationmark.triangle.fill' : 'checkmark.shield.fill'} size={12} tintColor="white" />
+              </View>
+            </View>
+          )}
+          {!asDriver(t) && (
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>{isWalk(t) ? 'Walk' : 'Passenger'}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    </Tap>
+  );
+}
+
 /** Drives grouped by day, with a one-line total per day. */
 export function DriveList({ trips, onOpen }: { trips: Trip[]; onOpen: (id: string) => void }) {
   const units = useMe().preferences.units;
@@ -75,7 +145,6 @@ export function DriveList({ trips, onOpen }: { trips: Trip[]; onOpen: (id: strin
     for (const t of trips) g.set(dayLabel(t.startedAt), [...(g.get(dayLabel(t.startedAt)) ?? []), t]);
     return [...g.entries()];
   }, [trips]);
-  let n = 0;
   return (
     <View style={{ gap: 18 }}>
       {groups.map(([day, list]) => (
@@ -87,7 +156,7 @@ export function DriveList({ trips, onOpen }: { trips: Trip[]; onOpen: (id: strin
             </Text>
           </View>
           {list.map((t) => (
-            <DriveCard key={t.id} t={t} onOpen={onOpen} index={n++} />
+            <TripMapCard key={t.id} t={t} onOpen={onOpen} />
           ))}
         </View>
       ))}
@@ -159,6 +228,15 @@ function Big({ value, label }: { value: string; label: string }) {
 }
 
 const styles = StyleSheet.create({
+  mapCard: { borderRadius: 26, borderCurve: 'continuous', backgroundColor: C.cell, overflow: 'hidden' },
+  modeBadge: { position: 'absolute', top: 10, left: 10, width: 34, height: 34, borderRadius: 17, backgroundColor: C.cell, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
+  liveBadge: { position: 'absolute', top: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, height: 28, borderRadius: 14, backgroundColor: C.accent },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'white' },
+  liveText: { color: 'white', fontSize: 13, fontWeight: '700' },
+  chips: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 36, paddingHorizontal: 12, borderRadius: 18, backgroundColor: C.fill },
+  chipText: { fontSize: 15, fontWeight: '600', color: C.label },
+  chipIcon: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: -6 },
   card: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, paddingRight: 12, borderRadius: 24, borderCurve: 'continuous', backgroundColor: C.cell },
   rail: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: 6, width: 12 },
   dot: { width: 10, height: 10, borderRadius: 5 },

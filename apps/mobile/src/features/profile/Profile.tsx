@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Linking, ScrollView, Share, StyleSheet, Text, View, type ColorValue } from 'react-native';
+import { ActivityIndicator, Linking, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { appear } from '@/lib/motion';
 import { router } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useMe } from '@/lib/session';
-import { useAddress, useDayTimeline, useTripPages, useWeekTrips, type TimelineItem } from '@/lib/queries';
-import { ago, clock, firstName, formatDistance, formatDuration, formatStay, freshness, weekdayShort } from '@/lib/format';
+import { useAddress, useDayTimeline, usePlaces, useTripPages, useWeekTrips, type TimelineItem } from '@/lib/queries';
+import { ago, clock, firstName, formatDistance, formatStay, freshness, weekdayShort } from '@/lib/format';
 import { BUBBLE_COLOR, bubbleArea, describeMember } from '@/lib/status';
 import { driveState } from '@/lib/driving';
 import { C, HEX, T } from '@/lib/theme';
@@ -14,7 +14,8 @@ import type { MemberLocation, PlaceEvent } from '@/lib/types';
 import { ApiError } from '@/lib/api';
 import { Avatar, Empty, LiveDot, PrimaryButton, Segmented, Skeleton, StatusPill, Tap } from '@/components/ui';
 import { PlaceSymbol } from '@/features/home/placeIcons';
-import { DriveList, modeIcon, WeekSummary } from '@/features/trips/Drives';
+import { DriveList, TripMapCard, WeekSummary } from '@/features/trips/Drives';
+import { useLocationRefresh } from '@/lib/refresh';
 import { DrivingWeekCard } from '@/features/driving/components';
 
 export type ProfileTab = 'drives' | 'history';
@@ -303,7 +304,6 @@ function DrivesTab({ m, onOpenTrip }: { m: MemberLocation; onOpenTrip: (id: stri
 
 function HistoryTab({ m, onOpenTrip }: { m: MemberLocation; onOpenTrip: (id: string) => void }) {
   const me = useMe();
-  const units = me.preferences.units;
   const [daysAgo, setDaysAgo] = useState(0);
   const { data: items, isLoading, error } = useDayTimeline(m.id, daysAgo);
   const name = m.id === me.id ? 'you' : firstName(m.displayName);
@@ -312,6 +312,8 @@ function HistoryTab({ m, onOpenTrip }: { m: MemberLocation; onOpenTrip: (id: str
     d.setDate(d.getDate() - i);
     return { i, label: i === 0 ? 'Today' : i === 1 ? 'Yesterday' : weekdayShort(d), sub: d.getDate() };
   });
+  // Newest first, like a feed: what's happening now is at the top.
+  const feed = items ? [...items].reverse() : [];
 
   return (
     <View style={{ gap: 12 }}>
@@ -326,68 +328,88 @@ function HistoryTab({ m, onOpenTrip }: { m: MemberLocation; onOpenTrip: (id: str
         })}
       </ScrollView>
       {isLoading ? (
-        <Skeleton height={220} />
+        <View style={{ gap: 12 }}>
+          <Skeleton height={130} />
+          <Skeleton height={290} />
+        </View>
       ) : error ? (
         notShared(error) ? (
           <Empty icon="lock.fill" title="History isn't shared" body={`The circle you share with ${name} keeps location history private.`} />
         ) : (
           <Empty icon="wifi.exclamationmark" title="Couldn't load history" body={(error as Error).message} />
         )
-      ) : !items?.length ? (
+      ) : !feed.length ? (
         <Empty icon="calendar" title="Nothing recorded" body={daysAgo === 0 ? `No movement recorded yet today.` : `No location history for this day.`} />
       ) : (
-        <Animated.View key={daysAgo} entering={appear} style={styles.card}>
-          {items.map((item, i) => (
-            <TimelineRow key={i} item={item} last={i === items.length - 1} current={daysAgo === 0 && i === items.length - 1} units={units} onOpenTrip={onOpenTrip} />
-          ))}
+        <Animated.View key={daysAgo} entering={appear} style={{ gap: 12 }}>
+          {feed.map((item, i) =>
+            item.type === 'trip' ? (
+              <TripMapCard key={item.trip.id} t={item.trip} onOpen={onOpenTrip} />
+            ) : (
+              <StayCard key={item.startAt} item={item} m={m} current={daysAgo === 0 && i === 0} />
+            ),
+          )}
         </Animated.View>
       )}
     </View>
   );
 }
 
-function TimelineRow({ item, last, current, units, onOpenTrip }: { item: TimelineItem; last: boolean; current: boolean; units: 'metric' | 'imperial'; onOpenTrip: (id: string) => void }) {
-  if (item.type === 'trip') {
-    const t = item.trip;
-    return (
-      <Tap onPress={() => onOpenTrip(t.id)} style={styles.tlRow} accessibilityRole="button" accessibilityLabel={`Trip, ${formatDistance(t.distanceM, units)}`}>
-        <Rail icon={modeIcon(t)} color={C.accent} last={last} />
-        <View style={{ flex: 1, paddingBottom: last ? 0 : 16 }}>
-          <Text style={[T.subhead, { color: C.label, fontWeight: '600' }]}>
-            {t.mode === 'walking' ? 'Walked' : t.role === 'passenger' ? 'Rode along' : 'Drove'} {formatDistance(t.distanceM, units)}
+/** A stay on the day's timeline: where, from when to when, and for how long. */
+function StayCard({ item, m, current }: { item: Extract<TimelineItem, { type: 'stay' }>; m: MemberLocation; current: boolean }) {
+  const me = useMe();
+  const { data: places = [] } = usePlaces();
+  const place = item.placeId ? places.find((p) => p.id === item.placeId) : undefined;
+  const refresher = useLocationRefresh(current && m.id !== me.id ? m : null);
+  const dur = (Date.parse(item.endAt) - Date.parse(item.startAt)) / 1000;
+  const title = item.label ? `${place || item.placeId ? 'At' : 'Near'} ${item.label}` : 'Somewhere';
+  return (
+    <View style={styles.stayCard} accessible accessibilityLabel={`${title}, ${clock(item.startAt)} to ${current ? 'now' : clock(item.endAt)}, ${formatStay(dur)}`}>
+      <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+        <View style={[styles.placeIcon, { backgroundColor: place?.color ?? (item.placeId ? C.accent : C.fill) }]}>
+          {place ? <PlaceSymbol icon={place.icon} size={20} color="white" /> : <SymbolView name={item.placeId ? 'mappin' : 'mappin.and.ellipse'} size={20} tintColor={item.placeId ? 'white' : C.label} />}
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={[T.headline, { color: C.label, fontSize: 18 }]} numberOfLines={2}>
+            {title}
           </Text>
-          <Text style={[T.footnote, { color: C.secondaryLabel }]}>
-            {clock(t.startedAt)}
-            {t.endedAt ? `–${clock(t.endedAt)}` : ' – now'} · {formatDuration(t.durationSec)}
+          <Text style={[T.subhead, { color: C.secondaryLabel }]}>
+            {clock(item.startAt)} – {current ? 'now' : clock(item.endAt)}
           </Text>
         </View>
-        <SymbolView name="chevron.right" size={12} tintColor={C.tertiaryLabel} />
-      </Tap>
-    );
-  }
-  const dur = (Date.parse(item.endAt) - Date.parse(item.startAt)) / 1000;
-  return (
-    <View style={styles.tlRow}>
-      <Rail icon={item.placeId ? 'house.fill' : 'mappin'} color={current ? HEX.green : C.fillStrong} iconColor={current ? 'white' : C.label} last={last} />
-      <View style={{ flex: 1, paddingBottom: last ? 0 : 16 }}>
-        <Text style={[T.subhead, { color: C.label, fontWeight: '600' }]} numberOfLines={2}>
-          {item.label ?? 'Somewhere'}
-        </Text>
-        <Text style={[T.footnote, { color: C.secondaryLabel }]}>
-          {clock(item.startAt)} – {current ? 'now' : clock(item.endAt)} · {formatStay(dur)}
-        </Text>
       </View>
-    </View>
-  );
-}
-
-function Rail({ icon, color, iconColor = 'white', last }: { icon: SFSymbol; color: ColorValue; iconColor?: ColorValue; last: boolean }) {
-  return (
-    <View style={{ alignItems: 'center', width: 30 }}>
-      <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-        <SymbolView name={icon} size={14} tintColor={iconColor} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={[styles.stayChip, current && { flex: 1 }]}>
+          {current ? <LiveDot /> : <SymbolView name="clock" size={15} tintColor={C.label} />}
+          <Text style={styles.stayChipText}>{current ? `Happening now · ${formatStay(dur)}` : formatStay(dur)}</Text>
+          {current && refresher.canRefresh && (
+            <Tap
+              onPress={() => void refresher.refresh()}
+              hitSlop={10}
+              style={{ marginLeft: 'auto' }}
+              accessibilityRole="button"
+              accessibilityLabel={`Refresh ${m.displayName}'s location`}
+              accessibilityState={{ busy: refresher.refreshing }}
+            >
+              {refresher.refreshing ? <ActivityIndicator size="small" /> : <Text style={[styles.stayChipText, { color: C.accentText }]}>Refresh</Text>}
+            </Tap>
+          )}
+        </View>
+        {!current && <View style={{ flex: 1 }} />}
+        {!item.placeId && (
+          <Tap
+            onPress={() => router.push({ pathname: '/place/[id]', params: { id: 'new', lat: String(item.lat), lon: String(item.lon) } })}
+            style={styles.stayChip}
+            accessibilityRole="button"
+            accessibilityLabel="Save as a place"
+          >
+            <Text style={styles.stayChipText}>Save place</Text>
+            <View style={[styles.chipIcon, { backgroundColor: C.accent }]}>
+              <SymbolView name="mappin.and.ellipse" size={12} tintColor="white" />
+            </View>
+          </Tap>
+        )}
       </View>
-      {!last && <View style={{ width: 2, flex: 1, minHeight: 14, backgroundColor: C.separator, marginVertical: 3 }} />}
     </View>
   );
 }
@@ -404,7 +426,10 @@ const styles = StyleSheet.create({
   warn: { padding: 12, borderRadius: 16, backgroundColor: 'rgba(255,149,0,0.14)', flexDirection: 'row', gap: 10 },
   bubbleBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 16, backgroundColor: `${BUBBLE_COLOR}1F` },
   action: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 46, borderRadius: 23, backgroundColor: C.fill },
+  stayCard: { backgroundColor: C.cell, borderRadius: 26, borderCurve: 'continuous', padding: 16, gap: 14 },
+  stayChip: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 38, paddingHorizontal: 14, borderRadius: 19, backgroundColor: C.fill },
+  stayChipText: { fontSize: 15, fontWeight: '600', color: C.label },
+  chipIcon: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: -6 },
   dayChip: { paddingHorizontal: 16, height: 36, borderRadius: 18, backgroundColor: C.cell, alignItems: 'center', justifyContent: 'center' },
   dayChipText: { fontSize: 15, fontWeight: '600', color: C.label },
-  tlRow: { flexDirection: 'row', gap: 12 },
 });

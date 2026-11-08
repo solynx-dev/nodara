@@ -78,14 +78,14 @@ Emailed codes are 6 digits, stored hashed, and only the newest code of each kind
 | `GET …/points` | `from`, `to` (ISO, ≤ 31 days), `maxPoints` (≤ 10 000) | Fixes, evenly decimated if needed; `total`, `distanceM`, `visibleSince`. |
 | `GET …/points/:id` | | One fix with reverse-geocoded address. |
 | `GET …/days` | `from`, `to` (≤ 400 days), `tz` | Per-day point count, distance, trip count (calendar). |
-| `GET …/timeline` | `from`, `to` | Alternating `stay` / `trip` items with place names or addresses. |
+| `GET …/timeline` | `from`, `to`, `preview?` | Alternating `stay` / `trip` items with place names or addresses. With `preview=1`, trips carry `preview` and `eventCount` (see below). |
 | `DELETE /history/points` | `from`, `to` | Delete **your own** history (and trips) in a range. |
 
 ## Trips & insights
 
 | Endpoint | Description |
 |---|---|
-| `GET /trips?userId&from&to&before&limit` | Trips, newest first (cursor: `before` = last `startedAt`). Includes estimated `mode`. |
+| `GET /trips?userId&from&to&before&limit` | Trips, newest first (cursor: `before` = last `startedAt`). Includes estimated `mode`. With `preview=1` (limit ≤ 50) each trip also has `preview` (a simplified route for a small map, `[lat, lon]` pairs, about 100 points at most) and `eventCount` (driving events on it, counted like the driving report). |
 | `GET /trips/:id` | Trip with simplified `route` coordinates, `stops`, decimated speed `samples`. |
 | `PATCH /trips/:id` | Your own completed trips only: `{mode?: "driving"\|"walking", role?: "driver"\|"passenger"}`. Passenger rides and walks (and their driving events) don't count in driving reports or driving insights. Trips are only ever `driving` or `walking`. |
 | `DELETE /trips/:id` | Delete one of your trips (history is kept). |

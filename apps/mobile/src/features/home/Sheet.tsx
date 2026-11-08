@@ -1,5 +1,6 @@
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ScrollOffsetContext } from '@/lib/viewport';
 import Animated, { Extrapolation, interpolate, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { GestureDetector, useNativeGesture, usePanGesture, useSimultaneousGestures, useTapGesture } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -198,7 +199,7 @@ export function MapSheet({
           showsVerticalScrollIndicator={index === 2}
           keyboardShouldPersistTaps="handled"
         >
-          {children}
+          <ScrollOffsetContext value={scrollY}>{children}</ScrollOffsetContext>
         </Animated.ScrollView>
       </GestureDetector>
     </Animated.View>

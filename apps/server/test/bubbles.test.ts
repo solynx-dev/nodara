@@ -120,6 +120,8 @@ describe('bubbles', () => {
     const range = `from=${encodeURIComponent(at(60))}&to=${encodeURIComponent(at(-1))}`;
     for (const url of [
       `/api/trips?userId=${a.id}`,
+      `/api/trips?userId=${a.id}&preview=1`,
+      `/api/history/${a.id}/timeline?preview=1&${range}`,
       `/api/insights?userId=${a.id}&period=week`,
       `/api/insights?userId=${a.id}&period=month&mode=driving`,
       `/api/history/${a.id}/timeline?${range}`,

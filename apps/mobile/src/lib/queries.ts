@@ -56,7 +56,7 @@ export function useDayTimeline(userId: string, daysAgo = 0) {
       from.setDate(from.getDate() - daysAgo);
       const to = daysAgo === 0 ? new Date(Date.now() + 60_000) : new Date(from.getTime() + 86_400_000);
       return api
-        .get<{ items: TimelineItem[] }>(`/api/history/${userId}/timeline?from=${from.toISOString()}&to=${to.toISOString()}`)
+        .get<{ items: TimelineItem[] }>(`/api/history/${userId}/timeline?preview=1&from=${from.toISOString()}&to=${to.toISOString()}`)
         .then((r) => r.items);
     },
     refetchInterval: daysAgo === 0 ? 120_000 : false,
@@ -70,7 +70,7 @@ export function useTripPages(userId: string) {
   return useInfiniteQuery({
     queryKey: ['trips', userId, 'pages'],
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) => api.get<Trip[]>(`/api/trips?userId=${userId}&limit=${PAGE}${pageParam ? `&before=${encodeURIComponent(pageParam)}` : ''}`),
+    queryFn: ({ pageParam }) => api.get<Trip[]>(`/api/trips?userId=${userId}&preview=1&limit=${PAGE}${pageParam ? `&before=${encodeURIComponent(pageParam)}` : ''}`),
     getNextPageParam: (last) => (last.length === PAGE ? last[last.length - 1]!.startedAt : undefined),
   });
 }
