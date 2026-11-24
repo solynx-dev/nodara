@@ -460,9 +460,12 @@ function TokenDialog({ data, onClose }: { data: { token: string; device: Device 
 }
 
 // ---------------------------------------------------------------------------
-type NotifKey = 'places' | 'circle' | 'sharing' | 'lowBattery' | 'deviceOffline';
+type NotifKey = 'places' | 'circle' | 'sharing' | 'lowBattery' | 'deviceOffline' | 'drives';
+/** Off until turned on. */
+const OPT_IN: NotifKey[] = ['drives'];
 const NOTIF_TYPES: { key: NotifKey; label: string; description: string }[] = [
   { key: 'places', label: 'Arrivals & departures', description: 'When people reach or leave places you have alerts on.' },
+  { key: 'drives', label: 'Finished drives', description: 'When someone in your circles finishes a drive: distance, time, top speed and the place it ended at. Off unless you turn it on.' },
   { key: 'circle', label: 'Circle activity', description: 'When someone joins one of your circles.' },
   { key: 'sharing', label: 'Sharing changes', description: 'When someone pauses or resumes sharing with you.' },
   { key: 'lowBattery', label: 'Low battery', description: "When someone's phone is about to run out." },
@@ -526,11 +529,11 @@ function NotificationsSection() {
               </div>
               <label className="flex flex-col items-center gap-1 text-[11px] font-bold text-muted">
                 In-app
-                <Switch checked={prefs[t.key]?.inApp !== false} onChange={(v) => set(t.key, 'inApp', v)} />
+                <Switch checked={OPT_IN.includes(t.key) ? prefs[t.key]?.inApp === true : prefs[t.key]?.inApp !== false} onChange={(v) => set(t.key, 'inApp', v)} />
               </label>
               <label className="flex flex-col items-center gap-1 text-[11px] font-bold text-muted">
                 Push
-                <Switch checked={prefs[t.key]?.push !== false} onChange={(v) => set(t.key, 'push', v)} />
+                <Switch checked={prefs[t.key]?.push !== false} disabled={OPT_IN.includes(t.key) && prefs[t.key]?.inApp !== true} onChange={(v) => set(t.key, 'push', v)} />
               </label>
             </div>
           ))}

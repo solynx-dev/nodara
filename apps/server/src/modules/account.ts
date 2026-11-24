@@ -32,7 +32,7 @@ const prefsSchema = z
     retentionDays: z.number().int().min(1).max(36_500).nullable(),
     notifyLowBattery: z.boolean(),
     lowBatteryThreshold: z.number().int().min(5).max(50),
-    notifications: z.record(z.enum(['places', 'circle', 'sharing', 'lowBattery', 'deviceOffline']), notifPref),
+    notifications: z.record(z.enum(['places', 'circle', 'sharing', 'lowBattery', 'deviceOffline', 'drives']), notifPref),
   })
   .partial();
 

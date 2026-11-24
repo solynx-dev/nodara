@@ -9,6 +9,7 @@ export type NotificationType =
   | 'invitation'
   | 'member_joined'
   | 'check_in'
+  | 'drive_finished'
   | 'sharing_changed'
   | 'bubble'
   | 'bubble_ended'
@@ -18,6 +19,9 @@ export type NotificationType =
   | 'security'
   | 'system';
 
+/** Preferences that are off until the person turns them on. */
+const OPT_IN = new Set(['drives']);
+
 /** Preference key controlling each notification type (see UserPreferences.notifications). */
 const PREF_KEY: Record<NotificationType, string | null> = {
   arrival: 'places',
@@ -25,6 +29,7 @@ const PREF_KEY: Record<NotificationType, string | null> = {
   invitation: null,
   member_joined: 'circle',
   check_in: 'circle',
+  drive_finished: 'drives',
   sharing_changed: 'sharing',
   bubble: 'sharing',
   // Your own bubble ending is always worth knowing.
@@ -88,6 +93,7 @@ export class NotificationService {
     const key = PREF_KEY[input.type];
     const pref = key ? prefs[key] : undefined;
     if (pref?.inApp === false) return null;
+    if (key && OPT_IN.has(key) && pref?.inApp !== true) return null;
 
     if (input.dedupeKey) {
       const window = input.dedupeWindowSec ?? 3600;

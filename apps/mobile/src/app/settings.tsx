@@ -25,6 +25,7 @@ const SOURCE_URL = 'https://github.com/solynx-dev/nodara';
 
 const NOTIFY_TYPES: { key: NotifyKey; icon: SFSymbol; color: string; title: string; subtitle: string }[] = [
   { key: 'places', icon: 'mappin.and.ellipse', color: '#34C759', title: 'Arrivals & departures', subtitle: 'Someone gets to or leaves a place' },
+  { key: 'drives', icon: 'car.fill', color: '#6D3EF5', title: 'Finished drives', subtitle: 'Distance, time, top speed and where it ended. Off unless you turn it on' },
   { key: 'circle', icon: 'hand.wave.fill', color: '#5856D6', title: 'Check-ins & new members', subtitle: 'Check-ins and people joining' },
   { key: 'sharing', icon: 'eye.fill', color: '#007AFF', title: 'Sharing changes', subtitle: 'Someone pauses or resumes sharing' },
   { key: 'lowBattery', icon: 'battery.25percent', color: '#FF3B30', title: 'Low battery', subtitle: "Someone's phone is about to die" },
@@ -195,7 +196,11 @@ export default function Settings() {
       fail('Could not save')(e);
     }
   };
-  const setNotify = (key: NotifyKey, on: boolean) => savePrefs({ notifications: { ...notify, [key]: { ...notify[key], push: on } } });
+  /** "Finished drives" is opt-in: it's off until turned on, in the app and as a push. */
+  const OPT_IN: NotifyKey[] = ['drives'];
+  const notifyOn = (key: NotifyKey) => (OPT_IN.includes(key) ? notify[key]?.inApp === true && notify[key]?.push !== false : notify[key]?.push !== false);
+  const setNotify = (key: NotifyKey, on: boolean) =>
+    savePrefs({ notifications: { ...notify, [key]: OPT_IN.includes(key) ? { inApp: on, push: on } : { ...notify[key], push: on } } });
 
   const chooseMapType = () =>
     ActionSheetIOS.showActionSheetWithOptions({ title: 'Default map style', options: [...MAP_TYPES.map((m) => m.label), 'Cancel'], cancelButtonIndex: MAP_TYPES.length }, (i) => {
@@ -330,7 +335,7 @@ export default function Settings() {
             iconColor={n.color}
             title={n.title}
             subtitle={n.subtitle}
-            accessory={<Switch value={pushOn && notify[n.key]?.push !== false} disabled={!pushOn} onValueChange={(v) => void setNotify(n.key, v)} trackColor={{ true: C.accent }} />}
+            accessory={<Switch value={pushOn && notifyOn(n.key)} disabled={!pushOn} onValueChange={(v) => void setNotify(n.key, v)} trackColor={{ true: C.accent }} />}
           />
         ))}
         <Row

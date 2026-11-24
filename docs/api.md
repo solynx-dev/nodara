@@ -41,7 +41,7 @@ Emailed codes are 6 digits, stored hashed, and only the newest code of each kind
 
 | Endpoint | Description |
 |---|---|
-| `PATCH /me` | `{displayName?, avatarColor?, preferences?}` — preferences: `units`, `theme`, `mapStyle`, `updateIntervalSec`, `adaptiveInterval`, `highAccuracy`, `retentionDays`, `notifyLowBattery`, `lowBatteryThreshold`, `notifications.{places,circle,sharing,lowBattery,deviceOffline}.{inApp,push}`. |
+| `PATCH /me` | `{displayName?, avatarColor?, preferences?}` — preferences: `units`, `theme`, `mapStyle`, `updateIntervalSec`, `adaptiveInterval`, `highAccuracy`, `retentionDays`, `notifyLowBattery`, `lowBatteryThreshold`, `notifications.{places,circle,sharing,lowBattery,deviceOffline,drives}.{inApp,push}` (`drives` is off unless `inApp: true`). |
 | `POST /me/sharing` | `{paused}` — global pause/resume. |
 | `PUT /me/avatar` | `{image}` — base64 JPEG, PNG or WebP (≤ 2 MB; data URLs accepted). Anything else, including SVG, is refused. Returns the updated profile with a versioned `avatarUrl`. Clients should shrink photos first (the apps send 512×512 JPEG). |
 | `DELETE /me/avatar` | Remove the profile photo. |
@@ -127,6 +127,8 @@ Events are detected on the server from uploaded fixes (speeding, hard braking, r
 ## Notifications
 
 `GET /notifications?before&unread&limit` → `{items, unread}` · `POST /notifications/read {ids? | all: true}` · `DELETE /notifications/:id` · `DELETE /notifications` (clear read).
+
+**Finished drives** (`drive_finished`, opt-in with `notifications.drives.inApp: true`): when someone in your circles finishes a drive, e.g. “Ava drove to Work” / “24.4 km · 30 min · top 120 km/h. Ended at Work.” in your units. The place is one of your circles' places (or your own) where the drive ended; otherwise the nearest address or business. Sent only for drives you could see anyway (circles where they share and trips are visible, not from a bubble, not while they've paused sharing), not for walks or passenger rides, not for circles you muted, and only for drives that just ended (recomputing trips doesn't resend them). `data: {userId, tripId, placeId, url}`.
 
 ## Administration (admins only)
 

@@ -79,7 +79,7 @@ export interface PlaceEvent {
   place: { id: string; name: string; icon: string; color: string };
 }
 
-export type NotifyKey = 'places' | 'circle' | 'sharing' | 'lowBattery' | 'deviceOffline';
+export type NotifyKey = 'places' | 'circle' | 'sharing' | 'lowBattery' | 'deviceOffline' | 'drives';
 export type NotifyPrefs = Partial<Record<NotifyKey, { inApp?: boolean; push?: boolean }>>;
 
 export interface Device {

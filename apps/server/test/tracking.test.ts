@@ -176,6 +176,42 @@ describe('ingestion, trips and geofences', () => {
     expect(await wakeQuietPhones(env.ctx)).toBe(0);
   });
 
+  it('tells circle-mates who opted in when someone finishes a drive, and where it ended', async () => {
+    const a = await newUser(env, 'Driver');
+    const b = await newUser(env, 'Watcher');
+    const c = await newUser(env, 'Quiet');
+    const circle = (await a.client.post('/api/circles', { name: 'Family' })).json();
+    for (const p of [b, c]) {
+      const inv = (await a.client.post(`/api/circles/${circle.id}/invitations`, { maxUses: 1 })).json();
+      await p.client.post(`/api/invitations/${inv.token}/accept`);
+    }
+    await b.client.post('/api/places', { name: 'Work', lat: 44.7168, lon: -63.6559, radiusM: 150, circleId: circle.id });
+    // Opt in (off by default); c leaves it off.
+    expect((await b.client.patch('/api/me', { preferences: { units: 'imperial', notifications: { drives: { inApp: true, push: true } } } })).statusCode).toBe(200);
+
+    // Circles see trips from when sharing started: say that was yesterday.
+    await env.sql`UPDATE circle_members SET sharing_since = now() - interval '1 day' WHERE circle_id = ${circle.id}`;
+    // A drive that ended about 12 minutes ago.
+    const now = Date.now();
+    const fixes = journey([44.6468, -63.5937], [44.7168, -63.6559], now + 16 * 60_000).filter((f) => Date.parse(f.recordedAt) <= now);
+    await a.client.post('/api/locations', { deviceId: a.deviceId, locations: fixes });
+    await processDeviceTrips(env.ctx, a.deviceId);
+    await new Promise((r) => setTimeout(r, 300));
+
+    const drives = (p: typeof a) => p.client.get('/api/notifications').then((r) => (r.json().items as { type: string; title: string; body: string; data: { tripId: string } }[]).filter((n) => n.type === 'drive_finished'));
+    const got = await drives(b);
+    expect(got).toHaveLength(1);
+    expect(got[0]!.title).toBe('Driver drove to Work');
+    expect(got[0]!.body).toMatch(/mi · \d+ min · top \d+ mph\. Ended at Work\./);
+    expect(await drives(c)).toHaveLength(0);
+    expect(await drives(a)).toHaveLength(0);
+
+    // Recomputing trips doesn't announce them again.
+    await a.client.post('/api/trips/rebuild');
+    await new Promise((r) => setTimeout(r, 300));
+    expect(await drives(b)).toHaveLength(1);
+  });
+
   it('lets people mark their own drives as passenger rides or walks', async () => {
     const u = await newUser(env, 'Rider');
     const other = await newUser(env, 'Nosy');

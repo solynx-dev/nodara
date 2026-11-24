@@ -15,6 +15,7 @@ const ICONS: Record<string, { icon: SFSymbol; color: string; label: string }> = 
   arrival: { icon: 'arrow.down.right.circle.fill', color: HEX.green, label: 'Arrival' },
   departure: { icon: 'arrow.up.right.circle.fill', color: HEX.orange, label: 'Departure' },
   check_in: { icon: 'mappin.circle.fill', color: BRAND.purple, label: 'Check-in' },
+  drive_finished: { icon: 'car.circle.fill', color: HEX.blue, label: 'Drive' },
   member_joined: { icon: 'person.crop.circle.badge.plus', color: HEX.blue, label: 'Circle' },
   sharing_changed: { icon: 'eye.circle.fill', color: HEX.gray, label: 'Sharing' },
   low_battery: { icon: 'battery.25percent', color: HEX.red, label: 'Battery' },

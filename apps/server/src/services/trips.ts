@@ -1,3 +1,4 @@
+import { notifyDriveFinished } from './drive-notify.js';
 import { liveViewersOf } from './bubbles.js';
 import type { Ctx } from '../context.js';
 import {
@@ -41,11 +42,11 @@ interface StoredState {
  * Completed trips are persisted; an in-progress trip is kept as a single row
  * with status 'in_progress' that is replaced on every run.
  */
-export function processDeviceTrips(ctx: Ctx, deviceId: string, now = Date.now()) {
-  return serial(deviceId, () => runDevice(ctx, deviceId, now));
+export function processDeviceTrips(ctx: Ctx, deviceId: string, now = Date.now(), opts: { announce?: boolean } = {}) {
+  return serial(deviceId, () => runDevice(ctx, deviceId, now, opts.announce ?? true));
 }
 
-async function runDevice(ctx: Ctx, deviceId: string, now: number) {
+async function runDevice(ctx: Ctx, deviceId: string, now: number, announce: boolean) {
   const { sql } = ctx;
   const [device] = await sql<{ user_id: string; trip_state: StoredState | null }[]>`
     SELECT user_id, trip_state FROM devices WHERE id = ${deviceId}`;
@@ -81,8 +82,10 @@ async function runDevice(ctx: Ctx, deviceId: string, now: number) {
     const res = segmentTrips(points, cfg, effectiveNow, state);
 
     for (const trip of res.completed) {
-      await saveTrip(ctx, device.user_id, deviceId, trip, 'completed');
+      const id = await saveTrip(ctx, device.user_id, deviceId, trip, 'completed');
       completedCount++;
+      // Tell circle-mates who asked for it (in the background; old trips are skipped).
+      if (announce && id) void notifyDriveFinished(ctx, id).catch((err) => ctx.log.warn({ err }, 'drive notification failed'));
     }
     open = res.open;
     if (open) await saveTrip(ctx, device.user_id, deviceId, open, 'in_progress');
@@ -108,7 +111,7 @@ export async function rebuildTrips(ctx: Ctx, userId: string) {
       await ctx.sql`DELETE FROM trips WHERE device_id = ${d.id}`;
       await ctx.sql`UPDATE devices SET trip_state = NULL WHERE id = ${d.id}`;
     });
-    completed += (await processDeviceTrips(ctx, d.id)).completed;
+    completed += (await processDeviceTrips(ctx, d.id, Date.now(), { announce: false })).completed;
     for (const f of fixes) {
       // Onto the new trip that overlaps the corrected one the most.
       await ctx.sql`
@@ -189,6 +192,7 @@ async function saveTrip(ctx: Ctx, userId: string, deviceId: string, trip: Detect
                 WHERE id = ${row!.id}`;
     })().catch((err) => ctx.log.warn({ err }, 'trip labelling failed'));
   }
+  return row!.id;
 }
 
 /**
